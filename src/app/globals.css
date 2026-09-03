@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: theme("colors.sand");
+  color: theme("colors.ink");
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* أزرار البيع: كبيرة، بلا تحديد نص، سريعة اللمس */
+.tap {
+  @apply select-none active:scale-[0.98] transition-transform touch-manipulation;
+}
+
+.card {
+  @apply bg-white border border-line rounded-xl;
+}
+
+.btn {
+  @apply tap rounded-xl px-4 py-3 font-semibold border border-line bg-white;
+}
+
+.btn-primary {
+  @apply tap rounded-xl px-4 py-3 font-bold text-white bg-clay hover:bg-clayDark border border-clayDark;
+}
+
+.input {
+  @apply w-full rounded-xl border border-line bg-white px-3 py-2 outline-none focus:border-clay;
+}
+
+/* ------------------------------------------------------------------ */
+/* الفاتورة الحرارية ٨٠مم                                              */
+/* ------------------------------------------------------------------ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+  #receipt {
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    width: 72mm;
+    font-size: 12px;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+}
