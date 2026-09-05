@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { money } from "@/lib/format";
 import type { CatalogProduct } from "@/lib/catalog";
 import PaymentDialog from "@/components/PaymentDialog";
+import Modal from "@/components/Modal";
+import ShiftControls from "@/components/ShiftControls";
 
 export type CartLine = {
   key: string;
@@ -21,10 +23,12 @@ export default function PosScreen({
   catalog,
   currency,
   userName,
+  shift,
 }: {
   catalog: CatalogProduct[];
   currency: string;
   userName: string;
+  shift: { id: string; opening_float: number };
 }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [fulfillment, setFulfillment] = useState<Fulfillment>("takeaway");
@@ -79,9 +83,11 @@ export default function PosScreen({
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col lg:flex-row" dir="rtl">
       {/* شبكة المشروبات */}
       <section className="flex-1 p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-[#5b4636]">البيع</h1>
-          <span className="text-xs text-neutral-400">{userName}</span>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-lg font-bold text-[#5b4636]">
+            البيع <span className="text-xs font-normal text-neutral-400">· {userName}</span>
+          </h1>
+          <ShiftControls openingFloat={shift.opening_float} currency={currency} />
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {catalog.map((p) => {
@@ -231,20 +237,3 @@ function StepBtn({ onClick, children }: { onClick: () => void; children: React.R
   );
 }
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-t-2xl bg-white p-5 sm:rounded-2xl"
-        dir="rtl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-[#5b4636]">{title}</h3>
-          <button onClick={onClose} className="text-neutral-400">✕</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}

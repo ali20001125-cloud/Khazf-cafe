@@ -2,6 +2,8 @@
 
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
+import { getActiveBranchId } from "@/lib/branch";
+import { getOpenShift } from "@/lib/shifts";
 
 export type PayItem = { product_id: string; crop_material_id: string; qty: number };
 
@@ -32,11 +34,12 @@ export async function pay(input: PayInput): Promise<PayResult> {
   if (!input.idempotencyKey) return { ok: false, error: "مفتاح دفع مفقود" };
 
   try {
-    const branchRows = (await db()`
-      select id from branches where business_id = ${user.bid} and active order by created_at limit 1
-    `) as { id: string }[];
-    const branchId = branchRows[0]?.id;
+    const branchId = await getActiveBranchId(user.bid);
     if (!branchId) return { ok: false, error: "لا يوجد فرع فعّال" };
+
+    // كل بيع ينتمي لوردية مفتوحة (لتسوية الكاش وكشف النقص)
+    const shift = await getOpenShift(branchId);
+    if (!shift) return { ok: false, error: "افتح الوردية أولاً" };
 
     const itemsJson = JSON.stringify(
       input.items.map((i) => ({
@@ -48,7 +51,7 @@ export async function pay(input: PayInput): Promise<PayResult> {
 
     const rows = (await db()`
       select checkout(
-        ${user.bid}, ${branchId}, ${user.uid}, ${null},
+        ${user.bid}, ${branchId}, ${user.uid}, ${shift.id},
         ${input.fulfillment}, ${input.method}, ${input.tendered},
         ${input.idempotencyKey}, ${itemsJson}::jsonb
       ) as result

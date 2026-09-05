@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { money } from "@/lib/format";
-import { Modal } from "@/components/PosScreen";
+import Modal from "@/components/Modal";
 import type { CartLine } from "@/components/PosScreen";
 import Receipt, { type ReceiptInfo } from "@/components/Receipt";
 import { pay } from "@/app/pos/actions";
