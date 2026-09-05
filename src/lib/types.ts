@@ -1,55 +1,100 @@
-export type MaterialUnit = "gram" | "ml" | "piece";
-export type DrinkCategory = "hot" | "cold" | "espresso" | "other";
+/**
+ * أنواع مطابقة لمخطّط القاعدة (db/migrations/0001_schema.sql).
+ * المرجع: docs/CAFE-POS-TECH.md — الجزء ١.
+ * كل الفلوس/الكميات أعداد صحيحة.
+ */
+
+export type UserRole = "owner" | "barista";
+export type MaterialUnit = "g" | "ml" | "pcs";
+export type OrderStatus = "DRAFT" | "PAID" | "COMPLETED" | "VOIDED" | "REFUNDED";
+export type Fulfillment = "takeaway" | "dine_in";
 export type PaymentMethod = "cash" | "card";
-export type ServiceType = "takeaway" | "dinein";
+export type PaymentStatus = "PENDING" | "CONFIRMED" | "FAILED";
+export type InvTxnType = "PURCHASE" | "SALE" | "WASTE" | "STAFF" | "ADJUSTMENT" | "COUNT";
+export type CashMovementType = "OPENING" | "SALE" | "REFUND" | "EXPENSE" | "DROP" | "REMOVAL";
+export type ShiftStatus = "OPEN" | "CLOSED";
+
+export type Business = { id: string; name: string; created_at: string };
+
+export type Branch = {
+  id: string;
+  business_id: string;
+  name: string;
+  timezone: string;
+  standard_float: number;
+  pos_locked: boolean;
+  active: boolean;
+};
+
+export type User = {
+  id: string;
+  business_id: string;
+  name: string;
+  role: UserRole;
+  active: boolean;
+  // pin_hash لا يُرسل للواجهة أبداً
+};
 
 export type Material = {
   id: string;
+  business_id: string;
   name: string;
-  unit: MaterialUnit;
-  stock: number;
-  low_alert: number;
-  is_coffee: boolean;
+  base_unit: MaterialUnit;
+  low_threshold: number;
+  current_cost: number;
+  cached_stock: number;
   active: boolean;
 };
 
-export type Drink = {
+export type Product = {
   id: string;
+  business_id: string;
   name: string;
-  category: DrinkCategory;
+  category: string;
+  active: boolean;
+  paused: boolean;
+  daily_limit: number | null;
+  is_daily_special: boolean;
+  sort: number;
+};
+
+export type ProductCrop = {
+  id: string;
+  product_id: string;
+  material_id: string;
   price: number;
-  loyalty_eligible: boolean;
-  crop_material_id: string | null;
-  sort_order: number;
+  available: boolean;
+};
+
+export type Recipe = {
+  id: string;
+  product_id: string;
+  version: number;
+  coffee_grams: number;
   active: boolean;
 };
 
-export type RecipeRow = {
-  drink_id: string;
+export type RecipeItem = {
+  id: string;
+  recipe_id: string;
   material_id: string;
   qty: number;
-  takeaway_only: boolean;
+  only_takeaway: boolean;
 };
 
+/** بند السلة قبل الدفع (في المتصفح). */
 export type CartLine = {
   key: string;
-  drink_id: string;
+  product_id: string;
   name: string;
+  crop_material_id: string; // المحصول المختار
   unit_price: number;
   qty: number;
-  service: ServiceType;
-  extra_shots: number;
 };
 
-export type ReceiptData = {
-  number: number;
-  total: number;
-  change_due: number | null;
-  payment_method: PaymentMethod;
-  cash_received: number | null;
-  created_at: string;
-  lines: { name: string; qty: number; unit_price: number; service: ServiceType; extra_shots: number }[];
-  shop_name: string;
-  shop_phone: string;
-  currency: string;
+/** لقطة الوصفة المخزّنة في order_items.recipe_snapshot وقت البيع. */
+export type RecipeSnapshot = {
+  coffee_grams: number;
+  crop_material_id: string;
+  items: { material_id: string; qty: number; only_takeaway: boolean }[];
 };
