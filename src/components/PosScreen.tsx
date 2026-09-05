@@ -6,6 +6,7 @@ import type { CatalogProduct } from "@/lib/catalog";
 import PaymentDialog from "@/components/PaymentDialog";
 import Modal from "@/components/Modal";
 import ShiftControls from "@/components/ShiftControls";
+import StaffDrinkDialog from "@/components/StaffDrinkDialog";
 
 export type CartLine = {
   key: string;
@@ -42,6 +43,7 @@ export default function PosScreen({
   const [fulfillment, setFulfillment] = useState<Fulfillment>("takeaway");
   const [cropFor, setCropFor] = useState<CatalogProduct | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  const [staffOpen, setStaffOpen] = useState(false);
 
   const total = useMemo(() => lines.reduce((s, l) => s + l.unit_price * l.qty, 0), [lines]);
   const count = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines]);
@@ -92,7 +94,10 @@ export default function PosScreen({
             <h1 className="font-display text-lg font-bold text-cream">
               خزف <span className="text-sm font-normal text-cream/50">· {userName}</span>
             </h1>
-            <ShiftControls openingFloat={shift.opening_float} currency={currency} />
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setStaffOpen(true)} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">مشروب موظف</button>
+              <ShiftControls openingFloat={shift.opening_float} currency={currency} />
+            </div>
           </div>
         </header>
 
@@ -204,6 +209,8 @@ export default function PosScreen({
           onPaid={() => { setPayOpen(false); clearCart(); }}
         />
       )}
+
+      {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}
     </div>
   );
 }
