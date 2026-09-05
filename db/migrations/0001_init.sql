@@ -217,19 +217,12 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------
--- الأمان: RLS مقفلة بالكامل. لا سياسات عامة.
--- كل الوصول عبر خادم Next.js بمفتاح service_role.
--- مفتاح anon لا يقرأ ولا يكتب أي شيء.
+-- الأمان
+--
+-- قاعدة البيانات على Neon: لا واجهة HTTP عامة ولا مفتاح مجهول.
+-- الوصول الوحيد هو رابط الاتصال، وهو يعيش على الخادم فقط.
+-- لذلك لا حاجة لـ RLS هنا: لا يوجد دور عام تحميه منه، وتفعيلها
+-- بلا سياسات كان سيقفل التطبيق نفسه عن جداوله.
+-- الحماية الحقيقية: رابط الاتصال سرّ خادمي، والتطبيق لا يعرّض
+-- أي مسار يكتب إلا عبر تحقّق صريح.
 -- ---------------------------------------------------------------------
-do $$
-declare t text;
-begin
-  foreach t in array array[
-    'settings','materials','drinks','drink_materials','employees','shifts',
-    'orders','order_items','waste_log','audit_log','stock_counts',
-    'customers','stamps','redemptions'
-  ] loop
-    execute format('alter table %I enable row level security', t);
-    execute format('alter table %I force row level security', t);
-  end loop;
-end $$;

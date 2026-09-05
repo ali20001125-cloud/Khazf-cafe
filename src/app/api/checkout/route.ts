@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import type { PaymentMethod, ServiceType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -59,23 +59,28 @@ export async function POST(req: Request) {
     }
   }
 
-  const { data, error } = await db.rpc("checkout", {
-    p_items: clean,
-    p_payment_method: method,
-    p_cash_received: cash,
-    p_service: "takeaway",
-    p_shift_id: null,
-    p_employee_id: null,
-  });
-
-  if (error) {
-    console.error("[checkout]", error.message);
-    return NextResponse.json({ error: error.message || "فشل إتمام البيع" }, { status: 400 });
-  }
-
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) {
-    return NextResponse.json({ error: "لم تُسجَّل الفاتورة" }, { status: 500 });
+  let row: { order_id: string; order_number: string; total: number; change_due: number | null };
+  try {
+    const rows = (await db()`
+      select order_id, order_number, total, change_due
+        from checkout(
+          ${JSON.stringify(clean)}::jsonb,
+          ${method}::payment_method,
+          ${cash}::integer,
+          'takeaway'::service_type,
+          null::uuid,
+          null::uuid
+        )
+    `) as unknown as typeof row[];
+    if (!rows[0]) {
+      return NextResponse.json({ error: "لم تُسجَّل الفاتورة" }, { status: 500 });
+    }
+    row = rows[0];
+  } catch (e) {
+    // رسائل الدالة عربية ومقصودة للباريستا (سلة فارغة، مبلغ ناقص، مشروب غير مفعّل)
+    const msg = e instanceof Error ? e.message : "فشل إتمام البيع";
+    console.error("[checkout]", msg);
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 
   return NextResponse.json({

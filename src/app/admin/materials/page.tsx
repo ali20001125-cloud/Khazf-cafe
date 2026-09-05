@@ -1,4 +1,4 @@
-import { db } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { unitLabel } from "@/lib/format";
 import type { Material } from "@/lib/types";
 import { saveMaterial, toggleMaterial } from "../actions";
@@ -12,8 +12,12 @@ const UNITS: { v: string; label: string }[] = [
 ];
 
 export default async function MaterialsPage() {
-  const { data } = await db.from("materials").select("*").order("name");
-  const materials = (data ?? []) as Material[];
+  const materials = (await db()`
+    select id, name, unit, stock::float8 as stock, low_alert::float8 as low_alert,
+           is_coffee, active
+      from materials
+     order by name
+  `) as unknown as Material[];
 
   return (
     <div className="space-y-4">

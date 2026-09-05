@@ -17,7 +17,6 @@ create or replace function checkout(
 )
 returns table (order_id uuid, order_number bigint, total integer, change_due integer)
 language plpgsql
-security definer
 set search_path = public
 as $$
 declare
@@ -124,9 +123,3 @@ begin
   return query select v_order_id, v_number, v_total, v_change;
 end;
 $$;
-
--- لا أحد ينادي هذه الدالة إلا خادمنا. مفتاح anon مقطوع تماماً.
-revoke all on function checkout(jsonb, payment_method, integer, service_type, uuid, uuid) from public;
-do $$ begin
-  execute 'grant execute on function checkout(jsonb, payment_method, integer, service_type, uuid, uuid) to service_role';
-exception when undefined_object then null; end $$;

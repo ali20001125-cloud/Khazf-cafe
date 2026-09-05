@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "./supabase";
+import { db } from "./db";
 
 export type Settings = Record<string, unknown>;
 
@@ -12,10 +12,16 @@ const FALLBACK: Record<string, unknown> = {
 };
 
 export async function getSettings(): Promise<Settings> {
-  const { data, error } = await db.from("settings").select("key, value");
-  if (error || !data) return { ...FALLBACK };
   const out: Settings = { ...FALLBACK };
-  for (const row of data) out[row.key as string] = (row as { value: unknown }).value;
+  try {
+    const rows = (await db()`select key, value from settings`) as {
+      key: string;
+      value: unknown;
+    }[];
+    for (const row of rows) out[row.key] = row.value;
+  } catch {
+    // الإعدادات ليست حرجة: نكمل بالقيم الافتراضية
+  }
   return out;
 }
 

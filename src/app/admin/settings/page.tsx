@@ -1,4 +1,4 @@
-import { db } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { saveSetting } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +19,11 @@ const FIELDS: { key: string; label: string; kind: "text" | "number"; hint?: stri
 ];
 
 export default async function SettingsPage() {
-  const { data } = await db.from("settings").select("key, value");
-  const map = new Map((data ?? []).map((r) => [r.key as string, (r as { value: unknown }).value]));
+  const rows = (await db()`select key, value from settings`) as unknown as {
+    key: string;
+    value: unknown;
+  }[];
+  const map = new Map(rows.map((r) => [r.key, r.value]));
 
   function current(key: string, kind: "text" | "number"): string {
     const v = map.get(key);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { unitLabel } from "@/lib/format";
 import type { Drink, Material, RecipeRow } from "@/lib/types";
 import { deleteRecipeRow, saveRecipeRow } from "../../actions";
@@ -8,17 +8,31 @@ import { deleteRecipeRow, saveRecipeRow } from "../../actions";
 export const dynamic = "force-dynamic";
 
 export default async function RecipePage({ params }: { params: { id: string } }) {
-  const [{ data: drink }, { data: matRows }, { data: recipeRows }] = await Promise.all([
-    db.from("drinks").select("*").eq("id", params.id).maybeSingle(),
-    db.from("materials").select("*").eq("active", true).order("name"),
-    db.from("drink_materials").select("*").eq("drink_id", params.id),
-  ]);
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID.test(params.id)) notFound();
 
-  if (!drink) notFound();
+  const drinkRows = (await db()`
+    select id, name, category, price, loyalty_eligible, crop_material_id, sort_order, active
+      from drinks
+     where id = ${params.id}::uuid
+  `) as unknown as Drink[];
 
-  const d = drink as Drink;
-  const materials = (matRows ?? []) as Material[];
-  const recipe = (recipeRows ?? []) as RecipeRow[];
+  const d = drinkRows[0];
+  if (!d) notFound();
+
+  const materials = (await db()`
+    select id, name, unit, stock::float8 as stock, low_alert::float8 as low_alert,
+           is_coffee, active
+      from materials
+     where active
+     order by name
+  `) as unknown as Material[];
+
+  const recipe = (await db()`
+    select drink_id, material_id, qty::float8 as qty, takeaway_only
+      from drink_materials
+     where drink_id = ${params.id}::uuid
+  `) as unknown as RecipeRow[];
   const byId = new Map(materials.map((m) => [m.id, m]));
   const used = new Set(recipe.map((r) => r.material_id));
   const available = materials.filter((m) => !used.has(m.id));

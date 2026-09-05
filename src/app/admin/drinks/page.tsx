@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { db } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { categoryLabel, money } from "@/lib/format";
 import type { Drink, Material } from "@/lib/types";
 import { saveDrink, toggleDrink } from "../actions";
@@ -14,12 +14,19 @@ const CATS = [
 ];
 
 export default async function DrinksPage() {
-  const [{ data: drinkRows }, { data: matRows }] = await Promise.all([
-    db.from("drinks").select("*").order("sort_order"),
-    db.from("materials").select("*").eq("is_coffee", true).eq("active", true).order("name"),
-  ]);
-  const drinks = (drinkRows ?? []) as Drink[];
-  const crops = (matRows ?? []) as Material[];
+  const drinks = (await db()`
+    select id, name, category, price, loyalty_eligible, crop_material_id, sort_order, active
+      from drinks
+     order by sort_order
+  `) as unknown as Drink[];
+
+  const crops = (await db()`
+    select id, name, unit, stock::float8 as stock, low_alert::float8 as low_alert,
+           is_coffee, active
+      from materials
+     where is_coffee and active
+     order by name
+  `) as unknown as Material[];
 
   return (
     <div className="space-y-4">

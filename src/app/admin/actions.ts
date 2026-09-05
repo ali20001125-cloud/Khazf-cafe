@@ -2,11 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { db } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { adminCookieName, checkPin, isAdmin, sessionToken } from "@/lib/admin-auth";
+import type { DrinkCategory, MaterialUnit } from "@/lib/types";
 
+/**
+ * كل action يفحص الصلاحية بنفسه.
+ * لا يكفي فحص الـ layout: Server Actions تُنادى بطلب مباشر
+ * لا يمرّ على شجرة الصفحات إطلاقاً.
+ */
 function guard() {
   if (!isAdmin()) throw new Error("غير مصرّح");
+}
+
+const UNITS: MaterialUnit[] = ["gram", "ml", "piece"];
+const CATEGORIES: DrinkCategory[] = ["hot", "cold", "espresso", "other"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function uuid(v: FormDataEntryValue | null): string | null {
+  const s = String(v ?? "");
+  return UUID.test(s) ? s : null;
+}
+
+function positive(v: FormDataEntryValue | null): number {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 /* ------------------------------ الدخول ------------------------------ */
@@ -34,60 +54,78 @@ export async function logout() {
 
 export async function saveMaterial(formData: FormData) {
   guard();
-  const id = String(formData.get("id") ?? "");
-  const payload = {
-    name: String(formData.get("name") ?? "").trim(),
-    unit: String(formData.get("unit") ?? "gram"),
-    stock: Number(formData.get("stock") ?? 0),
-    low_alert: Number(formData.get("low_alert") ?? 0),
-    is_coffee: formData.get("is_coffee") === "on",
-  };
-  if (!payload.name) throw new Error("الاسم مطلوب");
+  const id = uuid(formData.get("id"));
+  const name = String(formData.get("name") ?? "").trim();
+  const unitRaw = String(formData.get("unit") ?? "gram") as MaterialUnit;
+  const unit = UNITS.includes(unitRaw) ? unitRaw : "gram";
+  const stock = positive(formData.get("stock"));
+  const lowAlert = positive(formData.get("low_alert"));
+  const isCoffee = formData.get("is_coffee") === "on";
 
-  const { error } = id
-    ? await db.from("materials").update(payload).eq("id", id)
-    : await db.from("materials").insert(payload);
-  if (error) throw new Error(error.message);
+  if (!name) throw new Error("الاسم مطلوب");
+
+  if (id) {
+    await db()`
+      update materials
+         set name = ${name}, unit = ${unit}::material_unit, stock = ${stock},
+             low_alert = ${lowAlert}, is_coffee = ${isCoffee}
+       where id = ${id}::uuid
+    `;
+  } else {
+    await db()`
+      insert into materials (name, unit, stock, low_alert, is_coffee)
+      values (${name}, ${unit}::material_unit, ${stock}, ${lowAlert}, ${isCoffee})
+    `;
+  }
   revalidatePath("/admin/materials");
+  revalidatePath("/admin");
 }
 
 export async function toggleMaterial(formData: FormData) {
   guard();
-  const id = String(formData.get("id") ?? "");
-  const active = formData.get("active") === "true";
-  const { error } = await db.from("materials").update({ active: !active }).eq("id", id);
-  if (error) throw new Error(error.message);
+  const id = uuid(formData.get("id"));
+  if (!id) throw new Error("معرّف غير صالح");
+  await db()`update materials set active = not active where id = ${id}::uuid`;
   revalidatePath("/admin/materials");
+  revalidatePath("/admin");
 }
 
 /* ------------------------------ المشروبات ------------------------------ */
 
 export async function saveDrink(formData: FormData) {
   guard();
-  const id = String(formData.get("id") ?? "");
-  const crop = String(formData.get("crop_material_id") ?? "");
-  const payload = {
-    name: String(formData.get("name") ?? "").trim(),
-    category: String(formData.get("category") ?? "hot"),
-    price: Math.max(0, Math.floor(Number(formData.get("price") ?? 0))),
-    loyalty_eligible: formData.get("loyalty_eligible") === "on",
-    crop_material_id: crop || null,
-    sort_order: Math.floor(Number(formData.get("sort_order") ?? 100)),
-  };
-  if (!payload.name) throw new Error("الاسم مطلوب");
+  const id = uuid(formData.get("id"));
+  const name = String(formData.get("name") ?? "").trim();
+  const catRaw = String(formData.get("category") ?? "hot") as DrinkCategory;
+  const category = CATEGORIES.includes(catRaw) ? catRaw : "hot";
+  const price = Math.floor(positive(formData.get("price")));
+  const eligible = formData.get("loyalty_eligible") === "on";
+  const crop = uuid(formData.get("crop_material_id"));
+  const sortOrder = Math.floor(Number(formData.get("sort_order") ?? 100)) || 100;
 
-  const { error } = id
-    ? await db.from("drinks").update(payload).eq("id", id)
-    : await db.from("drinks").insert(payload);
-  if (error) throw new Error(error.message);
+  if (!name) throw new Error("الاسم مطلوب");
+
+  if (id) {
+    await db()`
+      update drinks
+         set name = ${name}, category = ${category}::drink_category, price = ${price},
+             loyalty_eligible = ${eligible}, crop_material_id = ${crop}::uuid,
+             sort_order = ${sortOrder}
+       where id = ${id}::uuid
+    `;
+  } else {
+    await db()`
+      insert into drinks (name, category, price, loyalty_eligible, crop_material_id, sort_order)
+      values (${name}, ${category}::drink_category, ${price}, ${eligible}, ${crop}::uuid, ${sortOrder})
+    `;
+  }
 
   // تعديل السعر حدث رقابي — يُسجَّل ولا يُمحى.
-  await db.from("audit_log").insert({
-    event: id ? "price_edit" : "drink_create",
-    amount: payload.price,
-    reason: payload.name,
-    meta: { drink_id: id || null },
-  });
+  await db()`
+    insert into audit_log (event, amount, reason, meta)
+    values (${id ? "price_edit" : "drink_create"}, ${price}, ${name},
+            ${JSON.stringify({ drink_id: id })}::jsonb)
+  `;
 
   revalidatePath("/admin/drinks");
   revalidatePath("/pos");
@@ -95,10 +133,9 @@ export async function saveDrink(formData: FormData) {
 
 export async function toggleDrink(formData: FormData) {
   guard();
-  const id = String(formData.get("id") ?? "");
-  const active = formData.get("active") === "true";
-  const { error } = await db.from("drinks").update({ active: !active }).eq("id", id);
-  if (error) throw new Error(error.message);
+  const id = uuid(formData.get("id"));
+  if (!id) throw new Error("معرّف غير صالح");
+  await db()`update drinks set active = not active where id = ${id}::uuid`;
   revalidatePath("/admin/drinks");
   revalidatePath("/pos");
 }
@@ -107,61 +144,89 @@ export async function toggleDrink(formData: FormData) {
 
 export async function saveRecipeRow(formData: FormData) {
   guard();
-  const drink_id = String(formData.get("drink_id") ?? "");
-  const material_id = String(formData.get("material_id") ?? "");
+  const drinkId = uuid(formData.get("drink_id"));
+  const materialId = uuid(formData.get("material_id"));
   const qty = Number(formData.get("qty") ?? 0);
-  const takeaway_only = formData.get("takeaway_only") === "on";
-  if (!drink_id || !material_id) throw new Error("بيانات ناقصة");
+  const takeawayOnly = formData.get("takeaway_only") === "on";
+
+  if (!drinkId || !materialId) throw new Error("بيانات ناقصة");
   if (!(qty > 0)) throw new Error("الكمية يجب أن تكون أكبر من صفر");
 
-  const { error } = await db
-    .from("drink_materials")
-    .upsert({ drink_id, material_id, qty, takeaway_only }, { onConflict: "drink_id,material_id" });
-  if (error) throw new Error(error.message);
+  await db()`
+    insert into drink_materials (drink_id, material_id, qty, takeaway_only)
+    values (${drinkId}::uuid, ${materialId}::uuid, ${qty}, ${takeawayOnly})
+    on conflict (drink_id, material_id)
+    do update set qty = excluded.qty, takeaway_only = excluded.takeaway_only
+  `;
 
-  await db.from("audit_log").insert({
-    event: "recipe_edit",
-    reason: `qty=${qty}`,
-    meta: { drink_id, material_id },
-  });
+  await db()`
+    insert into audit_log (event, reason, meta)
+    values ('recipe_edit', ${`qty=${qty}`},
+            ${JSON.stringify({ drink_id: drinkId, material_id: materialId })}::jsonb)
+  `;
 
-  revalidatePath(`/admin/drinks/${drink_id}`);
+  revalidatePath(`/admin/drinks/${drinkId}`);
 }
 
 export async function deleteRecipeRow(formData: FormData) {
   guard();
-  const drink_id = String(formData.get("drink_id") ?? "");
-  const material_id = String(formData.get("material_id") ?? "");
-  const { error } = await db
-    .from("drink_materials")
-    .delete()
-    .eq("drink_id", drink_id)
-    .eq("material_id", material_id);
-  if (error) throw new Error(error.message);
+  const drinkId = uuid(formData.get("drink_id"));
+  const materialId = uuid(formData.get("material_id"));
+  if (!drinkId || !materialId) throw new Error("بيانات ناقصة");
 
-  await db.from("audit_log").insert({
-    event: "recipe_edit",
-    reason: "delete",
-    meta: { drink_id, material_id },
-  });
+  await db()`
+    delete from drink_materials
+     where drink_id = ${drinkId}::uuid and material_id = ${materialId}::uuid
+  `;
 
-  revalidatePath(`/admin/drinks/${drink_id}`);
+  await db()`
+    insert into audit_log (event, reason, meta)
+    values ('recipe_edit', 'delete',
+            ${JSON.stringify({ drink_id: drinkId, material_id: materialId })}::jsonb)
+  `;
+
+  revalidatePath(`/admin/drinks/${drinkId}`);
 }
 
 /* ------------------------------ الإعدادات ------------------------------ */
+
+const SETTING_KEYS = new Set([
+  "shop_name",
+  "shop_phone",
+  "currency",
+  "extra_shot_price",
+  "shot_grams",
+  "variance_alert_pct",
+  "stamps_for_free",
+  "stamp_cap_per_order",
+  "free_drink_max_price",
+  "stamp_daily_limit",
+  "stamp_expiry_days",
+]);
 
 export async function saveSetting(formData: FormData) {
   guard();
   const key = String(formData.get("key") ?? "");
   const raw = String(formData.get("value") ?? "").trim();
   const kind = String(formData.get("kind") ?? "text");
-  if (!key) throw new Error("مفتاح ناقص");
 
-  const value = kind === "number" ? [Number(raw)] : raw;
-  const { error } = await db
-    .from("settings")
-    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
-  if (error) throw new Error(error.message);
+  // قائمة بيضاء: لا يُكتب مفتاح إعداد لم نعرّفه
+  if (!SETTING_KEYS.has(key)) throw new Error("مفتاح إعداد غير معروف");
+
+  let value: unknown;
+  if (kind === "number") {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) throw new Error("القيمة يجب أن تكون رقماً");
+    value = [n];
+  } else {
+    value = raw;
+  }
+
+  await db()`
+    insert into settings (key, value, updated_at)
+    values (${key}, ${JSON.stringify(value)}::jsonb, now())
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
 
   revalidatePath("/admin/settings");
   revalidatePath("/pos");
