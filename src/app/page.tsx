@@ -1,15 +1,16 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSettings, strSetting } from "@/lib/settings";
-import { money, stockLabel } from "@/lib/format";
+import { stockLabel } from "@/lib/format";
+import { currentUser } from "@/lib/auth";
+import { logoutAction } from "@/app/login/actions";
 
 export const dynamic = "force-dynamic";
 
 type Counts = { products: number; materials: number; users: number };
 type StockRow = { name: string; base_unit: string; cached_stock: number };
 
-async function load(): Promise<{ ok: boolean; counts?: Counts; low?: StockRow[]; shop: string }> {
-  const settings = await getSettings();
-  const shop = strSetting(settings, "shop_name", "مقهى خزف");
+async function loadOwner(): Promise<{ counts: Counts; low: StockRow[] } | null> {
   try {
     const c = (await db()`
       select
@@ -24,8 +25,6 @@ async function load(): Promise<{ ok: boolean; counts?: Counts; low?: StockRow[];
       order by name
     `) as StockRow[];
     return {
-      ok: true,
-      shop,
       counts: {
         products: Number(c[0].products),
         materials: Number(c[0].materials),
@@ -34,37 +33,47 @@ async function load(): Promise<{ ok: boolean; counts?: Counts; low?: StockRow[];
       low,
     };
   } catch {
-    return { ok: false, shop };
+    return null;
   }
 }
 
 export default async function Home() {
-  const { ok, counts, low, shop } = await load();
+  const user = currentUser();
+  if (!user) redirect("/login");
+
+  const settings = await getSettings();
+  const shop = strSetting(settings, "shop_name", "مقهى خزف");
+  const isOwner = user.role === "owner";
+  const data = isOwner ? await loadOwner() : null;
 
   return (
-    <main className="mx-auto max-w-md px-5 py-10">
-      <header className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-[#5b4636]">{shop}</h1>
-        <p className="mt-1 text-sm text-neutral-500">نظام الكاشير — قيد البناء</p>
+    <main className="mx-auto max-w-md px-5 py-8">
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-[#5b4636]">{shop}</h1>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            أهلاً {user.name} · {isOwner ? "المالك" : "باريستا"}
+          </p>
+        </div>
+        <form action={logoutAction}>
+          <button className="rounded-lg bg-neutral-100 px-4 py-2 text-sm text-neutral-600">
+            خروج
+          </button>
+        </form>
       </header>
 
-      {!ok ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700">
-          تعذّر الاتصال بقاعدة البيانات. تحقّق من DATABASE_URL.
-        </div>
-      ) : (
+      {isOwner && data ? (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <Stat label="المشروبات" value={counts!.products} />
-            <Stat label="المواد" value={counts!.materials} />
-            <Stat label="الموظفون" value={counts!.users} />
+            <Stat label="المشروبات" value={data.counts.products} />
+            <Stat label="المواد" value={data.counts.materials} />
+            <Stat label="الموظفون" value={data.counts.users} />
           </div>
-
           <section className="mt-6 rounded-xl border border-neutral-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold text-neutral-700">تنبيه المخزون المنخفض</h2>
-            {low && low.length > 0 ? (
+            <h2 className="mb-2 text-sm font-semibold text-neutral-700">المخزون المنخفض</h2>
+            {data.low.length > 0 ? (
               <ul className="space-y-1 text-sm">
-                {low.map((r) => (
+                {data.low.map((r) => (
                   <li key={r.name} className="flex justify-between text-amber-700">
                     <span>{r.name}</span>
                     <span>{stockLabel(r.cached_stock, r.base_unit)}</span>
@@ -75,11 +84,12 @@ export default async function Home() {
               <p className="text-sm text-emerald-600">كل المواد ضمن الحدّ الآمن.</p>
             )}
           </section>
-
-          <p className="mt-8 text-center text-xs text-neutral-400">
-            حجر الأساس جاهز · {money(0)} — البيع يبدأ في المرحلة القادمة
-          </p>
         </>
+      ) : (
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center">
+          <p className="text-lg font-semibold text-[#5b4636]">جاهز للبيع</p>
+          <p className="mt-2 text-sm text-neutral-500">شاشة البيع تُبنى في المرحلة القادمة (م٢).</p>
+        </div>
       )}
     </main>
   );
