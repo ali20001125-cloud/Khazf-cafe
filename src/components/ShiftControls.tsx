@@ -5,18 +5,21 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import Modal from "@/components/Modal";
 import WasteDialog from "@/components/WasteDialog";
+import OrdersDialog from "@/components/OrdersDialog";
 import { closeShiftAction, cashDropAction } from "@/app/pos/shift-actions";
 
 export default function ShiftControls({ openingFloat, currency }: { openingFloat: number; currency: string }) {
-  const [mode, setMode] = useState<null | "close" | "drop" | "waste">(null);
+  const [mode, setMode] = useState<null | "close" | "drop" | "waste" | "orders">(null);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="nums chip bg-accent/20 text-cream/90">وردية · فكّة {money(openingFloat, currency)}</span>
+      <button onClick={() => setMode("orders")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">طلباتي</button>
       <button onClick={() => setMode("waste")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">هدر</button>
       <button onClick={() => setMode("drop")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">سحب نقد</button>
       <button onClick={() => setMode("close")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">إغلاق الوردية</button>
 
+      {mode === "orders" && <OrdersDialog currency={currency} onClose={() => setMode(null)} />}
       {mode === "close" && <CloseDialog onClose={() => setMode(null)} />}
       {mode === "drop" && <DropDialog onClose={() => setMode(null)} />}
       {mode === "waste" && <WasteDialog onClose={() => setMode(null)} />}
