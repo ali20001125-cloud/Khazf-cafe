@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 export default function ManageHub() {
   const cards = [
+    { href: "/manage/today", title: "لمحة اليوم", desc: "الإيراد · الشاذّ · الفروقات · إغلاق اليوم" },
     { href: "/manage/inventory", title: "المخزون", desc: "الأرصدة · إضافة مخزون · جرد وفرق" },
     { href: "/pos", title: "شاشة البيع", desc: "الكاشير" },
   ];

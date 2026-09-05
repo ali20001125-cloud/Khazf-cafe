@@ -10,6 +10,27 @@ export const WASTE_REASONS: { value: string; label: string }[] = [
   { value: "other", label: "أخرى" },
 ];
 
+/** تسميات أحداث سجلّ التدقيق (للوحة المالك). */
+export function auditActionLabel(action: string): string {
+  const map: Record<string, string> = {
+    login: "دخول",
+    logout: "خروج",
+    login_locked: "قفل حساب (محاولات خاطئة)",
+    open_shift: "فتح وردية",
+    close_shift: "إغلاق وردية",
+    cash_drop: "سحب نقد",
+    record_waste: "هدر",
+    add_stock: "إضافة مخزون",
+    stock_count: "جرد",
+    void_paid: "إلغاء بعد الدفع",
+    refund: "إرجاع",
+    apply_discount: "خصم",
+    day_close: "إغلاق اليوم",
+    pos_lock: "قفل الكاشير",
+  };
+  return map[action] ?? action;
+}
+
 /**
  * وحدة الإدخال المريحة لكل وحدة أساس:
  *  - غرام → كيلوغرام (×1000)

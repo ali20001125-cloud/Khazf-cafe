@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
-import { getActiveBranchId } from "@/lib/branch";
+import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 
 export type PayItem = { product_id: string; crop_material_id: string; qty: number };
@@ -34,8 +34,10 @@ export async function pay(input: PayInput): Promise<PayResult> {
   if (!input.idempotencyKey) return { ok: false, error: "مفتاح دفع مفقود" };
 
   try {
-    const branchId = await getActiveBranchId(user.bid);
-    if (!branchId) return { ok: false, error: "لا يوجد فرع فعّال" };
+    const branch = await getActiveBranch(user.bid);
+    if (!branch) return { ok: false, error: "لا يوجد فرع فعّال" };
+    if (branch.pos_locked) return { ok: false, error: "الكاشير مقفل من قبل المالك" };
+    const branchId = branch.id;
 
     // كل بيع ينتمي لوردية مفتوحة (لتسوية الكاش وكشف النقص)
     const shift = await getOpenShift(branchId);
