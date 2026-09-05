@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSettings, strSetting } from "@/lib/settings";
@@ -62,6 +63,13 @@ export default async function Home() {
         </form>
       </header>
 
+      <Link
+        href="/pos"
+        className="mb-6 block rounded-xl bg-[#8a6a4f] py-5 text-center text-lg font-semibold text-white active:scale-[0.99]"
+      >
+        ابدأ البيع
+      </Link>
+
       {isOwner && data ? (
         <>
           <div className="grid grid-cols-3 gap-3">
@@ -85,12 +93,7 @@ export default async function Home() {
             )}
           </section>
         </>
-      ) : (
-        <div className="rounded-xl border border-neutral-200 bg-white p-6 text-center">
-          <p className="text-lg font-semibold text-[#5b4636]">جاهز للبيع</p>
-          <p className="mt-2 text-sm text-neutral-500">شاشة البيع تُبنى في المرحلة القادمة (م٢).</p>
-        </div>
-      )}
+      ) : null}
     </main>
   );
 }
