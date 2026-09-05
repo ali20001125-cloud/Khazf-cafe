@@ -63,12 +63,22 @@ export default async function Home() {
         </form>
       </header>
 
-      <Link
-        href="/pos"
-        className="mb-6 block rounded-xl bg-[#8a6a4f] py-5 text-center text-lg font-semibold text-white active:scale-[0.99]"
-      >
-        ابدأ البيع
-      </Link>
+      <div className="mb-6 grid grid-cols-1 gap-3">
+        <Link
+          href="/pos"
+          className="block rounded-xl bg-[#8a6a4f] py-5 text-center text-lg font-semibold text-white active:scale-[0.99]"
+        >
+          ابدأ البيع
+        </Link>
+        {isOwner && (
+          <Link
+            href="/manage"
+            className="block rounded-xl border border-neutral-200 bg-white py-4 text-center text-base font-semibold text-[#5b4636]"
+          >
+            الإدارة
+          </Link>
+        )}
+      </div>
 
       {isOwner && data ? (
         <>

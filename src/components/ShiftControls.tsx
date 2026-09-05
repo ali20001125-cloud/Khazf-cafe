@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import Modal from "@/components/Modal";
+import WasteDialog from "@/components/WasteDialog";
 import { closeShiftAction, cashDropAction } from "@/app/pos/shift-actions";
 
 export default function ShiftControls({
@@ -13,13 +14,19 @@ export default function ShiftControls({
   openingFloat: number;
   currency: string;
 }) {
-  const [mode, setMode] = useState<null | "close" | "drop">(null);
+  const [mode, setMode] = useState<null | "close" | "drop" | "waste">(null);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
         وردية مفتوحة · فكّة {money(openingFloat, currency)}
       </span>
+      <button
+        onClick={() => setMode("waste")}
+        className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600"
+      >
+        هدر
+      </button>
       <button
         onClick={() => setMode("drop")}
         className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600"
@@ -35,6 +42,7 @@ export default function ShiftControls({
 
       {mode === "close" && <CloseDialog currency={currency} onClose={() => setMode(null)} />}
       {mode === "drop" && <DropDialog currency={currency} onClose={() => setMode(null)} />}
+      {mode === "waste" && <WasteDialog onClose={() => setMode(null)} />}
     </div>
   );
 }
