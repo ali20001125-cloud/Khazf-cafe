@@ -46,17 +46,17 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="تسجيل هدر" onClose={onClose}>
       {materials === null && !error ? (
-        <p className="py-6 text-center text-sm text-neutral-400">...</p>
+        <p className="py-6 text-center text-sm text-muted">...</p>
       ) : (
         <>
-          <label className="mb-1 block text-sm text-neutral-600">المادة</label>
+          <label className="mb-1 block text-sm text-muted">المادة</label>
           <select
             value={materialId}
             onChange={(e) => {
               setMaterialId(e.target.value);
               setError(null);
             }}
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2"
+            className="mb-3 w-full rounded-lg border border-line px-3 py-2"
           >
             <option value="">اختر…</option>
             {materials?.map((m) => (
@@ -66,7 +66,7 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
             ))}
           </select>
 
-          <label className="mb-1 block text-sm text-neutral-600">
+          <label className="mb-1 block text-sm text-muted">
             الكمية {unit ? `(${unit.label})` : ""}
           </label>
           <input
@@ -77,11 +77,11 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
               setQty(e.target.value);
               setError(null);
             }}
-            className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2 text-center"
+            className="mb-3 w-full rounded-lg border border-line px-3 py-2 text-center"
             dir="ltr"
           />
 
-          <label className="mb-1 block text-sm text-neutral-600">السبب</label>
+          <label className="mb-1 block text-sm text-muted">السبب</label>
           <div className="mb-3 grid grid-cols-3 gap-2">
             {WASTE_REASONS.map((r) => (
               <button
@@ -91,7 +91,7 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
                   setError(null);
                 }}
                 className={`rounded-lg py-2 text-xs ${
-                  reason === r.value ? "bg-[#8a6a4f] text-white" : "border border-neutral-200 bg-white text-neutral-600"
+                  reason === r.value ? "bg-accent text-white" : "border border-line bg-cream text-muted"
                 }`}
               >
                 {r.label}
@@ -104,7 +104,7 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
           <button
             onClick={confirm}
             disabled={pending}
-            className="w-full rounded-xl bg-[#8a6a4f] py-3 text-base font-semibold text-white disabled:opacity-50"
+            className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-white disabled:opacity-50"
           >
             {pending ? "..." : "تسجيل الهدر"}
           </button>

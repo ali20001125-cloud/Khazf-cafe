@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,28 +16,51 @@ body {
 body {
   background: theme("colors.sand");
   color: theme("colors.ink");
+  font-family: theme("fontFamily.body");
   -webkit-tap-highlight-color: transparent;
 }
 
-/* أزرار البيع: كبيرة، بلا تحديد نص، سريعة اللمس */
-.tap {
-  @apply select-none active:scale-[0.98] transition-transform touch-manipulation;
+h1, h2, h3, .font-display {
+  font-family: theme("fontFamily.display");
 }
 
-.card {
-  @apply bg-white border border-line rounded-xl;
+/* أرقام لاتينية دائماً (بطلب المالك) حتى داخل نص عربي */
+.nums {
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
 }
 
-.btn {
-  @apply tap rounded-xl px-4 py-3 font-semibold border border-line bg-white;
-}
-
-.btn-primary {
-  @apply tap rounded-xl px-4 py-3 font-bold text-white bg-clay hover:bg-clayDark border border-clayDark;
-}
-
-.input {
-  @apply w-full rounded-xl border border-line bg-white px-3 py-2 outline-none focus:border-clay;
+@layer components {
+  .tap {
+    @apply select-none transition-transform duration-100 active:scale-[0.98] touch-manipulation;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-cream shadow-soft;
+  }
+  /* زرّ أساسي — طيني بعمق */
+  .btn-primary {
+    @apply tap rounded-2xl px-5 py-4 font-display font-bold text-cream;
+    background: linear-gradient(180deg, #b0764f 0%, #A66A4C 60%, #925c40 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 8px 20px rgba(146, 92, 64, 0.28);
+  }
+  .btn-primary:disabled {
+    @apply opacity-40;
+  }
+  /* زرّ ثانوي — كريمي بحدود دافئة */
+  .btn-ghost {
+    @apply tap rounded-2xl border border-line bg-cream px-4 py-3 font-semibold text-ink;
+  }
+  .field {
+    @apply w-full rounded-xl border border-line bg-cream px-4 py-3 text-ink outline-none;
+    @apply focus:border-accent focus:ring-2 focus:ring-accent/15;
+  }
+  .chip {
+    @apply rounded-full px-3 py-1 text-xs font-medium;
+  }
+  /* شريط علوي داكن دافئ */
+  .topbar {
+    @apply bg-dark text-cream;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -55,6 +80,7 @@ body {
     top: 0;
     width: 72mm;
     font-size: 12px;
+    background: #fff;
   }
   @page {
     size: 80mm auto;

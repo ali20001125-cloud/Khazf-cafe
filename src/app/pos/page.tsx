@@ -32,9 +32,10 @@ export default async function PosPage() {
 
   if (branch?.pos_locked) {
     return (
-      <main className="mx-auto max-w-md px-5 py-20 text-center" dir="rtl">
-        <p className="text-2xl font-bold text-red-600">الكاشير مقفل</p>
-        <p className="mt-2 text-sm text-neutral-500">أوقفه المالك مؤقتاً. راجع المالك للمتابعة.</p>
+      <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center" dir="rtl">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">🔒</div>
+        <p className="mt-5 font-display text-2xl font-bold text-ink">الكاشير مقفل</p>
+        <p className="mt-2 text-sm text-muted">أوقفه المالك مؤقتاً. راجع المالك للمتابعة.</p>
       </main>
     );
   }

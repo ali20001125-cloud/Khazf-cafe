@@ -24,7 +24,7 @@ export default function LockToggle({ locked }: { locked: boolean }) {
         onClick={toggle}
         disabled={pending}
         className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 ${
-          locked ? "bg-red-600 text-white" : "border border-neutral-200 bg-white text-[#5b4636]"
+          locked ? "bg-red-600 text-white" : "border border-line bg-cream text-ink"
         }`}
       >
         {pending ? "..." : locked ? "الكاشير مقفل — افتح" : "قفل الكاشير"}

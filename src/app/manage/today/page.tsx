@@ -45,7 +45,7 @@ export default async function TodayDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-[#5b4636]">لمحة اليوم</h2>
+        <h2 className="text-lg font-bold text-ink">لمحة اليوم</h2>
         <div className="flex items-center gap-2">
           <LockToggle locked={branch.pos_locked} />
           <DayCloseButton closed={closed} />
@@ -74,11 +74,11 @@ export default async function TodayDashboard() {
         {shiftVars.length === 0 ? (
           <Empty />
         ) : (
-          <ul className="divide-y divide-neutral-100">
+          <ul className="divide-y divide-line">
             {shiftVars.map((s) => (
               <li key={s.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-[#5b4636]">{s.employee_name}</span>
-                <span className="text-xs text-neutral-400">{timeAr(s.closed_at)}</span>
+                <span className="text-ink">{s.employee_name}</span>
+                <span className="text-xs text-muted">{timeAr(s.closed_at)}</span>
                 <span className={s.variance === 0 ? "text-emerald-600" : s.variance < 0 ? "text-red-600 font-semibold" : "text-amber-600"}>
                   {s.variance > 0 ? "+" : ""}{money(s.variance, currency)}
                 </span>
@@ -93,11 +93,11 @@ export default async function TodayDashboard() {
         {stockVars.length === 0 ? (
           <Empty />
         ) : (
-          <ul className="divide-y divide-neutral-100">
+          <ul className="divide-y divide-line">
             {stockVars.map((s, i) => (
               <li key={i} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-[#5b4636]">{s.material_name}</span>
-                <span className="text-xs text-neutral-400">{timeAr(s.created_at)}</span>
+                <span className="text-ink">{s.material_name}</span>
+                <span className="text-xs text-muted">{timeAr(s.created_at)}</span>
                 <span className={vColor(s.variance_pct)}>
                   {s.variance > 0 ? "+" : ""}{s.variance} ({s.variance_pct ?? 0}%)
                 </span>
@@ -112,14 +112,14 @@ export default async function TodayDashboard() {
         {exceptions.length === 0 ? (
           <Empty />
         ) : (
-          <ul className="divide-y divide-neutral-100">
+          <ul className="divide-y divide-line">
             {exceptions.map((e, i) => (
               <li key={i} className="flex items-center justify-between py-2 text-sm">
-                <span className="text-[#5b4636]">
+                <span className="text-ink">
                   {auditActionLabel(e.action)}
-                  {e.user_name && <span className="text-xs text-neutral-400"> · {e.user_name}</span>}
+                  {e.user_name && <span className="text-xs text-muted"> · {e.user_name}</span>}
                 </span>
-                <span className="text-xs text-neutral-400">{timeAr(e.created_at)}</span>
+                <span className="text-xs text-muted">{timeAr(e.created_at)}</span>
               </li>
             ))}
           </ul>
@@ -131,22 +131,22 @@ export default async function TodayDashboard() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-3 text-center">
-      <div className="text-lg font-bold text-[#5b4636]">{value}</div>
-      <div className="mt-1 text-xs text-neutral-500">{label}</div>
+    <div className="card p-3 text-center">
+      <div className="text-lg font-bold text-ink">{value}</div>
+      <div className="mt-1 text-xs text-muted">{label}</div>
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-neutral-200 bg-white p-4">
-      <h3 className="mb-2 text-sm font-semibold text-neutral-700">{title}</h3>
+    <section className="card p-4">
+      <h3 className="mb-2 text-sm font-semibold text-ink">{title}</h3>
       {children}
     </section>
   );
 }
 
 function Empty() {
-  return <p className="text-sm text-neutral-400">لا شيء.</p>;
+  return <p className="text-sm text-muted">لا شيء.</p>;
 }

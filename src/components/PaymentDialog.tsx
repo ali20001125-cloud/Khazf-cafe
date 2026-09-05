@@ -29,7 +29,6 @@ export default function PaymentDialog({
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptInfo | null>(null);
   const [pending, start] = useTransition();
-  // مفتاح دفع ثابت لهذه المحاولة — يُعيد النتيجة نفسها لو تكرّر الإرسال.
   const [idemKey] = useState(() =>
     typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
   );
@@ -40,12 +39,9 @@ export default function PaymentDialog({
     return tenderedNum - total;
   }, [method, tenderedNum, total]);
 
-  // مبالغ سريعة: المبلغ المضبوط + تقريبات لأعلى شائعة
   const quick = useMemo(() => {
     const set = new Set<number>([total]);
-    for (const step of [1000, 5000, 10000, 25000, 50000]) {
-      set.add(Math.ceil(total / step) * step);
-    }
+    for (const step of [1000, 5000, 10000, 25000, 50000]) set.add(Math.ceil(total / step) * step);
     return [...set].filter((n) => n >= total).sort((a, b) => a - b).slice(0, 4);
   }, [total]);
 
@@ -58,11 +54,7 @@ export default function PaymentDialog({
     setError(null);
     start(async () => {
       const res = await pay({
-        items: lines.map((l) => ({
-          product_id: l.product_id,
-          crop_material_id: l.crop_material_id,
-          qty: l.qty,
-        })),
+        items: lines.map((l) => ({ product_id: l.product_id, crop_material_id: l.crop_material_id, qty: l.qty })),
         fulfillment,
         method,
         tendered: method === "cash" ? tenderedNum : null,
@@ -70,16 +62,8 @@ export default function PaymentDialog({
       });
       if (res.ok) {
         setReceipt({
-          orderNumber: res.orderNumber,
-          total: res.total,
-          change: res.change,
-          method,
-          fulfillment,
-          currency,
-          shopName: "مقهى خزف",
-          shopPhone: "",
-          lines,
-          at: new Date().toISOString(),
+          orderNumber: res.orderNumber, total: res.total, change: res.change, method, fulfillment,
+          currency, shopName: "مقهى خزف", shopPhone: "", lines, at: new Date().toISOString(),
         });
       } else {
         setError(res.error);
@@ -87,113 +71,79 @@ export default function PaymentDialog({
     });
   }
 
-  // شاشة النجاح + الفاتورة
   if (receipt) {
     return (
       <Modal title={`تم الطلب #${receipt.orderNumber}`} onClose={onPaid}>
-        <div className="mb-3 rounded-lg bg-emerald-50 p-3 text-center">
-          <div className="text-sm text-emerald-700">تم الدفع بنجاح</div>
+        <div className="mb-4 rounded-2xl bg-accent/10 p-4 text-center">
+          <div className="text-sm text-accentdeep">تم الدفع بنجاح</div>
           {receipt.method === "cash" && receipt.change != null && (
-            <div className="mt-1 text-lg font-bold text-emerald-800">
-              الباقي: {money(receipt.change, currency)}
+            <div className="nums mt-1 font-display text-2xl font-bold text-accentdeep">
+              الباقي {money(receipt.change, currency)}
             </div>
           )}
         </div>
-        <div className="max-h-[40vh] overflow-y-auto rounded-lg border border-neutral-200 p-2">
+        <div className="max-h-[40vh] overflow-y-auto rounded-2xl border border-line bg-cream p-2">
           <Receipt info={receipt} />
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => window.print()}
-            className="rounded-xl border border-neutral-200 bg-white py-3 text-sm font-medium text-[#5b4636]"
-          >
-            طباعة
-          </button>
-          <button onClick={onPaid} className="rounded-xl bg-[#8a6a4f] py-3 text-sm font-semibold text-white">
-            طلب جديد
-          </button>
+          <button onClick={() => window.print()} className="btn-ghost">طباعة</button>
+          <button onClick={onPaid} className="btn-primary py-3">طلب جديد</button>
         </div>
       </Modal>
     );
   }
 
-  // شاشة الدفع
   return (
     <Modal title="الدفع" onClose={onClose}>
-      <div className="mb-4 flex items-center justify-between rounded-lg bg-neutral-50 p-3">
-        <span className="text-sm text-neutral-500">المطلوب</span>
-        <span className="text-2xl font-bold text-[#5b4636]">{money(total, currency)}</span>
+      <div className="mb-5 flex items-baseline justify-between rounded-2xl bg-dark/5 px-4 py-4">
+        <span className="text-sm text-muted">المطلوب</span>
+        <span className="nums font-display text-3xl font-bold text-ink">{money(total, currency)}</span>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <button
-          onClick={() => setMethod("cash")}
-          className={`rounded-lg py-3 text-sm font-medium ${
-            method === "cash" ? "bg-[#8a6a4f] text-white" : "border border-neutral-200 bg-white text-neutral-600"
-          }`}
-        >
-          كاش
-        </button>
-        <button
-          onClick={() => setMethod("card")}
-          className={`rounded-lg py-3 text-sm font-medium ${
-            method === "card" ? "bg-[#8a6a4f] text-white" : "border border-neutral-200 bg-white text-neutral-600"
-          }`}
-        >
-          بطاقة
-        </button>
+      <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-dark/5 p-1">
+        <MSeg active={method === "cash"} onClick={() => setMethod("cash")}>كاش</MSeg>
+        <MSeg active={method === "card"} onClick={() => setMethod("card")}>بطاقة</MSeg>
       </div>
 
       {method === "cash" ? (
         <>
           <input
-            type="number"
-            inputMode="numeric"
-            value={tendered}
-            onChange={(e) => {
-              setTendered(e.target.value);
-              setError(null);
-            }}
+            type="number" inputMode="numeric" value={tendered}
+            onChange={(e) => { setTendered(e.target.value); setError(null); }}
             placeholder="المبلغ المدفوع"
-            className="mb-2 w-full rounded-lg border border-neutral-200 px-4 py-3 text-center text-lg"
-            dir="ltr"
+            className="field nums mb-2 text-center text-lg" dir="ltr"
           />
-          <div className="mb-3 grid grid-cols-4 gap-2">
+          <div className="mb-4 grid grid-cols-4 gap-2 nums">
             {quick.map((q) => (
-              <button
-                key={q}
-                onClick={() => {
-                  setTendered(String(q));
-                  setError(null);
-                }}
-                className="rounded-lg border border-neutral-200 bg-white py-2 text-xs text-[#5b4636]"
-              >
+              <button key={q} onClick={() => { setTendered(String(q)); setError(null); }} className="tap rounded-xl border border-line bg-cream py-2 text-xs text-ink">
                 {money(q, "")}
               </button>
             ))}
           </div>
           {change != null && change >= 0 && (
-            <div className="mb-3 flex justify-between rounded-lg bg-emerald-50 px-3 py-2 text-emerald-800">
+            <div className="mb-4 flex items-center justify-between rounded-2xl bg-accent/10 px-4 py-3 text-accentdeep">
               <span className="text-sm">الباقي</span>
-              <span className="font-bold">{money(change, currency)}</span>
+              <span className="nums font-display font-bold">{money(change, currency)}</span>
             </div>
           )}
         </>
       ) : (
-        <p className="mb-3 rounded-lg bg-neutral-50 p-3 text-center text-sm text-neutral-500">
-          مرّر البطاقة على جهاز البنك، ثم أكّد.
-        </p>
+        <p className="mb-4 rounded-2xl bg-dark/5 p-4 text-center text-sm text-muted">مرّر البطاقة على جهاز البنك، ثم أكّد.</p>
       )}
 
-      {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}
+      {error && <div className="mb-4 text-center text-sm text-red-600">{error}</div>}
 
-      <button
-        onClick={confirm}
-        disabled={pending}
-        className="w-full rounded-xl bg-[#8a6a4f] py-4 text-lg font-semibold text-white active:scale-[0.99] disabled:opacity-50"
-      >
+      <button onClick={confirm} disabled={pending} className="btn-primary w-full text-lg">
         {pending ? "..." : "تأكيد الدفع"}
       </button>
     </Modal>
+  );
+}
+
+function MSeg({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} className={`tap rounded-lg py-2.5 text-sm font-medium ${active ? "bg-cream text-ink shadow-soft" : "text-muted"}`}>
+      {children}
+    </button>
   );
 }

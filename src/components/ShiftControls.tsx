@@ -7,47 +7,24 @@ import Modal from "@/components/Modal";
 import WasteDialog from "@/components/WasteDialog";
 import { closeShiftAction, cashDropAction } from "@/app/pos/shift-actions";
 
-export default function ShiftControls({
-  openingFloat,
-  currency,
-}: {
-  openingFloat: number;
-  currency: string;
-}) {
+export default function ShiftControls({ openingFloat, currency }: { openingFloat: number; currency: string }) {
   const [mode, setMode] = useState<null | "close" | "drop" | "waste">(null);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
-        وردية مفتوحة · فكّة {money(openingFloat, currency)}
-      </span>
-      <button
-        onClick={() => setMode("waste")}
-        className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600"
-      >
-        هدر
-      </button>
-      <button
-        onClick={() => setMode("drop")}
-        className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600"
-      >
-        سحب نقد
-      </button>
-      <button
-        onClick={() => setMode("close")}
-        className="rounded-lg border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600"
-      >
-        إغلاق الوردية
-      </button>
+      <span className="nums chip bg-accent/20 text-cream/90">وردية · فكّة {money(openingFloat, currency)}</span>
+      <button onClick={() => setMode("waste")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">هدر</button>
+      <button onClick={() => setMode("drop")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">سحب نقد</button>
+      <button onClick={() => setMode("close")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">إغلاق الوردية</button>
 
-      {mode === "close" && <CloseDialog currency={currency} onClose={() => setMode(null)} />}
-      {mode === "drop" && <DropDialog currency={currency} onClose={() => setMode(null)} />}
+      {mode === "close" && <CloseDialog onClose={() => setMode(null)} />}
+      {mode === "drop" && <DropDialog onClose={() => setMode(null)} />}
       {mode === "waste" && <WasteDialog onClose={() => setMode(null)} />}
     </div>
   );
 }
 
-function CloseDialog({ currency, onClose }: { currency: string; onClose: () => void }) {
+function CloseDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [counted, setCounted] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,10 +34,7 @@ function CloseDialog({ currency, onClose }: { currency: string; onClose: () => v
   function confirm() {
     if (pending) return;
     const n = Number(counted);
-    if (!Number.isFinite(n) || n < 0 || counted === "") {
-      setError("أدخل المبلغ المعدود");
-      return;
-    }
+    if (!Number.isFinite(n) || n < 0 || counted === "") return setError("أدخل المبلغ المعدود");
     setError(null);
     start(async () => {
       const res = await closeShiftAction(n);
@@ -72,49 +46,27 @@ function CloseDialog({ currency, onClose }: { currency: string; onClose: () => v
   if (done) {
     return (
       <Modal title="أُغلقت الوردية" onClose={() => router.refresh()}>
-        <div className="rounded-lg bg-emerald-50 p-4 text-center text-emerald-700">
-          تم تسجيل إغلاق الوردية. شكراً لك.
-        </div>
-        <button
-          onClick={() => router.refresh()}
-          className="mt-4 w-full rounded-xl bg-[#8a6a4f] py-3 text-sm font-semibold text-white"
-        >
-          تم
-        </button>
+        <div className="rounded-2xl bg-accent/10 p-4 text-center text-accentdeep">تم تسجيل إغلاق الوردية. شكراً لك.</div>
+        <button onClick={() => router.refresh()} className="btn-primary mt-4 w-full py-3">تم</button>
       </Modal>
     );
   }
 
   return (
     <Modal title="إغلاق الوردية" onClose={onClose}>
-      <p className="mb-3 text-sm text-neutral-500">
-        اعدد النقد في الدرج وأدخل المجموع. (لا تظهر لك الأرقام المتوقّعة — العدّ أعمى.)
-      </p>
+      <p className="mb-3 text-sm text-muted">اعدد النقد في الدرج وأدخل المجموع. (لا تظهر لك الأرقام المتوقّعة — العدّ أعمى.)</p>
       <input
-        type="number"
-        inputMode="numeric"
-        value={counted}
-        onChange={(e) => {
-          setCounted(e.target.value);
-          setError(null);
-        }}
-        placeholder="المبلغ المعدود في الدرج"
-        className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-3 text-center text-lg"
-        dir="ltr"
+        type="number" inputMode="numeric" value={counted}
+        onChange={(e) => { setCounted(e.target.value); setError(null); }}
+        placeholder="المبلغ المعدود في الدرج" className="field nums mb-3 text-center text-lg" dir="ltr"
       />
       {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}
-      <button
-        onClick={confirm}
-        disabled={pending}
-        className="w-full rounded-xl bg-[#8a6a4f] py-4 text-base font-semibold text-white disabled:opacity-50"
-      >
-        {pending ? "..." : "تأكيد الإغلاق"}
-      </button>
+      <button onClick={confirm} disabled={pending} className="btn-primary w-full">{pending ? "..." : "تأكيد الإغلاق"}</button>
     </Modal>
   );
 }
 
-function DropDialog({ currency, onClose }: { currency: string; onClose: () => void }) {
+function DropDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -124,52 +76,22 @@ function DropDialog({ currency, onClose }: { currency: string; onClose: () => vo
   function confirm() {
     if (pending) return;
     const n = Number(amount);
-    if (!Number.isFinite(n) || n <= 0) {
-      setError("أدخل المبلغ");
-      return;
-    }
+    if (!Number.isFinite(n) || n <= 0) return setError("أدخل المبلغ");
     setError(null);
     start(async () => {
       const res = await cashDropAction(n, reason);
-      if (res.ok) {
-        onClose();
-        router.refresh();
-      } else {
-        setError(res.error);
-      }
+      if (res.ok) { onClose(); router.refresh(); }
+      else setError(res.error);
     });
   }
 
   return (
     <Modal title="سحب نقد من الدرج" onClose={onClose}>
-      <p className="mb-3 text-sm text-neutral-500">يُسجَّل السحب ويُنقص الدرج المتوقّع.</p>
-      <input
-        type="number"
-        inputMode="numeric"
-        value={amount}
-        onChange={(e) => {
-          setAmount(e.target.value);
-          setError(null);
-        }}
-        placeholder="المبلغ المسحوب"
-        className="mb-2 w-full rounded-lg border border-neutral-200 px-4 py-3 text-center text-lg"
-        dir="ltr"
-      />
-      <input
-        type="text"
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder="السبب (اختياري)"
-        className="mb-3 w-full rounded-lg border border-neutral-200 px-4 py-2 text-sm"
-      />
+      <p className="mb-3 text-sm text-muted">يُسجَّل السحب ويُنقص الدرج المتوقّع.</p>
+      <input type="number" inputMode="numeric" value={amount} onChange={(e) => { setAmount(e.target.value); setError(null); }} placeholder="المبلغ المسحوب" className="field nums mb-2 text-center text-lg" dir="ltr" />
+      <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="السبب (اختياري)" className="field mb-3" />
       {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}
-      <button
-        onClick={confirm}
-        disabled={pending}
-        className="w-full rounded-xl bg-[#8a6a4f] py-3 text-base font-semibold text-white disabled:opacity-50"
-      >
-        {pending ? "..." : "تأكيد السحب"}
-      </button>
+      <button onClick={confirm} disabled={pending} className="btn-primary w-full">{pending ? "..." : "تأكيد السحب"}</button>
     </Modal>
   );
 }

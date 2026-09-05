@@ -40,10 +40,10 @@ export default function LoginForm({ users }: { users: LoginUser[] }) {
     setError(null);
     const next = (pin + d).slice(0, 6);
     setPin(next);
-    if (next.length === 4) submit(next); // دخول سريع بأربعة أرقام
+    if (next.length === 4) submit(next);
   }
 
-  // شاشة اختيار المستخدم
+  // اختيار المستخدم
   if (!sel) {
     return (
       <div className="space-y-3">
@@ -51,82 +51,60 @@ export default function LoginForm({ users }: { users: LoginUser[] }) {
           <button
             key={u.id}
             onClick={() => pick(u)}
-            className="flex w-full items-center justify-between rounded-xl border border-neutral-200 bg-white px-5 py-4 text-right shadow-sm active:scale-[0.99]"
+            className="tap flex w-full items-center justify-between rounded-xl2 border border-line bg-sand/60 px-5 py-4 text-right hover:border-accent/40"
           >
-            <span className="text-lg font-semibold text-[#5b4636]">{u.name}</span>
-            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-500">
-              {u.role === "owner" ? "المالك" : "باريستا"}
+            <span className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/12 font-display text-lg font-bold text-accent">
+                {u.name.slice(0, 1)}
+              </span>
+              <span className="font-display text-lg font-bold text-ink">{u.name}</span>
             </span>
+            <span className="chip bg-dark/5 text-muted">{u.role === "owner" ? "المالك" : "باريستا"}</span>
           </button>
         ))}
-        {users.length === 0 && (
-          <p className="text-center text-sm text-neutral-400">لا يوجد مستخدمون نشطون</p>
-        )}
+        {users.length === 0 && <p className="text-center text-sm text-muted">لا يوجد مستخدمون نشطون</p>}
       </div>
     );
   }
 
-  // شاشة إدخال الرمز
+  // إدخال الرمز
   const pad = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
   return (
     <div>
-      <button
-        onClick={() => setSel(null)}
-        className="mb-4 text-sm text-neutral-500"
-        disabled={pending}
-      >
+      <button onClick={() => setSel(null)} className="mb-4 text-sm text-muted" disabled={pending}>
         ← تغيير المستخدم
       </button>
 
-      <div className="mb-2 text-center text-lg font-semibold text-[#5b4636]">{sel.name}</div>
+      <div className="mb-1 text-center font-display text-xl font-bold text-ink">{sel.name}</div>
 
-      <div className="mb-4 flex justify-center gap-2" dir="ltr">
+      <div className="mb-5 mt-4 flex justify-center gap-2.5" dir="ltr">
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <span
             key={i}
-            className={`h-3 w-3 rounded-full ${
-              i < pin.length ? "bg-[#8a6a4f]" : "bg-neutral-200"
-            } ${i >= 4 && pin.length <= 4 ? "opacity-40" : ""}`}
+            className={`h-3 w-3 rounded-full transition-colors ${
+              i < pin.length ? "bg-accent" : "bg-line"
+            } ${i >= 4 && pin.length <= 4 ? "opacity-30" : ""}`}
           />
         ))}
       </div>
 
-      <div
-        className={`mb-4 h-6 text-center text-sm ${error ? "text-red-600" : "text-transparent"}`}
-      >
+      <div className={`mb-4 h-5 text-center text-sm ${error ? "text-red-600" : "text-transparent"}`}>
         {error ?? "."}
       </div>
 
-      <div className="grid grid-cols-3 gap-3" dir="ltr">
+      <div className="grid grid-cols-3 gap-2.5 nums" dir="ltr">
         {pad.map((d) => (
-          <button
-            key={d}
-            onClick={() => press(d)}
-            disabled={pending}
-            className="rounded-xl border border-neutral-200 bg-white py-5 text-2xl font-semibold text-[#5b4636] shadow-sm active:scale-95 disabled:opacity-50"
-          >
+          <button key={d} onClick={() => press(d)} disabled={pending} className="tap rounded-xl2 border border-line bg-sand/60 py-5 font-display text-2xl font-bold text-ink hover:border-accent/40 disabled:opacity-50">
             {d}
           </button>
         ))}
-        <button
-          onClick={() => setPin("")}
-          disabled={pending}
-          className="rounded-xl bg-neutral-100 py-5 text-sm text-neutral-500 active:scale-95 disabled:opacity-50"
-        >
+        <button onClick={() => setPin("")} disabled={pending} className="tap rounded-xl2 bg-transparent py-5 text-sm text-muted disabled:opacity-50">
           مسح
         </button>
-        <button
-          onClick={() => press("0")}
-          disabled={pending}
-          className="rounded-xl border border-neutral-200 bg-white py-5 text-2xl font-semibold text-[#5b4636] shadow-sm active:scale-95 disabled:opacity-50"
-        >
+        <button onClick={() => press("0")} disabled={pending} className="tap rounded-xl2 border border-line bg-sand/60 py-5 font-display text-2xl font-bold text-ink hover:border-accent/40 disabled:opacity-50">
           0
         </button>
-        <button
-          onClick={() => pin.length >= 4 && submit(pin)}
-          disabled={pending || pin.length < 4}
-          className="rounded-xl bg-[#8a6a4f] py-5 text-lg font-semibold text-white active:scale-95 disabled:opacity-40"
-        >
+        <button onClick={() => pin.length >= 4 && submit(pin)} disabled={pending || pin.length < 4} className="btn-primary py-5 text-lg">
           {pending ? "..." : "دخول"}
         </button>
       </div>

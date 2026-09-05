@@ -2,15 +2,16 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "كاشير خزف",
-  description: "نظام كاشير وولاء مقهى خزف",
+  title: "خزف كافيه",
+  description: "نظام كاشير مقهى خزف",
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#8a6a4f",
+  themeColor: "#1C1A18",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

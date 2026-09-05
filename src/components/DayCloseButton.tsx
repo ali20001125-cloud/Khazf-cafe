@@ -13,7 +13,7 @@ export default function DayCloseButton({ closed }: { closed: boolean }) {
 
   if (closed) {
     return (
-      <span className="rounded-lg bg-neutral-100 px-4 py-2 text-sm text-neutral-500">اليوم مغلق</span>
+      <span className="rounded-lg bg-dark/5 px-4 py-2 text-sm text-muted">اليوم مغلق</span>
     );
   }
 
@@ -34,20 +34,20 @@ export default function DayCloseButton({ closed }: { closed: boolean }) {
     <>
       <button
         onClick={() => { setOpen(true); setError(null); }}
-        className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-[#5b4636]"
+        className="rounded-lg border border-line bg-cream px-4 py-2 text-sm font-medium text-ink"
       >
         إغلاق اليوم
       </button>
       {open && (
         <Modal title="إغلاق اليوم" onClose={() => setOpen(false)}>
-          <p className="mb-4 text-sm text-neutral-500">
+          <p className="mb-4 text-sm text-muted">
             سيُثبَّت اليوم المحاسبي بمجاميعه. تأكّد أن كل الورديات مُغلقة.
           </p>
           {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}
           <button
             onClick={confirm}
             disabled={pending}
-            className="w-full rounded-xl bg-[#8a6a4f] py-3 text-base font-semibold text-white disabled:opacity-50"
+            className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-white disabled:opacity-50"
           >
             {pending ? "..." : "تأكيد الإغلاق"}
           </button>

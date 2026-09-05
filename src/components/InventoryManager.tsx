@@ -31,17 +31,17 @@ export default function InventoryManager({ materials, currency }: { materials: M
   return (
     <div>
       <div className="mb-4 flex gap-2">
-        <button onClick={() => setMode("add")} className="rounded-lg bg-[#8a6a4f] px-4 py-2 text-sm font-medium text-white">
+        <button onClick={() => setMode("add")} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white">
           إضافة مخزون
         </button>
-        <button onClick={() => setMode("count")} className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-[#5b4636]">
+        <button onClick={() => setMode("count")} className="rounded-lg border border-line bg-cream px-4 py-2 text-sm font-medium text-ink">
           جرد المخزون
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+      <div className="overflow-hidden card">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-neutral-500">
+          <thead className="bg-sandalt text-muted">
             <tr>
               <th className="px-3 py-2 text-right font-medium">المادة</th>
               <th className="px-3 py-2 text-right font-medium">الرصيد</th>
@@ -53,13 +53,13 @@ export default function InventoryManager({ materials, currency }: { materials: M
               const u = inputUnit(m.base_unit);
               const low = m.cached_stock <= m.low_threshold;
               return (
-                <tr key={m.id} className="border-t border-neutral-100">
-                  <td className="px-3 py-2 text-[#5b4636]">{m.name}</td>
-                  <td className={`px-3 py-2 ${low ? "text-amber-700" : "text-neutral-600"}`}>
+                <tr key={m.id} className="border-t border-line">
+                  <td className="px-3 py-2 text-ink">{m.name}</td>
+                  <td className={`px-3 py-2 ${low ? "text-amber-700" : "text-muted"}`}>
                     {stockLabel(m.cached_stock, m.base_unit)}
                     {low && <span className="mr-1 text-[10px]">· منخفض</span>}
                   </td>
-                  <td className="px-3 py-2 text-neutral-500">
+                  <td className="px-3 py-2 text-muted">
                     {money(m.current_cost * u.factor, currency)}/{u.label}
                   </td>
                 </tr>
@@ -111,20 +111,20 @@ function AddStockDialog({ materials, currency, onClose }: { materials: M[]; curr
 
   return (
     <Modal title="إضافة مخزون" onClose={onClose}>
-      <label className="mb-1 block text-sm text-neutral-600">المادة</label>
-      <select value={materialId} onChange={(e) => { setMaterialId(e.target.value); setError(null); }} className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2">
+      <label className="mb-1 block text-sm text-muted">المادة</label>
+      <select value={materialId} onChange={(e) => { setMaterialId(e.target.value); setError(null); }} className="mb-3 w-full rounded-lg border border-line px-3 py-2">
         <option value="">اختر…</option>
         {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
 
-      <label className="mb-1 block text-sm text-neutral-600">الكمية {u ? `(${u.label})` : ""}</label>
-      <input type="number" inputMode="decimal" value={qty} onChange={(e) => { setQty(e.target.value); setError(null); }} className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2 text-center" dir="ltr" />
+      <label className="mb-1 block text-sm text-muted">الكمية {u ? `(${u.label})` : ""}</label>
+      <input type="number" inputMode="decimal" value={qty} onChange={(e) => { setQty(e.target.value); setError(null); }} className="mb-3 w-full rounded-lg border border-line px-3 py-2 text-center" dir="ltr" />
 
-      <label className="mb-1 block text-sm text-neutral-600">التكلفة لكل {u ? u.label : "وحدة"} (اختياري)</label>
-      <input type="number" inputMode="numeric" value={cost} onChange={(e) => { setCost(e.target.value); setError(null); }} placeholder={`${currency} / ${u ? u.label : ""}`} className="mb-3 w-full rounded-lg border border-neutral-200 px-3 py-2 text-center" dir="ltr" />
+      <label className="mb-1 block text-sm text-muted">التكلفة لكل {u ? u.label : "وحدة"} (اختياري)</label>
+      <input type="number" inputMode="numeric" value={cost} onChange={(e) => { setCost(e.target.value); setError(null); }} placeholder={`${currency} / ${u ? u.label : ""}`} className="mb-3 w-full rounded-lg border border-line px-3 py-2 text-center" dir="ltr" />
 
       {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}
-      <button onClick={confirm} disabled={pending} className="w-full rounded-xl bg-[#8a6a4f] py-3 text-base font-semibold text-white disabled:opacity-50">
+      <button onClick={confirm} disabled={pending} className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-white disabled:opacity-50">
         {pending ? "..." : "إضافة"}
       </button>
     </Modal>
@@ -157,18 +157,18 @@ function CountDialog({ materials, onClose }: { materials: M[]; onClose: () => vo
   if (result) {
     return (
       <Modal title="نتيجة الجرد" onClose={() => { onClose(); router.refresh(); }}>
-        <p className="mb-3 text-sm text-neutral-500">الفرق% يكشف الاختلاف بين المعدود والمتوقّع.</p>
+        <p className="mb-3 text-sm text-muted">الفرق% يكشف الاختلاف بين المعدود والمتوقّع.</p>
         <div className="space-y-2">
           {result.items.map((i) => (
-            <div key={i.material_id} className="flex items-center justify-between rounded-lg border border-neutral-100 p-2 text-sm">
-              <span className="text-[#5b4636]">{i.name}</span>
+            <div key={i.material_id} className="flex items-center justify-between rounded-lg border border-line p-2 text-sm">
+              <span className="text-ink">{i.name}</span>
               <span className={varianceColor(i.variance_pct)}>
                 {i.variance > 0 ? "+" : ""}{i.variance} ({i.variance_pct ?? 0}%)
               </span>
             </div>
           ))}
         </div>
-        <button onClick={() => { onClose(); router.refresh(); }} className="mt-4 w-full rounded-xl bg-[#8a6a4f] py-3 text-sm font-semibold text-white">
+        <button onClick={() => { onClose(); router.refresh(); }} className="mt-4 w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white">
           تم
         </button>
       </Modal>
@@ -177,30 +177,30 @@ function CountDialog({ materials, onClose }: { materials: M[]; onClose: () => vo
 
   return (
     <Modal title="جرد المخزون (عدّ)" onClose={onClose}>
-      <p className="mb-3 text-sm text-neutral-500">أدخل الكمية المعدودة فعلياً. تُترك الفارغة بلا تغيير.</p>
+      <p className="mb-3 text-sm text-muted">أدخل الكمية المعدودة فعلياً. تُترك الفارغة بلا تغيير.</p>
       <div className="max-h-[45vh] space-y-2 overflow-y-auto">
         {materials.map((m) => {
           const u = inputUnit(m.base_unit);
           return (
             <div key={m.id} className="flex items-center justify-between gap-2">
-              <span className="text-sm text-[#5b4636]">{m.name}</span>
+              <span className="text-sm text-ink">{m.name}</span>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
                   inputMode="decimal"
                   value={counts[m.id] ?? ""}
                   onChange={(e) => { setCounts((p) => ({ ...p, [m.id]: e.target.value })); setError(null); }}
-                  className="w-24 rounded-lg border border-neutral-200 px-2 py-1.5 text-center text-sm"
+                  className="w-24 rounded-lg border border-line px-2 py-1.5 text-center text-sm"
                   dir="ltr"
                 />
-                <span className="w-8 text-xs text-neutral-400">{u.label}</span>
+                <span className="w-8 text-xs text-muted">{u.label}</span>
               </div>
             </div>
           );
         })}
       </div>
       {error && <div className="mt-3 text-center text-sm text-red-600">{error}</div>}
-      <button onClick={confirm} disabled={pending} className="mt-4 w-full rounded-xl bg-[#8a6a4f] py-3 text-base font-semibold text-white disabled:opacity-50">
+      <button onClick={confirm} disabled={pending} className="mt-4 w-full rounded-xl bg-accent py-3 text-base font-semibold text-white disabled:opacity-50">
         {pending ? "..." : "احسب الفرق"}
       </button>
     </Modal>

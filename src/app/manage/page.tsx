@@ -14,10 +14,10 @@ export default function ManageHub() {
         <Link
           key={c.href}
           href={c.href}
-          className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm active:scale-[0.99]"
+          className="rounded-xl border border-line bg-cream p-5 shadow-sm active:scale-[0.99]"
         >
-          <div className="text-lg font-semibold text-[#5b4636]">{c.title}</div>
-          <div className="mt-1 text-sm text-neutral-500">{c.desc}</div>
+          <div className="text-lg font-semibold text-ink">{c.title}</div>
+          <div className="mt-1 text-sm text-muted">{c.desc}</div>
         </Link>
       ))}
     </div>
