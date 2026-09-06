@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { money } from "@/lib/format";
 import type { CatalogProduct } from "@/lib/catalog";
 import PaymentDialog from "@/components/PaymentDialog";
@@ -110,7 +111,10 @@ export default function PosScreen({
       <section className="flex flex-1 flex-col">
         <header className="topbar sticky top-0 z-10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="font-display text-lg font-bold text-cream">خزف <span className="text-sm font-normal text-cream/50">· {userName}</span></h1>
+            <div className="flex items-center gap-3">
+              <Link href="/" className="tap chip border border-cream/20 bg-cream/5 text-cream/80">→ الرئيسية</Link>
+              <h1 className="font-display text-lg font-bold text-cream">خزف <span className="text-sm font-normal text-cream/50">· {userName}</span></h1>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={() => setStaffOpen(true)} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">مشروب موظف</button>
               <ShiftControls openingFloat={shift.opening_float} currency={currency} />

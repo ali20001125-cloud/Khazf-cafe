@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { openShiftAction } from "@/app/pos/shift-actions";
@@ -33,9 +34,12 @@ export default function OpenShiftPanel({
 
   return (
     <main className="flex min-h-screen flex-col">
-      <div className="topbar px-6 pb-14 pt-16 text-center">
-        <div className="font-display text-3xl font-bold text-cream">افتح الوردية</div>
-        <p className="mt-2 text-sm text-cream/60">أهلاً {userName} — أدخل الفكّة الافتتاحية</p>
+      <div className="topbar px-5 pb-14 pt-4" dir="rtl">
+        <Link href="/" className="tap chip border border-cream/20 bg-cream/5 text-cream/80">→ الرئيسية</Link>
+        <div className="mt-8 text-center">
+          <div className="font-display text-3xl font-bold text-cream">افتح الوردية</div>
+          <p className="mt-2 text-sm text-cream/60">أهلاً {userName} — أدخل الفكّة الافتتاحية</p>
+        </div>
       </div>
       <div className="mx-auto -mt-8 w-full max-w-sm px-6">
         <div className="card p-6 shadow-lift">

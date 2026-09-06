@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -16,8 +17,9 @@ export default async function PosPage() {
 
   if (!(await can(user, "sell"))) {
     return (
-      <main className="mx-auto max-w-md px-5 py-16 text-center">
+      <main className="mx-auto max-w-md px-5 py-16 text-center" dir="rtl">
         <p className="text-lg font-semibold text-red-600">لا تملك صلاحية البيع.</p>
+        <Link href="/" className="btn-ghost mt-6 inline-block px-8 py-3">→ الرئيسية</Link>
       </main>
     );
   }
@@ -36,6 +38,7 @@ export default async function PosPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-3xl">🔒</div>
         <p className="mt-5 font-display text-2xl font-bold text-ink">الكاشير مقفل</p>
         <p className="mt-2 text-sm text-muted">أوقفه المالك مؤقتاً. راجع المالك للمتابعة.</p>
+        <Link href="/" className="btn-ghost mt-6 px-8 py-3">→ الرئيسية</Link>
       </main>
     );
   }

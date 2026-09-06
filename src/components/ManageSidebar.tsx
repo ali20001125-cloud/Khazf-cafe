@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const NAV = [
+  { href: "/", label: "الرئيسية" },
   { href: "/manage", label: "نظرة عامة" },
   { href: "/manage/products", label: "المشروبات والخيارات" },
   { href: "/manage/inventory", label: "المخزون" },
@@ -19,7 +20,7 @@ export default function ManageSidebar({ userName }: { userName: string }) {
   const links = (
     <nav className="space-y-1">
       {NAV.map((n) => {
-        const active = n.href === "/manage" ? path === "/manage" : path.startsWith(n.href);
+        const active = n.href === "/" || n.href === "/manage" ? path === n.href : path.startsWith(n.href);
         return (
           <Link
             key={n.href}
@@ -29,7 +30,7 @@ export default function ManageSidebar({ userName }: { userName: string }) {
               active ? "bg-cream/15 text-cream" : "text-cream/60 hover:bg-cream/10 hover:text-cream"
             }`}
           >
-            {n.label}
+            {n.href === "/" ? `→ ${n.label}` : n.label}
           </Link>
         );
       })}
