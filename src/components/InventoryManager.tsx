@@ -2,77 +2,140 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { money, stockLabel } from "@/lib/format";
-import { inputUnit, toBase, costToBase } from "@/lib/labels";
+import { money, stockLabel, timeAr } from "@/lib/format";
+import { inputUnit, toBase, costToBase, WASTE_REASONS } from "@/lib/labels";
 import Modal from "@/components/Modal";
 import { addStockAction, stockCountAction } from "@/app/manage/actions";
-import type { CountResult } from "@/lib/inventory";
+import type { CountResult, TxnRow, CountLog } from "@/lib/inventory";
 
-type M = {
-  id: string;
-  name: string;
-  base_unit: "g" | "ml" | "pcs";
-  cached_stock: number;
-  low_threshold: number;
-  current_cost: number;
-};
+type M = { id: string; name: string; base_unit: "g" | "ml" | "pcs"; cached_stock: number; low_threshold: number; current_cost: number };
 
-// عتبات الفرق% (المواصفة): أخضر ≤3 · أصفر ≤5 · أحمر >5
-function varianceColor(pct: number | null): string {
+function reasonLabel(v: string): string {
+  return WASTE_REASONS.find((r) => r.value === v)?.label ?? v;
+}
+function vColor(pct: number | null): string {
   const a = Math.abs(pct ?? 0);
   if (a <= 3) return "text-emerald-600";
   if (a <= 5) return "text-amber-600";
   return "text-red-600 font-semibold";
 }
 
-export default function InventoryManager({ materials, currency }: { materials: M[]; currency: string }) {
+type Tab = "stock" | "purchases" | "waste" | "counts";
+
+export default function InventoryManager({
+  materials, purchases, waste, counts, currency,
+}: {
+  materials: M[]; purchases: TxnRow[]; waste: TxnRow[]; counts: CountLog[]; currency: string;
+}) {
+  const [tab, setTab] = useState<Tab>("stock");
   const [mode, setMode] = useState<null | "add" | "count">(null);
 
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "stock", label: "الأرصدة" },
+    { key: "purchases", label: "المشتريات" },
+    { key: "waste", label: "الهدر" },
+    { key: "counts", label: "الجرد" },
+  ];
+
   return (
-    <div>
-      <div className="mb-4 flex gap-2">
-        <button onClick={() => setMode("add")} className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white">
-          إضافة مخزون
-        </button>
-        <button onClick={() => setMode("count")} className="rounded-lg border border-line bg-cream px-4 py-2 text-sm font-medium text-ink">
-          جرد المخزون
-        </button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-2xl font-bold text-ink">المخزون</h1>
+        <div className="flex gap-2">
+          <button onClick={() => setMode("add")} className="btn-primary px-4 py-2 text-sm">إضافة مخزون</button>
+          <button onClick={() => setMode("count")} className="btn-ghost px-4 py-2 text-sm">جرد</button>
+        </div>
       </div>
 
-      <div className="overflow-hidden card">
-        <table className="w-full text-sm">
-          <thead className="bg-sandalt text-muted">
-            <tr>
-              <th className="px-3 py-2 text-right font-medium">المادة</th>
-              <th className="px-3 py-2 text-right font-medium">الرصيد</th>
-              <th className="px-3 py-2 text-right font-medium">التكلفة</th>
-            </tr>
-          </thead>
-          <tbody>
-            {materials.map((m) => {
-              const u = inputUnit(m.base_unit);
-              const low = m.cached_stock <= m.low_threshold;
-              return (
-                <tr key={m.id} className="border-t border-line">
-                  <td className="px-3 py-2 text-ink">{m.name}</td>
-                  <td className={`px-3 py-2 ${low ? "text-amber-700" : "text-muted"}`}>
-                    {stockLabel(m.cached_stock, m.base_unit)}
-                    {low && <span className="mr-1 text-[10px]">· منخفض</span>}
-                  </td>
-                  <td className="px-3 py-2 text-muted">
-                    {money(m.current_cost * u.factor, currency)}/{u.label}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="flex gap-2 overflow-x-auto">
+        {tabs.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`tap whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${tab === t.key ? "bg-dark text-cream" : "border border-line bg-cream text-muted"}`}>
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {tab === "stock" && (
+        <div className="overflow-hidden card">
+          <table className="w-full text-sm">
+            <thead className="bg-sandalt text-muted">
+              <tr><Th>المادة</Th><Th>الرصيد</Th><Th>التكلفة</Th></tr>
+            </thead>
+            <tbody>
+              {materials.map((m) => {
+                const u = inputUnit(m.base_unit);
+                const low = m.cached_stock <= m.low_threshold;
+                return (
+                  <tr key={m.id} className="border-t border-line">
+                    <Td className="text-ink">{m.name}</Td>
+                    <Td className={low ? "text-amber-700" : "text-muted"}>
+                      <span className="nums">{stockLabel(m.cached_stock, m.base_unit)}</span>{low && <span className="mr-1 text-[10px]">· منخفض</span>}
+                    </Td>
+                    <Td className="text-muted nums">{money(m.current_cost * u.factor, currency)}/{u.label}</Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "purchases" && <TxnTable rows={purchases} currency={currency} showCost />}
+      {tab === "waste" && <TxnTable rows={waste} currency={currency} isWaste />}
+
+      {tab === "counts" && (
+        <div className="overflow-hidden card">
+          <table className="w-full text-sm">
+            <thead className="bg-sandalt text-muted"><tr><Th>التاريخ</Th><Th>بواسطة</Th><Th>مواد</Th><Th>فروقات</Th></tr></thead>
+            <tbody>
+              {counts.length === 0 ? <tr><Td className="text-muted" colSpan={4}>لا جرد بعد.</Td></tr> :
+                counts.map((c) => (
+                  <tr key={c.id} className="border-t border-line">
+                    <Td className="nums text-muted">{timeAr(c.created_at)}</Td>
+                    <Td className="text-ink">{c.user_name ?? "—"}</Td>
+                    <Td className="nums text-muted">{c.items}</Td>
+                    <Td className={c.flagged > 0 ? "text-red-600 font-semibold nums" : "text-emerald-600 nums"}>{c.flagged}</Td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {mode === "add" && <AddStockDialog materials={materials} currency={currency} onClose={() => setMode(null)} />}
       {mode === "count" && <CountDialog materials={materials} onClose={() => setMode(null)} />}
     </div>
   );
+}
+
+function TxnTable({ rows, currency, showCost, isWaste }: { rows: TxnRow[]; currency: string; showCost?: boolean; isWaste?: boolean }) {
+  return (
+    <div className="overflow-hidden card">
+      <table className="w-full text-sm">
+        <thead className="bg-sandalt text-muted">
+          <tr><Th>التاريخ</Th><Th>المادة</Th><Th>الكمية</Th>{showCost && <Th>التكلفة</Th>}<Th>{isWaste ? "السبب" : "بواسطة"}</Th></tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? <tr><Td className="text-muted" colSpan={5}>لا سجلّ بعد.</Td></tr> :
+            rows.map((r, i) => (
+              <tr key={i} className="border-t border-line">
+                <Td className="nums text-muted">{timeAr(r.created_at)}</Td>
+                <Td className="text-ink">{r.material_name}</Td>
+                <Td className="nums text-muted">{r.qty > 0 ? "+" : ""}{r.qty}</Td>
+                {showCost && <Td className="nums text-muted">{r.unit_cost != null ? money(r.unit_cost, currency) : "—"}</Td>}
+                <Td className="text-muted">{isWaste ? reasonLabel(r.reason) : (r.user_name ?? "—")}</Td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Th({ children }: { children: React.ReactNode }) { return <th className="px-3 py-2 text-right font-medium">{children}</th>; }
+function Td({ children, className = "", colSpan }: { children: React.ReactNode; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={`px-3 py-2 ${className}`}>{children}</td>;
 }
 
 function AddStockDialog({ materials, currency, onClose }: { materials: M[]; currency: string; onClose: () => void }) {
@@ -94,39 +157,25 @@ function AddStockDialog({ materials, currency, onClose }: { materials: M[]; curr
     if (!Number.isFinite(c) || c < 0) return setError("تكلفة غير صالحة");
     setError(null);
     start(async () => {
-      const res = await addStockAction(
-        materialId,
-        toBase(q, material!.base_unit),
-        costToBase(c, material!.base_unit),
-        "شراء"
-      );
-      if ("ok" in res && res.ok) {
-        onClose();
-        router.refresh();
-      } else {
-        setError((res as { error: string }).error);
-      }
+      const res = await addStockAction(materialId, toBase(q, material!.base_unit), costToBase(c, material!.base_unit), "شراء");
+      if ("ok" in res && res.ok) { onClose(); router.refresh(); }
+      else setError((res as { error: string }).error);
     });
   }
 
   return (
     <Modal title="إضافة مخزون" onClose={onClose}>
       <label className="mb-1 block text-sm text-muted">المادة</label>
-      <select value={materialId} onChange={(e) => { setMaterialId(e.target.value); setError(null); }} className="mb-3 w-full rounded-lg border border-line px-3 py-2">
+      <select value={materialId} onChange={(e) => { setMaterialId(e.target.value); setError(null); }} className="field mb-3">
         <option value="">اختر…</option>
         {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
-
       <label className="mb-1 block text-sm text-muted">الكمية {u ? `(${u.label})` : ""}</label>
-      <input type="number" inputMode="decimal" value={qty} onChange={(e) => { setQty(e.target.value); setError(null); }} className="mb-3 w-full rounded-lg border border-line px-3 py-2 text-center" dir="ltr" />
-
+      <input type="number" inputMode="decimal" value={qty} onChange={(e) => { setQty(e.target.value); setError(null); }} className="field nums mb-3 text-center" dir="ltr" />
       <label className="mb-1 block text-sm text-muted">التكلفة لكل {u ? u.label : "وحدة"} (اختياري)</label>
-      <input type="number" inputMode="numeric" value={cost} onChange={(e) => { setCost(e.target.value); setError(null); }} placeholder={`${currency} / ${u ? u.label : ""}`} className="mb-3 w-full rounded-lg border border-line px-3 py-2 text-center" dir="ltr" />
-
+      <input type="number" inputMode="numeric" value={cost} onChange={(e) => { setCost(e.target.value); setError(null); }} placeholder={`${currency} / ${u ? u.label : ""}`} className="field nums mb-3 text-center" dir="ltr" />
       {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}
-      <button onClick={confirm} disabled={pending} className="w-full rounded-xl bg-accent py-3 text-base font-semibold text-white disabled:opacity-50">
-        {pending ? "..." : "إضافة"}
-      </button>
+      <button onClick={confirm} disabled={pending} className="btn-primary w-full">{pending ? "..." : "إضافة"}</button>
     </Modal>
   );
 }
@@ -162,15 +211,11 @@ function CountDialog({ materials, onClose }: { materials: M[]; onClose: () => vo
           {result.items.map((i) => (
             <div key={i.material_id} className="flex items-center justify-between rounded-lg border border-line p-2 text-sm">
               <span className="text-ink">{i.name}</span>
-              <span className={varianceColor(i.variance_pct)}>
-                {i.variance > 0 ? "+" : ""}{i.variance} ({i.variance_pct ?? 0}%)
-              </span>
+              <span className={`nums ${vColor(i.variance_pct)}`}>{i.variance > 0 ? "+" : ""}{i.variance} ({i.variance_pct ?? 0}%)</span>
             </div>
           ))}
         </div>
-        <button onClick={() => { onClose(); router.refresh(); }} className="mt-4 w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white">
-          تم
-        </button>
+        <button onClick={() => { onClose(); router.refresh(); }} className="btn-primary mt-4 w-full py-3">تم</button>
       </Modal>
     );
   }
@@ -185,14 +230,7 @@ function CountDialog({ materials, onClose }: { materials: M[]; onClose: () => vo
             <div key={m.id} className="flex items-center justify-between gap-2">
               <span className="text-sm text-ink">{m.name}</span>
               <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={counts[m.id] ?? ""}
-                  onChange={(e) => { setCounts((p) => ({ ...p, [m.id]: e.target.value })); setError(null); }}
-                  className="w-24 rounded-lg border border-line px-2 py-1.5 text-center text-sm"
-                  dir="ltr"
-                />
+                <input type="number" inputMode="decimal" value={counts[m.id] ?? ""} onChange={(e) => { setCounts((p) => ({ ...p, [m.id]: e.target.value })); setError(null); }} className="field nums w-24 py-1.5 text-center" dir="ltr" />
                 <span className="w-8 text-xs text-muted">{u.label}</span>
               </div>
             </div>
@@ -200,9 +238,7 @@ function CountDialog({ materials, onClose }: { materials: M[]; onClose: () => vo
         })}
       </div>
       {error && <div className="mt-3 text-center text-sm text-red-600">{error}</div>}
-      <button onClick={confirm} disabled={pending} className="mt-4 w-full rounded-xl bg-accent py-3 text-base font-semibold text-white disabled:opacity-50">
-        {pending ? "..." : "احسب الفرق"}
-      </button>
+      <button onClick={confirm} disabled={pending} className="btn-primary mt-4 w-full">{pending ? "..." : "احسب الفرق"}</button>
     </Modal>
   );
 }

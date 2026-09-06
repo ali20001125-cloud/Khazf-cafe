@@ -40,6 +40,45 @@ export async function recordWaste(
   return Number(rows[0].s);
 }
 
+export type TxnRow = { created_at: string; material_name: string; qty: number; unit_cost: number | null; reason: string; user_name: string | null };
+
+export async function listPurchases(businessId: string): Promise<TxnRow[]> {
+  return (await db()`
+    select t.created_at, m.name as material_name, t.qty_delta as qty, t.unit_cost, t.reason, u.name as user_name
+    from inventory_transactions t
+    join materials m on m.id = t.material_id
+    left join users u on u.id = t.user_id
+    where t.business_id = ${businessId} and t.type = 'PURCHASE'
+    order by t.created_at desc limit 40
+  `) as TxnRow[];
+}
+
+export async function listWasteLog(businessId: string): Promise<TxnRow[]> {
+  return (await db()`
+    select t.created_at, m.name as material_name, t.qty_delta as qty, t.unit_cost, t.reason, u.name as user_name
+    from inventory_transactions t
+    join materials m on m.id = t.material_id
+    left join users u on u.id = t.user_id
+    where t.business_id = ${businessId} and t.type in ('WASTE','STAFF')
+    order by t.created_at desc limit 40
+  `) as TxnRow[];
+}
+
+export type CountLog = { id: string; created_at: string; user_name: string | null; items: number; flagged: number };
+export async function listCounts(branchId: string): Promise<CountLog[]> {
+  return (await db()`
+    select c.id, c.created_at, u.name as user_name,
+           count(i.*)::int as items,
+           count(i.*) filter (where i.variance <> 0)::int as flagged
+    from stock_counts c
+    left join stock_count_items i on i.count_id = c.id
+    left join users u on u.id = c.user_id
+    where c.branch_id = ${branchId}
+    group by c.id, u.name
+    order by c.created_at desc limit 20
+  `) as CountLog[];
+}
+
 export type CountItem = { material_id: string; counted: number };
 export type CountResult = {
   count_id: string;

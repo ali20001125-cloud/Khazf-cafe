@@ -97,6 +97,31 @@ export async function recentExceptions(businessId: string): Promise<AuditRow[]> 
   `) as AuditRow[];
 }
 
+export type DaySales = { day: string; total: number };
+
+/** مبيعات آخر ٧ أيام (بتوقيت بغداد) للرسم البياني. */
+export async function salesLast7Days(branchId: string): Promise<DaySales[]> {
+  const rows = (await db()`
+    select to_char((paid_at at time zone 'Asia/Baghdad')::date, 'YYYY-MM-DD') as day,
+           sum(total)::int as total
+    from orders
+    where branch_id = ${branchId} and status = 'COMPLETED'
+      and paid_at >= ((date_trunc('day', now() at time zone 'Asia/Baghdad') - interval '6 days') at time zone 'Asia/Baghdad')
+    group by 1 order by 1
+  `) as { day: string; total: number }[];
+  // املأ الأيام الفارغة
+  const out: DaySales[] = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const hit = rows.find((r) => r.day === key);
+    out.push({ day: key, total: hit ? Number(hit.total) : 0 });
+  }
+  return out;
+}
+
 export async function openShiftsCount(branchId: string): Promise<number> {
   const r = (await db()`
     select count(*)::int as n from shifts where branch_id = ${branchId} and status = 'OPEN'
