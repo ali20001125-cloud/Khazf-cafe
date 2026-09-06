@@ -42,16 +42,16 @@ select r.id, p.perm
 from roles r
 cross join (values
   ('sell'),('open_shift'),('close_shift'),('record_waste'),('staff_drink'),
-  ('no_sale_open'),('void_draft'),('cash_drop'),('day_close')
+  ('void_draft')
 ) as p(perm)
 where r.key = 'barista';
 
 -- ── المستخدمون (PIN مُهشّر bcrypt عبر pgcrypto) ──────────────────────
--- أرقام دخول ابتدائية تُغيَّر فوراً من اللوحة: المالك 4917 · الباريستا 2603
+-- أرقام دخول ابتدائية تُغيَّر فوراً من اللوحة: المالك 1111 · الباريستا 0000
 insert into users (business_id, name, role, pin_hash)
-select id, 'المالك', 'owner', crypt('4917', gen_salt('bf')) from businesses;
+select id, 'المالك', 'owner', crypt('1111', gen_salt('bf')) from businesses;
 insert into users (business_id, name, role, pin_hash)
-select id, 'الباريستا', 'barista', crypt('2603', gen_salt('bf')) from businesses;
+select id, 'الباريستا', 'barista', crypt('0000', gen_salt('bf')) from businesses;
 
 insert into user_branch_access (user_id, branch_id)
 select u.id, b.id from users u cross join branches b;

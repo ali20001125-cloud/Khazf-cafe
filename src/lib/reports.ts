@@ -97,6 +97,23 @@ export async function recentExceptions(businessId: string): Promise<AuditRow[]> 
   `) as AuditRow[];
 }
 
+export type TopProduct = { name: string; qty: number; revenue: number };
+
+/** أكثر المشروبات مبيعاً اليوم. */
+export async function topProductsToday(branchId: string): Promise<TopProduct[]> {
+  return (await db()`
+    select p.name, sum(oi.qty)::int as qty, sum(oi.unit_price * oi.qty)::int as revenue
+    from order_items oi
+    join orders o on o.id = oi.order_id
+    join products p on p.id = oi.product_id
+    where o.branch_id = ${branchId} and o.status = 'COMPLETED'
+      and o.paid_at >= date_trunc('day', now() at time zone 'Asia/Baghdad') at time zone 'Asia/Baghdad'
+    group by p.name
+    order by qty desc
+    limit 5
+  `) as TopProduct[];
+}
+
 export type DaySales = { day: string; total: number };
 
 /** مبيعات آخر ٧ أيام (بتوقيت بغداد) للرسم البياني. */
