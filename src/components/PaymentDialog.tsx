@@ -54,7 +54,12 @@ export default function PaymentDialog({
     setError(null);
     start(async () => {
       const res = await pay({
-        items: lines.map((l) => ({ product_id: l.product_id, crop_material_id: l.crop_material_id, qty: l.qty })),
+        items: lines.map((l) => ({
+          product_id: l.product_id,
+          crop_material_id: l.crop_material_id,
+          qty: l.qty,
+          options: l.options.map((o) => o.id),
+        })),
         fulfillment,
         method,
         tendered: method === "cash" ? tenderedNum : null,

@@ -5,7 +5,7 @@ import { requirePermission, AuthError } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 
-export type PayItem = { product_id: string; crop_material_id: string; qty: number };
+export type PayItem = { product_id: string; crop_material_id: string; qty: number; options?: string[] };
 
 export type PayInput = {
   items: PayItem[];
@@ -48,6 +48,7 @@ export async function pay(input: PayInput): Promise<PayResult> {
         product_id: i.product_id,
         crop_material_id: i.crop_material_id,
         qty: i.qty,
+        options: i.options ?? [],
       }))
     );
 

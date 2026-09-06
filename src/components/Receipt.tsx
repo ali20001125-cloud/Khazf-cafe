@@ -39,6 +39,11 @@ export default function Receipt({ info }: { info: ReceiptInfo }) {
               <td className="py-0.5 align-top">
                 {l.name}
                 <span className="text-[10px] text-neutral-600"> ×{l.qty}</span>
+                {(l.crop_name || l.options?.length) && (
+                  <div className="text-[9px] text-neutral-500">
+                    {[l.crop_name, ...(l.options?.map((o) => o.name) ?? [])].filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </td>
               <td className="py-0.5 text-left align-top whitespace-nowrap">
                 {money(l.unit_price * l.qty, info.currency)}
