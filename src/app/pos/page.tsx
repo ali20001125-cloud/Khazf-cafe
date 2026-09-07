@@ -8,6 +8,7 @@ import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import PosScreen from "@/components/PosScreen";
 import OpenShiftPanel from "@/components/OpenShiftPanel";
+import { pendingHandoverForMe } from "@/app/pos/shift-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function PosPage() {
   const user = currentUser();
   if (!user) redirect("/login");
 
-  if (!(await can(user, "sell"))) {
+  if (!(await can(user, "orders.create"))) {
     return (
       <main className="mx-auto max-w-md px-5 py-16 text-center" dir="rtl">
         <p className="text-lg font-semibold text-red-600">لا تملك صلاحية البيع.</p>
@@ -51,12 +52,22 @@ export default async function PosPage() {
     );
   }
 
+  // الصلاحيات تُقرَّر في الخادم؛ الواجهة تُخفي فقط، والفعل يُفحص ثانيةً (§66).
+  const [canNoSale, canHandover, pendingHandover] = await Promise.all([
+    can(user, "cash.no_sale_open"),
+    can(user, "cash.handover"),
+    pendingHandoverForMe(),
+  ]);
+
   return (
     <PosScreen
       catalog={catalog}
       currency={currency}
       userName={user.name}
       shift={{ id: shift.id, opening_float: shift.opening_float }}
+      canNoSale={canNoSale}
+      canHandover={canHandover}
+      pendingHandover={pendingHandover}
     />
   );
 }

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function ProductsPage() {
   const user = currentUser();
   if (!user) redirect("/login");
-  if (!(await can(user, "manage_products"))) redirect("/");
+  if (!(await can(user, "products.manage"))) redirect("/");
 
   const [products, settings] = await Promise.all([getProductsAdmin(user.bid), getSettings()]);
   const currency = strSetting(settings, "currency", "د.ع");

@@ -9,6 +9,7 @@ import ShiftControls from "@/components/ShiftControls";
 import StaffDrinkDialog from "@/components/StaffDrinkDialog";
 import ModifierSheet from "@/components/ModifierSheet";
 import CustomerPanel, { type LinkedCustomer } from "@/components/CustomerPanel";
+import { HandoverInbox } from "@/components/DrawerDialogs";
 
 export type CartOption = { id: string; name: string; price_delta: number };
 export type CartLine = {
@@ -38,11 +39,17 @@ export default function PosScreen({
   currency,
   userName,
   shift,
+  canNoSale = false,
+  canHandover = false,
+  pendingHandover = null,
 }: {
   catalog: CatalogProduct[];
   currency: string;
   userName: string;
   shift: { id: string; opening_float: number };
+  canNoSale?: boolean;
+  canHandover?: boolean;
+  pendingHandover?: { id: string; from_name: string } | null;
 }) {
   const cats = useMemo(() => CATS.filter((c) => catalog.some((p) => (p.category || "other") === c.key)), [catalog]);
   const [cat, setCat] = useState<string>(cats[0]?.key ?? "espresso");
@@ -114,6 +121,9 @@ export default function PosScreen({
     <div className="flex min-h-screen flex-col lg:flex-row" dir="rtl">
       {/* الجانب: المنتجات */}
       <section className="flex flex-1 flex-col">
+        {pendingHandover && (
+          <HandoverInbox handoverId={pendingHandover.id} fromName={pendingHandover.from_name} />
+        )}
         <header className="topbar sticky top-0 z-10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-3">
@@ -126,7 +136,7 @@ export default function PosScreen({
                 {customer ? `ولاء · ${customer.stamps}` : "ولاء"}
               </button>
               <button onClick={() => setStaffOpen(true)} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">مشروب موظف</button>
-              <ShiftControls openingFloat={shift.opening_float} currency={currency} />
+              <ShiftControls openingFloat={shift.opening_float} currency={currency} canNoSale={canNoSale} canHandover={canHandover} />
             </div>
           </div>
         </header>

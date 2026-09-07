@@ -20,7 +20,7 @@ export async function recordStaffDrinkAction(
 ): Promise<StaffResult> {
   let user;
   try {
-    user = await requirePermission("staff_drink");
+    user = await requirePermission("staff_drinks.create");
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.message };
     throw e;

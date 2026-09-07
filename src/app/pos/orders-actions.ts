@@ -22,7 +22,7 @@ export type ShiftOrder = {
  */
 export async function listShiftOrders(): Promise<ShiftOrder[] | { error: string }> {
   try {
-    const u = await requirePermission("sell");
+    const u = await requirePermission("orders.view_own");
     const branchId = await getActiveBranchId(u.bid);
     if (!branchId) return { error: "لا يوجد فرع فعّال" };
     const shift = await getOpenShift(branchId);

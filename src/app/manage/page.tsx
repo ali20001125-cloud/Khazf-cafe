@@ -26,7 +26,7 @@ function vColor(pct: number | null): string {
 export default async function Overview() {
   const user = currentUser();
   if (!user) redirect("/login");
-  if (!(await can(user, "view_reports"))) redirect("/");
+  if (!(await can(user, "reports.financial"))) redirect("/");
 
   const branch = await getActiveBranch(user.bid);
   if (!branch) return <p className="text-red-600">لا يوجد فرع فعّال.</p>;

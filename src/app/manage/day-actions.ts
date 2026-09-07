@@ -7,7 +7,7 @@ import { closeDay } from "@/lib/day";
 
 export async function closeDayAction(): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const u = await requirePermission("day_close");
+    const u = await requirePermission("day.close");
     const branchId = await getActiveBranchId(u.bid);
     if (!branchId) return { ok: false, error: "لا يوجد فرع فعّال" };
     const res = await closeDay(branchId, u.uid);

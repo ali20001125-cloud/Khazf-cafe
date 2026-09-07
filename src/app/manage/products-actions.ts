@@ -17,7 +17,7 @@ export async function updateProductAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   let user;
   try {
-    user = await requirePermission("manage_products");
+    user = await requirePermission("products.manage");
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.message };
     throw e;

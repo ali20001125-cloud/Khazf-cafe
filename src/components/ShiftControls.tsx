@@ -7,21 +7,44 @@ import Modal from "@/components/Modal";
 import WasteDialog from "@/components/WasteDialog";
 import OrdersDialog from "@/components/OrdersDialog";
 import { closeShiftAction } from "@/app/pos/shift-actions";
+import { NoSaleDialog, HandoverDialog } from "@/components/DrawerDialogs";
 
-// شريط الوردية — بلا «سحب نقد» (للمالك فقط، من اللوحة).
-export default function ShiftControls({ openingFloat, currency }: { openingFloat: number; currency: string }) {
-  const [mode, setMode] = useState<null | "close" | "waste" | "orders">(null);
+/**
+ * شريط الوردية. «سحب نقد» ليس هنا (للمالك من اللوحة)، و«فتح الدرج بلا بيع»
+ * يظهر فقط لمن يملك الصلاحية — تُقرَّر في الخادم وتُمرَّر كخاصية، والفعل
+ * نفسه يُفحص في الخادم مرّة أخرى (إخفاء الزرّ ليس حماية، §66).
+ */
+export default function ShiftControls({
+  openingFloat,
+  currency,
+  canNoSale = false,
+  canHandover = false,
+}: {
+  openingFloat: number;
+  currency: string;
+  canNoSale?: boolean;
+  canHandover?: boolean;
+}) {
+  const [mode, setMode] = useState<null | "close" | "waste" | "orders" | "nosale" | "handover">(null);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="nums chip bg-accent/20 text-cream/90">وردية · فكّة {money(openingFloat, currency)}</span>
       <button onClick={() => setMode("orders")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">طلباتي</button>
       <button onClick={() => setMode("waste")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">هدر</button>
+      {canNoSale && (
+        <button onClick={() => setMode("nosale")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">فتح الدرج</button>
+      )}
+      {canHandover && (
+        <button onClick={() => setMode("handover")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">تسليم الدرج</button>
+      )}
       <button onClick={() => setMode("close")} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">إغلاق الوردية</button>
 
       {mode === "orders" && <OrdersDialog currency={currency} onClose={() => setMode(null)} />}
       {mode === "close" && <CloseDialog onClose={() => setMode(null)} />}
       {mode === "waste" && <WasteDialog onClose={() => setMode(null)} />}
+      {mode === "nosale" && <NoSaleDialog onClose={() => setMode(null)} />}
+      {mode === "handover" && <HandoverDialog onClose={() => setMode(null)} />}
     </div>
   );
 }

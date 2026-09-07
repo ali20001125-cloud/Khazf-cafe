@@ -28,6 +28,8 @@ psql -f db/tests/02_integrity.sql   # ما يجب أن ترفضه القاعدة
 psql -f db/tests/03_loyalty.sql     # الكسب · المكافأة · الصرف · عكس الإرجاع
 psql -f db/tests/04_cash.sql        # الدرج · العدّ الأعمى · إغلاق اليوم
 psql -f db/tests/05_inventory.sql   # مشروب موظف · هدر · جرد · الفروقات · الأسعار
+psql -f db/tests/06_refund_void.sql # الإلغاء · الإرجاع الجزئي والكامل · السقف
+psql -f db/tests/07_drawer.sql      # فتح بلا بيع · تسليم الدرج · سحب المبيعات
 ```
 
 بدل القاعدة المحلّية يمكن استخدام **فرع Neon مؤقّت** (نسخة من الإنتاج) ثم حذفه.

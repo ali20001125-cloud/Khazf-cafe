@@ -15,7 +15,7 @@ export async function updateSettingsAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   let user;
   try {
-    user = await requirePermission("change_settings");
+    user = await requirePermission("settings.manage");
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.message };
     throw e;

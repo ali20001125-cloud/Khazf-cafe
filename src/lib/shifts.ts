@@ -44,25 +44,27 @@ export async function openShift(
   }
 }
 
-/** إغلاق أعمى: يُخزَّن المعدود والمتوقّع والفرق ذرّياً. لا يُعيد أرقاماً للباريستا. */
+/**
+ * إغلاق أعمى — ينادي `close_shift_blind()` في القاعدة.
+ *
+ * الحساب **لا يُعاد هنا**: صيغة المتوقّع (الفكّة + Σ الحركات ما عدا OPENING)
+ * تعيش في `shift_expected_cash()` وحدها، وإلا اختلفت نسختان بمرور الوقت.
+ * الدالة تكتب المعدود ثم تحسب المتوقّع والفرق ذرّياً وتُسجّل في `audit_log`،
+ * ولا تُعيد أي رقم مالي — الباريستا لا يرى الفرق (§26).
+ */
 export async function closeShift(
   shiftId: string,
   countedCash: number
-): Promise<{ ok: true; expected: number; variance: number } | { ok: false; error: string }> {
-  const rows = (await db()`
-    update shifts s
-    set counted_cash = ${countedCash},
-        expected_cash = s.opening_float + coalesce(
-          (select sum(amount) from cash_movements where shift_id = s.id), 0),
-        variance = ${countedCash} - (s.opening_float + coalesce(
-          (select sum(amount) from cash_movements where shift_id = s.id), 0)),
-        closed_at = now(),
-        status = 'CLOSED'
-    where s.id = ${shiftId} and s.status = 'OPEN'
-    returning expected_cash, variance
-  `) as { expected_cash: number; variance: number }[];
-  if (!rows[0]) return { ok: false, error: "الوردية غير مفتوحة" };
-  return { ok: true, expected: Number(rows[0].expected_cash), variance: Number(rows[0].variance) };
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await db()`
+      select close_shift_blind(${shiftId}, (select employee_id from shifts where id = ${shiftId}), ${countedCash})
+    `;
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "تعذّر إغلاق الوردية";
+    return { ok: false, error: msg.replace(/^.*?:\s*/, "") };
+  }
 }
 
 /** سحب نقد أثناء الوردية (DROP) — يُنقص الدرج المتوقّع ويُسجَّل. */

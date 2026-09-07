@@ -9,7 +9,7 @@ export type WasteMaterial = { id: string; name: string; base_unit: "g" | "ml" | 
 
 export async function listWasteMaterials(): Promise<WasteMaterial[] | { error: string }> {
   try {
-    const u = await requirePermission("record_waste");
+    const u = await requirePermission("inventory.waste");
     return (await db()`
       select id, name, base_unit from materials
       where business_id = ${u.bid} and active order by base_unit, name
@@ -26,7 +26,7 @@ export async function wasteAction(
   reason: string
 ): Promise<{ ok: true; newStock: number } | { ok: false; error: string }> {
   try {
-    const u = await requirePermission("record_waste");
+    const u = await requirePermission("inventory.waste");
     if (!Number.isFinite(qtyBase) || qtyBase <= 0) return { ok: false, error: "كمية غير صالحة" };
     if (!reason) return { ok: false, error: "اختر السبب" };
     const branchId = await getActiveBranchId(u.bid);

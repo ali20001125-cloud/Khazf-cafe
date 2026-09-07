@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const user = currentUser();
   if (!user) redirect("/login");
-  if (!(await can(user, "change_settings"))) redirect("/");
+  if (!(await can(user, "settings.manage"))) redirect("/");
 
   const s = await getSettings();
   const vt = (s.variance_thresholds as { green?: number; amber?: number }) ?? {};
