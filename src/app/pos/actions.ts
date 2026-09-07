@@ -13,6 +13,8 @@ export type PayInput = {
   method: "cash" | "card";
   tendered: number | null;
   idempotencyKey: string;
+  /** حساب ولاء مربوط بالفاتورة (§38). الأختام تُحتسب في نفس معاملة البيع (§59). */
+  customerId?: string | null;
 };
 
 export type PayResult =
@@ -22,7 +24,7 @@ export type PayResult =
 export async function pay(input: PayInput): Promise<PayResult> {
   let user;
   try {
-    user = await requirePermission("sell");
+    user = await requirePermission("orders.create");
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.message };
     throw e;
@@ -52,11 +54,13 @@ export async function pay(input: PayInput): Promise<PayResult> {
       }))
     );
 
+    // النسخة ذات ١١ وسيطاً: تربط العميل وتترك الخصم فارغاً (الخصم شاشة مستقلّة).
     const rows = (await db()`
       select checkout(
         ${user.bid}, ${branchId}, ${user.uid}, ${shift.id},
         ${input.fulfillment}, ${input.method}, ${input.tendered},
-        ${input.idempotencyKey}, ${itemsJson}::jsonb
+        ${input.idempotencyKey}, ${itemsJson}::jsonb,
+        ${input.customerId ?? null}, ${null}::jsonb
       ) as result
     `) as { result: { order_number: number; total: number; change: number | null; replay: boolean } }[];
 

@@ -14,6 +14,7 @@ export default function PaymentDialog({
   total,
   fulfillment,
   currency,
+  customerId,
   onClose,
   onPaid,
 }: {
@@ -21,6 +22,8 @@ export default function PaymentDialog({
   total: number;
   fulfillment: "takeaway" | "dine_in";
   currency: string;
+  /** حساب الولاء المربوط — الأختام تُحتسب داخل معاملة البيع نفسها (§59). */
+  customerId?: string | null;
   onClose: () => void;
   onPaid: () => void;
 }) {
@@ -64,6 +67,7 @@ export default function PaymentDialog({
         method,
         tendered: method === "cash" ? tenderedNum : null,
         idempotencyKey: idemKey,
+        customerId: customerId ?? null,
       });
       if (res.ok) {
         setReceipt({

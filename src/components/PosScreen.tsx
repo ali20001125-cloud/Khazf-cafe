@@ -8,6 +8,7 @@ import PaymentDialog from "@/components/PaymentDialog";
 import ShiftControls from "@/components/ShiftControls";
 import StaffDrinkDialog from "@/components/StaffDrinkDialog";
 import ModifierSheet from "@/components/ModifierSheet";
+import CustomerPanel, { type LinkedCustomer } from "@/components/CustomerPanel";
 
 export type CartOption = { id: string; name: string; price_delta: number };
 export type CartLine = {
@@ -52,6 +53,10 @@ export default function PosScreen({
   const [staffOpen, setStaffOpen] = useState(false);
   const [parkedCount, setParkedCount] = useState(0);
   const [showParked, setShowParked] = useState(false);
+  // ولاء الزبون (§38): يُربط بالفاتورة قبل الدفع، والأختام تُحتسب في القاعدة.
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customer, setCustomer] = useState<LinkedCustomer | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => { setParkedCount(readParked().length); }, []);
 
@@ -83,7 +88,7 @@ export default function PosScreen({
   function changeQty(key: string, d: number) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, qty: l.qty + d } : l)).filter((l) => l.qty > 0));
   }
-  function clearCart() { setLines([]); setFulfillment("takeaway"); }
+  function clearCart() { setLines([]); setFulfillment("takeaway"); setCustomer(null); }
 
   function park() {
     if (lines.length === 0) return;
@@ -116,6 +121,10 @@ export default function PosScreen({
               <h1 className="font-display text-lg font-bold text-cream">خزف <span className="text-sm font-normal text-cream/50">· {userName}</span></h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setCustomerOpen(true)}
+                className={`tap chip border ${customer ? "border-green-400/40 bg-green-400/15 text-green-200" : "border-cream/20 bg-cream/5 text-cream/80"}`}>
+                {customer ? `ولاء · ${customer.stamps}` : "ولاء"}
+              </button>
               <button onClick={() => setStaffOpen(true)} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">مشروب موظف</button>
               <ShiftControls openingFloat={shift.opening_float} currency={currency} />
             </div>
@@ -163,6 +172,16 @@ export default function PosScreen({
             {lines.length > 0 && <button onClick={clearCart} className="text-xs text-muted">تفريغ</button>}
           </div>
         </div>
+
+        {customer && (
+          <div className="mx-4 mt-3 flex items-center justify-between rounded-xl bg-green-50 px-3 py-2">
+            <span className="text-xs font-medium text-green-800">
+              ولاء: <span className="nums">{customer.phone}</span>
+              {customer.name ? ` · ${customer.name}` : ""}
+            </span>
+            <button onClick={() => setCustomer(null)} className="text-xs text-green-700 underline">إزالة</button>
+          </div>
+        )}
 
         <div className="mx-4 mt-3 grid grid-cols-2 gap-1 rounded-xl bg-dark/5 p-1">
           <Seg active={fulfillment === "takeaway"} onClick={() => setFulfillment("takeaway")}>سفري</Seg>
@@ -212,9 +231,31 @@ export default function PosScreen({
       )}
       {payOpen && (
         <PaymentDialog lines={lines} total={total} fulfillment={fulfillment} currency={currency}
+          customerId={customer?.id ?? null}
           onClose={() => setPayOpen(false)} onPaid={() => { setPayOpen(false); clearCart(); }} />
       )}
       {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}
+      {customerOpen && (
+        <CustomerPanel
+          catalog={catalog}
+          fulfillment={fulfillment}
+          linked={customer}
+          onLink={setCustomer}
+          onUnlink={() => { setCustomer(null); setCustomerOpen(false); }}
+          onRedeemed={(n) => {
+            setCustomerOpen(false);
+            setCustomer(null);
+            setFlash(`صُرفت المكافأة — فاتورة #${n}`);
+            setTimeout(() => setFlash(null), 4000);
+          }}
+          onClose={() => setCustomerOpen(false)}
+        />
+      )}
+      {flash && (
+        <div className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit rounded-2xl bg-dark px-5 py-3 text-sm font-semibold text-cream shadow-lift">
+          {flash}
+        </div>
+      )}
       {showParked && (
         <ParkedList currency={currency} onClose={() => setShowParked(false)} onRecall={recall} />
       )}

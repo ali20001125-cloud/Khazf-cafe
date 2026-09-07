@@ -7,6 +7,8 @@ import { useState } from "react";
 const NAV = [
   { href: "/", label: "الرئيسية" },
   { href: "/manage", label: "نظرة عامة" },
+  { href: "/manage/orders", label: "الطلبات" },
+  { href: "/manage/exceptions", label: "الشاذّ" },
   { href: "/manage/products", label: "المشروبات والخيارات" },
   { href: "/manage/inventory", label: "المخزون" },
   { href: "/manage/settings", label: "الإعدادات" },

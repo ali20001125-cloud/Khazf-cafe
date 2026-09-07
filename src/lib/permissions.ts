@@ -8,7 +8,34 @@ import type { SessionData } from "./session";
  * الصلاحيات مخزّنة في role_permissions وتُسند للأدوار — قابلة للتوسّع بلا كود.
  */
 
+/**
+ * المفاتيح المنقّطة (المعتمدة — كتالوج `permissions` في القاعدة، هجرة 0009)
+ * والمفاتيح المسطّحة القديمة تبقى صالحة حتى ينتقل كل الكود.
+ * جدول المرادفات: docs/KHAZAF-POS-TECHSPEC.md §6.
+ */
 export type Permission =
+  // الطلبات
+  | "orders.create" | "orders.edit_before_payment" | "orders.view_own"
+  | "orders.view_all" | "orders.reprint" | "orders.void_draft"
+  // المدفوعات والخصومات
+  | "payments.create" | "payments.refund" | "payments.void"
+  | "discounts.apply" | "discounts.apply_sensitive"
+  // الكاش
+  | "cash.open_shift" | "cash.close_shift" | "cash.count" | "cash.drop"
+  | "cash.remove" | "cash.view_expected" | "cash.no_sale_open" | "cash.handover"
+  // المخزون
+  | "inventory.view" | "inventory.receive" | "inventory.count"
+  | "inventory.adjust" | "inventory.waste"
+  // الموظفون والكتالوج
+  | "staff_drinks.create" | "staff_drinks.approve"
+  | "products.manage" | "recipes.manage" | "prices.manage"
+  // الولاء
+  | "loyalty.view_customer" | "loyalty.redeem" | "loyalty.manage"
+  // التقارير والإدارة
+  | "reports.view" | "reports.financial"
+  | "users.manage" | "branches.manage" | "settings.manage" | "audit.view"
+  | "day.close" | "day.reopen" | "pos.lock" | "approvals.grant"
+  // ── مهجورة (مسطّحة) — تبقى مُسندة للمالك حتى ينتقل الكود ──
   | "sell" | "open_shift" | "close_shift" | "record_waste" | "staff_drink"
   | "no_sale_open" | "void_draft" | "void_paid" | "refund" | "apply_discount"
   | "adjust_inventory" | "stock_count" | "add_stock" | "purchase"
