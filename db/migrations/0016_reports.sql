@@ -140,7 +140,11 @@ language sql stable as $$
       and (created_at at time zone (select timezone from tz))::date = p_day
   ),
   pay as (
-    select p.method, p.amount from payments p join o on o.id = p.order_id where p.status = 'CONFIRMED'
+    -- الطلب الملغى لم يقع بيعاً (§49)، فلا يدخل مبيعات اليوم ولو بقي صفّ الدفع
+    -- محفوظاً في التاريخ. إن كان المال قد قُبض فعلاً فطريقه الإرجاع (§50)،
+    -- وهو يظهر في refunds_total وفي حركة كاش سالبة.
+    select p.method, p.amount from payments p join o on o.id = p.order_id
+    where p.status = 'CONFIRMED' and o.status not in ('VOIDED','CANCELLED')
   ),
   sh as (select * from shifts where branch_id = p_branch_id
           and (opened_at at time zone (select timezone from tz))::date = p_day)
