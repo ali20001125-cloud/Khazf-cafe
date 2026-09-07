@@ -5,15 +5,49 @@ import { useRouter } from "next/navigation";
 import { categoryLabel } from "@/lib/format";
 import type { AdminProduct } from "@/lib/products-admin";
 import { updateProductAction, type ProductPatch } from "@/app/manage/products-actions";
+import NewProductDialog, { type CropOption } from "@/components/NewProductDialog";
 
-export default function ProductsEditor({ products, currency }: { products: AdminProduct[]; currency: string }) {
+export default function ProductsEditor({
+  products,
+  crops,
+  currency,
+}: {
+  products: AdminProduct[];
+  /** محاصيل القهوة المتاحة — تُنشأ هنا أو من المخزون، وهي مواد لها رصيد. */
+  crops: CropOption[];
+  currency: string;
+}) {
+  const [adding, setAdding] = useState(false);
+
   return (
-    <div className="space-y-4">
-      <h2 className="font-display text-lg font-bold text-ink">المشروبات والأسعار</h2>
-      <p className="text-sm text-muted">عدّل السعر لكل محصول، غرامات الحبوب، الحليب، أو أوقف مشروباً. لا يؤثّر على الطلبات القديمة.</p>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink">المشروبات والأسعار</h1>
+          <p className="mt-1 text-sm text-muted">
+            سعر كل محصول، وغرامات الحبوب، والحليب. التغيير هنا لا يمسّ الفواتير القديمة —
+            كل فاتورة تحتفظ بسعرها ووصفتها وقت البيع.
+          </p>
+        </div>
+        <button onClick={() => setAdding(true)} className="btn-primary px-4 py-2 text-sm">
+          + مشروب جديد
+        </button>
+      </div>
+
+      {products.length === 0 && (
+        <div className="card p-10 text-center">
+          <p className="font-display font-bold text-ink">لا مشروبات بعد</p>
+          <p className="mt-1 text-sm text-muted">أضف أول مشروب لتبدأ البيع.</p>
+        </div>
+      )}
+
       {products.map((p) => (
         <ProductCard key={p.id} product={p} currency={currency} />
       ))}
+
+      {adding && (
+        <NewProductDialog crops={crops} currency={currency} onClose={() => setAdding(false)} />
+      )}
     </div>
   );
 }

@@ -23,7 +23,11 @@ export type OrderRow = {
   refunded: number;
 };
 
-/** طلبات يوم واحد بتوقيت الفرع، مع ما دُفع وما أُرجع فعلاً. */
+/**
+ * طلبات **يوم محاسبي** واحد، مع ما دُفع وما أُرجع فعلاً.
+ * الحدود من `business_day_start/end` لا من منتصف الليل: وردية تُغلق الساعة
+ * ١ فجراً تبقى ضمن يومها الذي بدأت فيه.
+ */
 export async function ordersForDay(branchId: string, day?: string): Promise<OrderRow[]> {
   return (await db()`
     select o.id, o.order_number, o.status::text as status, o.order_type::text as order_type,
@@ -39,8 +43,8 @@ export async function ordersForDay(branchId: string, day?: string): Promise<Orde
     join users u on u.id = o.employee_id
     left join customers c on c.id = o.customer_id
     where o.branch_id = ${branchId}
-      and (o.created_at at time zone (select timezone from branches where id = ${branchId}))::date
-          = coalesce(${day ?? null}::date, (now() at time zone (select timezone from branches where id = ${branchId}))::date)
+      and o.created_at >= business_day_start(${branchId}, coalesce(${day ?? null}::date, current_business_day(${branchId})))
+      and o.created_at <  business_day_end(${branchId},   coalesce(${day ?? null}::date, current_business_day(${branchId})))
     order by o.order_number desc
   `) as OrderRow[];
 }

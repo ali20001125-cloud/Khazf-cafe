@@ -37,7 +37,7 @@ function guard<T extends unknown[], R>(perm: Permission, fn: (u: { uid: string; 
 }
 
 export const addStockAction = guard(
-  "add_stock",
+  "inventory.receive",
   async (u, materialId: string, qtyBase: number, unitCostBase: number, reason: string) => {
     if (!Number.isFinite(qtyBase) || qtyBase <= 0) return { ok: false as const, error: "كمية غير صالحة" };
     const b = await branchOrErr(u.bid);
@@ -49,7 +49,7 @@ export const addStockAction = guard(
 );
 
 export const stockCountAction = guard(
-  "stock_count",
+  "inventory.count",
   async (u, counts: CountItem[]): Promise<{ ok: true; result: CountResult } | Err> => {
     if (!counts?.length) return { ok: false as const, error: "لا مواد في الجرد" };
     const b = await branchOrErr(u.bid);
@@ -58,5 +58,26 @@ export const stockCountAction = guard(
     const flagged = result.items.filter((i) => i.variance !== 0).length;
     await audit(u.bid, b, u.uid, "stock_count", `جرد ${result.items.length} مادة · فروقات ${flagged}`);
     return { ok: true as const, result };
+  }
+);
+
+/**
+ * «نبّهني إذا قلّ عن…» — حدّ التنبيه لكل مادة.
+ *
+ * ليس تعديلاً للرصيد: الرصيد يبقى مشتقّاً من الدفتر ولا يُكتب بيد أحد.
+ * هذا رقم عرض فقط يقرّر متى يظهر التنبيه، لذلك لا يحتاج جرداً ولا تسوية.
+ */
+export const setLowThresholdAction = guard(
+  "inventory.receive",
+  async (u, materialId: string, thresholdBase: number) => {
+    if (!Number.isFinite(thresholdBase) || thresholdBase < 0)
+      return { ok: false as const, error: "رقم غير صالح" };
+    const rows = (await db()`
+      update materials set low_threshold = ${Math.round(thresholdBase)}
+      where id = ${materialId} and business_id = ${u.bid}
+      returning id
+    `) as { id: string }[];
+    if (!rows[0]) return { ok: false as const, error: "مادة غير موجودة" };
+    return { ok: true as const };
   }
 );
