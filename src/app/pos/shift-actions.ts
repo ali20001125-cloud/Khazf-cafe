@@ -4,12 +4,15 @@ import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
 import { getActiveBranchId } from "@/lib/branch";
 import { getOpenShift, openShift, closeShift, cashDrop } from "@/lib/shifts";
+import { getSettings, numSetting } from "@/lib/settings";
+import { can } from "@/lib/permissions";
 import type { Permission } from "@/lib/permissions";
+import type { SessionData } from "@/lib/session";
 
 type Ok = { ok: true };
 type Err = { ok: false; error: string };
 
-async function withPerm<T>(perm: Permission, fn: (u: { uid: string; bid: string }) => Promise<T>): Promise<T | Err> {
+async function withPerm<T>(perm: Permission, fn: (u: SessionData) => Promise<T>): Promise<T | Err> {
   try {
     const u = await requirePermission(perm);
     return await fn(u);
@@ -30,14 +33,32 @@ async function audit(businessId: string, branchId: string | null, userId: string
   }
 }
 
+/**
+ * فتح وردية.
+ *
+ * **الفكّة يحدّدها المالك، لا الباريستا.** إخفاء الحقل في الواجهة ليس
+ * حماية (§66): من لا يملك `settings.manage` يُتجاهَل الرقم الذي أرسله
+ * ويُستعمل القياسي من الإعدادات — حتى لو نادى الدالة بطلب مباشر.
+ *
+ * لماذا يهمّ: لو رفع الباريستا الفكّة ابتلع فرقاً، ولو خفّضها أظهر زيادة
+ * وهمية. الرقم الذي يُقاس عليه الدرج لا يضعه من يُحاسَب عليه.
+ */
 export async function openShiftAction(openingFloat: number): Promise<Ok | Err> {
   return withPerm("cash.open_shift", async (u) => {
-    if (!Number.isFinite(openingFloat) || openingFloat < 0) return { ok: false as const, error: "فكّة غير صالحة" };
     const branchId = await getActiveBranchId(u.bid);
     if (!branchId) return { ok: false as const, error: "لا يوجد فرع فعّال" };
-    const res = await openShift(u.bid, branchId, u.uid, Math.round(openingFloat));
+
+    const settings = await getSettings();
+    const standard = numSetting(settings, "standard_float", 50000);
+    const mayChoose = await can(u, "settings.manage");
+
+    const amount = mayChoose ? Math.round(openingFloat) : standard;
+    if (!Number.isFinite(amount) || amount < 0) return { ok: false as const, error: "فكّة غير صالحة" };
+
+    const res = await openShift(u.bid, branchId, u.uid, amount);
     if (!res.ok) return { ok: false as const, error: res.error };
-    await audit(u.bid, branchId, u.uid, "open_shift", `فكّة ${Math.round(openingFloat)}`);
+    await audit(u.bid, branchId, u.uid, "open_shift",
+      mayChoose ? `فكّة ${amount}` : `فكّة قياسية ${amount}`);
     return { ok: true as const };
   });
 }

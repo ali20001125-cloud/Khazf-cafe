@@ -29,7 +29,6 @@ where t.material_id = m.id and m.name in ('حليب شوفان','سيروب فا
 insert into modifier_groups (business_id, name, selection, required, sort)
 select id, 'الحليب', 'single', false, 10 from businesses;
 insert into modifier_groups (business_id, name, selection, required, sort)
-select id, 'شوت إضافي', 'multi', false, 20 from businesses;
 insert into modifier_groups (business_id, name, selection, required, sort)
 select id, 'سيروب', 'multi', false, 30 from businesses;
 
@@ -42,10 +41,6 @@ select g.id, 'شوفان', 500,
   (select id from materials where name='حليب شوفان'),
   (select id from materials where name='حليب'), 20
 from modifier_groups g where g.name='الحليب';
-
--- شوت إضافي: +٥٠٠ و +٩غ من المحصول المختار
-insert into modifier_options (group_id, name, price_delta, qty, add_to_crop_grams, sort)
-select g.id, 'شوت إضافي', 500, 9, true, 10 from modifier_groups g where g.name='شوت إضافي';
 
 -- سيروب: فانيلا/كراميل (+٥٠٠، +١٥مل مادته)
 insert into modifier_options (group_id, name, price_delta, material_id, qty, sort)
@@ -62,11 +57,6 @@ select p.id, g.id, 10
 from products p, modifier_groups g
 where g.name='الحليب' and p.name in ('لاتيه','كابتشينو','فلات وايت','موكا','آيس لاتيه');
 
--- شوت إضافي → المشروبات الإسبريسو
-insert into product_modifier_groups (product_id, group_id, sort)
-select p.id, g.id, 20
-from products p, modifier_groups g
-where g.name='شوت إضافي' and p.name in ('إسبريسو','دبل إسبريسو','أمريكانو','لاتيه','كابتشينو','فلات وايت','موكا','آيس لاتيه','آيس أمريكانو');
 
 -- سيروب → مشروبات الحليب والموكا
 insert into product_modifier_groups (product_id, group_id, sort)

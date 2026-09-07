@@ -3,11 +3,11 @@
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
 
-// المفاتيح المسموح تعديلها من اللوحة (قائمة بيضاء)
+// قائمة بيضاء لما يخصّ **العمل كلّه**. ما يخصّ الفرع (الفكّة · ساعة بداية
+// اليوم · عتبة الفروقات) بيته `branches` ويُعدَّل من `branch-actions.ts`
+// — إعداد بمكانين يعني أن المالك قد يغيّر واحداً بينما يقرأ النظام الآخر.
 const ALLOWED = new Set([
-  "shop_name", "shop_phone", "standard_float", "staff_drink_limit",
-  "extra_shot_price", "shot_grams", "session_timeout_minutes",
-  "variance_thresholds", "low_stock_alert",
+  "shop_name", "shop_phone", "staff_drink_limit", "session_timeout_minutes",
 ]);
 
 export async function updateSettingsAction(

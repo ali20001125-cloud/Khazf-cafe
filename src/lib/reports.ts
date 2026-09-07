@@ -2,37 +2,91 @@ import "server-only";
 import { db } from "./db";
 
 /**
- * تقارير المالك (المواصفة §الرؤية): الافتراضي = لمحة اليوم + الشاذّ.
- * «اليوم» = يوم تقويمي بتوقيت بغداد (إغلاق اليوم الرسمي في day_close لاحقاً).
+ * تقارير المالك.
+ *
+ * **«اليوم» هنا = اليوم المحاسبي** (هجرة 0017): يبدأ الساعة التي يحدّدها
+ * المالك (افتراضاً ٥ صباحاً) لا منتصف الليل، فبيع الساعة ١ فجراً يُحتسب
+ * على اليوم السابق حيث بدأت الوردية. الحساب كلّه في دوال القاعدة
+ * (`business_day` · `day_summary`) — لا يُعاد هنا حتى لا تفترق نسختان.
+ *
+ * **الطلب الملغى خارج كل رقم** (§49): لا يُعدّ طلباً ولا إيراداً ولا كاشاً.
  */
 
 export type TodayGlance = {
+  businessDay: string;
   orders: number;
   revenue: number;
   cash: number;
   card: number;
+  loyaltyOrders: number;
+  staffOrders: number;
+  voided: number;
+  refunded: number;
+  refundsTotal: number;
+  discounts: number;
+  expectedCash: number;
+  actualCash: number;
+  cashVariance: number;
+  openShifts: number;
+  closed: boolean;
 };
 
-export async function todayGlance(branchId: string): Promise<TodayGlance> {
-  const o = (await db()`
-    select count(*)::int as orders, coalesce(sum(total),0)::int as revenue
-    from orders
-    where branch_id = ${branchId} and status = 'COMPLETED'
-      and paid_at >= date_trunc('day', now() at time zone 'Asia/Baghdad') at time zone 'Asia/Baghdad'
-  `) as { orders: number; revenue: number }[];
-  const p = (await db()`
-    select p.method, coalesce(sum(p.amount),0)::int as amt
-    from payments p
-    join orders ord on ord.id = p.order_id
-    where ord.branch_id = ${branchId} and p.status = 'CONFIRMED'
-      and p.created_at >= date_trunc('day', now() at time zone 'Asia/Baghdad') at time zone 'Asia/Baghdad'
-    group by p.method
-  `) as { method: string; amt: number }[];
-  const cash = p.find((x) => x.method === "cash")?.amt ?? 0;
-  const card = p.find((x) => x.method === "card")?.amt ?? 0;
-  return { orders: o[0]?.orders ?? 0, revenue: o[0]?.revenue ?? 0, cash: Number(cash), card: Number(card) };
+type DaySummaryRaw = {
+  business_day: string;
+  orders: number;
+  paid_orders: number;
+  loyalty_orders: number;
+  staff_orders: number;
+  voided: number;
+  refunded: number;
+  revenue: number;
+  cash_sales: number;
+  card_sales: number;
+  discounts: number;
+  refunds_total: number;
+  expected_cash: number;
+  actual_cash: number;
+  cash_variance: number;
+  open_shifts: number;
+  closed: boolean;
+};
+
+/** لمحة اليوم المحاسبي — مصدرها `day_summary()` في القاعدة. */
+export async function todayGlance(branchId: string, day?: string): Promise<TodayGlance> {
+  const rows = (await db()`
+    select day_summary(${branchId},
+      coalesce(${day ?? null}::date, current_business_day(${branchId}))) as s
+  `) as { s: DaySummaryRaw }[];
+  const s = rows[0].s;
+  return {
+    businessDay: s.business_day,
+    orders: Number(s.orders),
+    revenue: Number(s.revenue),
+    cash: Number(s.cash_sales),
+    card: Number(s.card_sales),
+    loyaltyOrders: Number(s.loyalty_orders),
+    staffOrders: Number(s.staff_orders),
+    voided: Number(s.voided),
+    refunded: Number(s.refunded),
+    refundsTotal: Number(s.refunds_total),
+    discounts: Number(s.discounts),
+    expectedCash: Number(s.expected_cash),
+    actualCash: Number(s.actual_cash),
+    cashVariance: Number(s.cash_variance),
+    openShifts: Number(s.open_shifts),
+    closed: Boolean(s.closed),
+  };
 }
 
+/** اليوم المحاسبي الجاري (نص `YYYY-MM-DD`). */
+export async function currentBusinessDay(branchId: string): Promise<string> {
+  const r = (await db()`
+    select to_char(current_business_day(${branchId}), 'YYYY-MM-DD') as d
+  `) as { d: string }[];
+  return r[0].d;
+}
+
+// ── فروقات الدرج ─────────────────────────────────────────────────────
 export type ShiftVariance = {
   id: string;
   employee_name: string;
@@ -42,101 +96,154 @@ export type ShiftVariance = {
   counted_cash: number;
   expected_cash: number;
   variance: number;
+  business_day: string;
+  orders_count: number;
+  cash_sales: number;
 };
 
-export async function recentShiftVariances(branchId: string): Promise<ShiftVariance[]> {
+/**
+ * الورديات المُغلقة مع فرقها — **مع سياقها**: كم طلباً، وكم بيعاً نقدياً،
+ * ومتى فُتحت وأُغلقت. الفرق وحده رقم بلا معنى؛ السياق هو ما يجعله مفهوماً.
+ */
+export async function recentShiftVariances(branchId: string, limit = 15): Promise<ShiftVariance[]> {
   return (await db()`
     select s.id, u.name as employee_name, s.opened_at, s.closed_at,
-           s.opening_float, s.counted_cash, s.expected_cash, s.variance
+           s.opening_float, s.counted_cash, s.expected_cash, s.variance,
+           to_char(business_day(s.opened_at, s.branch_id), 'YYYY-MM-DD') as business_day,
+           (select count(*) from orders o
+             where o.shift_id = s.id and o.status not in ('VOIDED','CANCELLED'))::int as orders_count,
+           coalesce((select sum(cm.amount) from cash_movements cm
+                      where cm.shift_id = s.id and cm.type = 'SALE'), 0)::int as cash_sales
     from shifts s join users u on u.id = s.employee_id
     where s.branch_id = ${branchId} and s.status = 'CLOSED'
     order by s.closed_at desc nulls last
-    limit 10
+    limit ${limit}
   `) as ShiftVariance[];
 }
 
+// ── فروقات الجرد ─────────────────────────────────────────────────────
 export type StockVariance = {
+  count_id: string;
   material_name: string;
   expected: number;
   counted: number;
   variance: number;
   variance_pct: number | null;
+  equivalent_doses: number | null;
+  level: string;
   created_at: string;
 };
 
-export async function recentStockVariances(branchId: string): Promise<StockVariance[]> {
+export async function recentStockVariances(branchId: string, limit = 15): Promise<StockVariance[]> {
   return (await db()`
-    select m.name as material_name, i.expected, i.counted, i.variance, i.variance_pct, c.created_at
-    from stock_count_items i
-    join stock_counts c on c.id = i.count_id
-    join materials m on m.id = i.material_id
-    where c.branch_id = ${branchId} and i.variance <> 0
-    order by c.created_at desc, abs(i.variance_pct) desc nulls last
-    limit 15
+    select count_id, material_name, expected, counted, variance, variance_pct,
+           equivalent_doses, level, created_at
+    from v_stock_variance
+    where branch_id = ${branchId} and variance <> 0
+    order by created_at desc, abs(variance_pct) desc nulls last
+    limit ${limit}
   `) as StockVariance[];
 }
 
+// ── الأحداث الحسّاسة ─────────────────────────────────────────────────
 export type AuditRow = {
+  id: string;
   action: string;
   user_name: string | null;
+  approved_by_name: string | null;
   reason: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  after: Record<string, unknown> | null;
   created_at: string;
 };
 
-/** أحداث حسّاسة حديثة (الشاذّ). */
-export async function recentExceptions(businessId: string): Promise<AuditRow[]> {
+/**
+ * الأحداث الحسّاسة = العمليات التي تمسّ المال أو المخزون أو الصلاحيات،
+ * والتي لو حدثت بلا علم المالك لصارت ثغرة. تُعرض بفاعلها ووقتها وسببها،
+ * ومن وافق عليها إن كانت تحتاج موافقة.
+ */
+export async function recentExceptions(businessId: string, limit = 30): Promise<AuditRow[]> {
   return (await db()`
-    select a.action, u.name as user_name, a.reason, a.created_at
+    select a.id, a.action, u.name as user_name, ap.name as approved_by_name,
+           a.reason, a.entity_type, a.entity_id, a.after, a.created_at
     from audit_log a
     left join users u on u.id = a.user_id
+    left join users ap on ap.id = a.approved_by
     where a.business_id = ${businessId}
-      and a.action in ('void_paid','refund','apply_discount','login_locked',
-                       'close_shift','stock_count','record_waste','cash_drop','pos_lock')
+      and a.action in ('order_voided','refund_created','discount_applied','login_locked',
+                       'close_shift','stock_count','record_waste','cash_drop','cash_removal',
+                       'pos_lock','pos_unlock','day_close','day_reopen','no_sale_open',
+                       'drawer_handover','staff_drink','loyalty_reward_redeemed',
+                       'permission_changed','price_changed')
     order by a.created_at desc
-    limit 20
+    limit ${limit}
   `) as AuditRow[];
 }
 
+// ── المشروبات ────────────────────────────────────────────────────────
 export type TopProduct = { name: string; qty: number; revenue: number };
 
-/** أكثر المشروبات مبيعاً اليوم. */
-export async function topProductsToday(branchId: string): Promise<TopProduct[]> {
+/** أكثر المشروبات مبيعاً في اليوم المحاسبي (بلا الملغى ولا المجاني). */
+export async function topProductsToday(branchId: string, day?: string): Promise<TopProduct[]> {
   return (await db()`
+    with d as (select coalesce(${day ?? null}::date, current_business_day(${branchId})) as day)
     select p.name, sum(oi.qty)::int as qty, sum(oi.unit_price * oi.qty)::int as revenue
     from order_items oi
     join orders o on o.id = oi.order_id
-    join products p on p.id = oi.product_id
-    where o.branch_id = ${branchId} and o.status = 'COMPLETED'
-      and o.paid_at >= date_trunc('day', now() at time zone 'Asia/Baghdad') at time zone 'Asia/Baghdad'
+    join products p on p.id = oi.product_id, d
+    where o.branch_id = ${branchId}
+      and o.status not in ('VOIDED','CANCELLED')
+      and o.order_type = 'SALE'
+      and not oi.is_free
+      and o.created_at >= business_day_start(${branchId}, d.day)
+      and o.created_at <  business_day_end(${branchId}, d.day)
     group by p.name
     order by qty desc
     limit 5
   `) as TopProduct[];
 }
 
+export type MonthlyProduct = {
+  month: string;
+  product_id: string;
+  product_name: string;
+  qty: number;
+  revenue: number;
+  avg_per_day: number;
+};
+
+/** معدّل بيع كل مشروب شهرياً — أساس قرار الشراء. */
+export async function productSalesMonthly(branchId: string, months = 3): Promise<MonthlyProduct[]> {
+  return (await db()`
+    select month, product_id, product_name, qty, revenue, avg_per_day
+    from product_sales_monthly(${branchId}, ${months})
+  `) as MonthlyProduct[];
+}
+
+// ── مبيعات الأيام السابقة ────────────────────────────────────────────
 export type DaySales = { day: string; total: number };
 
-/** مبيعات آخر ٧ أيام (بتوقيت بغداد) للرسم البياني. */
+/** مبيعات آخر ٧ أيام محاسبية (الملغى مستثنى). */
 export async function salesLast7Days(branchId: string): Promise<DaySales[]> {
   const rows = (await db()`
-    select to_char((paid_at at time zone 'Asia/Baghdad')::date, 'YYYY-MM-DD') as day,
-           sum(total)::int as total
-    from orders
-    where branch_id = ${branchId} and status = 'COMPLETED'
-      and paid_at >= ((date_trunc('day', now() at time zone 'Asia/Baghdad') - interval '6 days') at time zone 'Asia/Baghdad')
-    group by 1 order by 1
+    with days as (
+      select (current_business_day(${branchId}) - g)::date as day
+      from generate_series(0, 6) g
+    )
+    select to_char(d.day, 'YYYY-MM-DD') as day,
+           coalesce((
+             select sum(o.total)::int from orders o
+             where o.branch_id = ${branchId}
+               and o.status not in ('VOIDED','CANCELLED')
+               and o.order_type = 'SALE'
+               and o.created_at >= business_day_start(${branchId}, d.day)
+               and o.created_at <  business_day_end(${branchId}, d.day)
+           ), 0) as total
+    from days d
+    order by d.day
   `) as { day: string; total: number }[];
-  // املأ الأيام الفارغة
-  const out: DaySales[] = [];
-  const today = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const hit = rows.find((r) => r.day === key);
-    out.push({ day: key, total: hit ? Number(hit.total) : 0 });
-  }
-  return out;
+  return rows.map((r) => ({ day: r.day, total: Number(r.total) }));
 }
 
 export async function openShiftsCount(branchId: string): Promise<number> {

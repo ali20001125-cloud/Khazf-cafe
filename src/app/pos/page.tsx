@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getCatalog } from "@/lib/catalog";
-import { getSettings, strSetting, numSetting } from "@/lib/settings";
+import { getSettings, strSetting } from "@/lib/settings";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import PosScreen from "@/components/PosScreen";
@@ -31,7 +31,6 @@ export default async function PosPage() {
     getActiveBranch(user.bid),
   ]);
   const currency = strSetting(settings, "currency", "د.ع");
-  const standardFloat = numSetting(settings, "standard_float", 50000);
 
   if (branch?.pos_locked) {
     return (
@@ -47,8 +46,15 @@ export default async function PosPage() {
   const shift = branch ? await getOpenShift(branch.id) : null;
 
   if (!shift) {
+    // المالك وحده يعدّل الفكّة عند الفتح؛ الباريستا يؤكّدها كما هي.
+    const canEditFloat = await can(user, "settings.manage");
     return (
-      <OpenShiftPanel standardFloat={standardFloat} currency={currency} userName={user.name} />
+      <OpenShiftPanel
+        standardFloat={branch?.standard_float ?? 0}
+        currency={currency}
+        userName={user.name}
+        canEditFloat={canEditFloat}
+      />
     );
   }
 

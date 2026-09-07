@@ -25,13 +25,6 @@ export type CartLine = {
 
 type Fulfillment = "takeaway" | "dine_in";
 
-const CATS: { key: string; label: string }[] = [
-  { key: "espresso", label: "إسبريسو" },
-  { key: "hot", label: "ساخن" },
-  { key: "cold", label: "بارد" },
-  { key: "filter", label: "مختص" },
-  { key: "other", label: "أخرى" },
-];
 const PARK_KEY = "khazf_parked_v1";
 
 export default function PosScreen({
@@ -51,8 +44,6 @@ export default function PosScreen({
   canHandover?: boolean;
   pendingHandover?: { id: string; from_name: string } | null;
 }) {
-  const cats = useMemo(() => CATS.filter((c) => catalog.some((p) => (p.category || "other") === c.key)), [catalog]);
-  const [cat, setCat] = useState<string>(cats[0]?.key ?? "espresso");
   const [lines, setLines] = useState<CartLine[]>([]);
   const [fulfillment, setFulfillment] = useState<Fulfillment>("takeaway");
   const [sheetFor, setSheetFor] = useState<CatalogProduct | null>(null);
@@ -69,7 +60,17 @@ export default function PosScreen({
 
   const total = useMemo(() => lines.reduce((s, l) => s + l.unit_price * l.qty, 0), [lines]);
   const count = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines]);
-  const shown = useMemo(() => catalog.filter((p) => (p.category || "other") === cat), [catalog, cat]);
+  // كل المشروبات في شبكة واحدة: المقهى فيه عشرات المشروبات لا مئات،
+  // والتبويبات تضيف ضغطة قبل كل طلب بلا فائدة. المتاح أولاً، والموقوف آخراً.
+  const shown = useMemo(
+    () =>
+      [...catalog].sort((a, b) => {
+        const av = a.paused || !a.crops.some((c) => c.available) ? 1 : 0;
+        const bv = b.paused || !b.crops.some((c) => c.available) ? 1 : 0;
+        return av - bv;
+      }),
+    [catalog]
+  );
 
   function addLine(l: Omit<CartLine, "key" | "qty">) {
     const key = `${l.product_id}:${l.crop_material_id}:${l.options.map((o) => o.id).sort().join(",")}`;
@@ -140,16 +141,6 @@ export default function PosScreen({
             </div>
           </div>
         </header>
-
-        {/* تبويبات الفئات */}
-        <div className="sticky top-[52px] z-10 flex gap-2 overflow-x-auto border-b border-line bg-sand/95 px-4 py-3 backdrop-blur">
-          {cats.map((c) => (
-            <button key={c.key} onClick={() => setCat(c.key)}
-              className={`tap whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${cat === c.key ? "bg-dark text-cream" : "bg-cream text-muted border border-line"}`}>
-              {c.label}
-            </button>
-          ))}
-        </div>
 
         <div className="grid flex-1 grid-cols-2 content-start gap-3 p-4 sm:grid-cols-3">
           {shown.map((p) => {

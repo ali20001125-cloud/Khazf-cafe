@@ -10,10 +10,6 @@ const FALLBACK: Record<string, unknown> = {
   shop_phone: "",
   staff_drink_limit: 1,
   session_timeout_minutes: 10,
-  standard_float: 50000,
-  extra_shot_price: 500,
-  shot_grams: 9,
-  low_stock_alert: true,
 };
 
 export async function getSettings(): Promise<Settings> {
