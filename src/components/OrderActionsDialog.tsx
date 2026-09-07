@@ -29,6 +29,7 @@ export default function OrderActionsDialog({
   const [pin, setPin] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "card">(order.paid_cash > 0 ? "cash" : "card");
+  const [cashReturned, setCashReturned] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [idemKey] = useState(() =>
@@ -41,9 +42,10 @@ export default function OrderActionsDialog({
   const refundable = Math.max(paid - order.refunded, 0);
 
   function doVoid() {
+    if (paid > 0 && cashReturned === null) return setError("أجب: هل أُعيد المال للزبون؟");
     setError(null);
     start(async () => {
-      const r = await voidOrder(order.id, reason, pin);
+      const r = await voidOrder(order.id, reason, pin, cashReturned === true);
       if (!r.ok) return setError(r.error);
       onDone();
     });
@@ -151,6 +153,44 @@ export default function OrderActionsDialog({
                 )}
               </div>
             </>
+          )}
+
+          {mode === "void" && paid > 0 && (
+            <div>
+              <span className="mb-1 block text-sm font-semibold text-ink">
+                هل أُعيد المال للزبون؟ <span className="text-red-600">*</span>
+              </span>
+              <p className="mb-2 text-xs text-muted">
+                جوابك يحدّد ما يتوقّعه النظام في الدرج. لا يُستنتج — لأن الخطأ فيه
+                إمّا يتّهم أميناً أو يستر نقصاً.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setCashReturned(true); setError(null); }}
+                  className={`tap rounded-xl border p-3 text-right text-sm ${
+                    cashReturned === true ? "border-accent bg-accent/10" : "border-line bg-cream"
+                  }`}
+                >
+                  <span className="font-semibold text-ink">نعم، أعدته</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">
+                    يُنقص المتوقّع في الدرج
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCashReturned(false); setError(null); }}
+                  className={`tap rounded-xl border p-3 text-right text-sm ${
+                    cashReturned === false ? "border-accent bg-accent/10" : "border-line bg-cream"
+                  }`}
+                >
+                  <span className="font-semibold text-ink">لا، المال في الدرج</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">
+                    يجب أن يظهر عند العدّ
+                  </span>
+                </button>
+              </div>
+            </div>
           )}
 
           <div>

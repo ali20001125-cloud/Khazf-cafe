@@ -30,6 +30,20 @@ export function stockLabel(qty: number, unit: string): string {
   return `${num(qty)} ${unitLabel(unit)}`;
 }
 
+/**
+ * «كم مشروباً يعادل هذا الرقم؟» — الترجمة التي تجعل النقص مفهوماً.
+ * نسبةٌ صغيرة على مخزون كبير تُخفي مشروبات كاملة، فنقولها بالمشروبات.
+ * الجمع العربي: مشروب واحد · مشروبان · ٣-١٠ مشروبات · ١١+ مشروباً.
+ */
+export function drinksLabel(doses: number): string {
+  const n = Math.round(doses);
+  if (n <= 0) return "أقلّ من مشروب";
+  if (n === 1) return "مشروب واحد";
+  if (n === 2) return "مشروبين";
+  if (n <= 10) return `${num(n)} مشروبات`;
+  return `${num(n)} مشروباً`;
+}
+
 export function categoryLabel(c: string): string {
   if (c === "hot") return "ساخن";
   if (c === "cold") return "بارد";

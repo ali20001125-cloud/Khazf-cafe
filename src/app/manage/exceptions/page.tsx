@@ -3,7 +3,7 @@ import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getSettings, strSetting } from "@/lib/settings";
 import { exceptions, EXCEPTION_LABELS, type ExceptionRow } from "@/lib/orders-admin";
-import { money, timeAr } from "@/lib/format";
+import { money, timeAr, stockLabel, drinksLabel } from "@/lib/format";
 
 /**
  * لوحة الاستثناءات (المواصفة §56 · §57).
@@ -120,13 +120,18 @@ function describe(kind: string, d: Record<string, unknown>, currency: string): s
       )} مقابل متوقّع ${money(n("expected"), currency)}.`;
     }
     case "inventory_variance": {
-      const doses = d["doses"] ? ` ≈ ${d["doses"]} جرعة` : "";
-      return `${s("material")}: ${n("variance")} (${d["pct"] ?? "—"}٪)${doses}.`;
+      // النسبة وحدها تخدع: ٥٤غ من خمسة كيلو = ٠٫٤٪، وهي ثلاثة مشروبات كاملة.
+      // فنبدأ بالمعنى ثم نضع النسبة بين قوسين.
+      const gone = stockLabel(Math.abs(n("variance")), s("unit"));
+      const doses = d["doses"] ? ` — أي ${drinksLabel(Number(d["doses"]))}` : "";
+      return `${s("material")}: ناقص ${gone}${doses} لا يفسّرها بيع ولا هدر مسجَّل (${
+        d["pct"] ?? "—"
+      }٪ من المخزون).`;
     }
-    case "repeated_variance":
-      return `${s("material")}: نقص في ${n("times")} جرد بمجموع ${n(
-        "total"
-      )} — نمط متكرّر، لا حادثة.`;
+    case "repeated_variance": {
+      const doses = d["doses"] ? ` (أكبرها ${drinksLabel(Number(d["doses"]))})` : "";
+      return `${s("material")}: نقص في ${n("times")} جرد بمجموع ${n("total")}${doses} — نمط متكرّر، لا حادثة.`;
+    }
     case "order_voided":
       return `فاتورة #${n("order_number")} بمبلغ ${money(n("total"), currency)} — ${s("reason")}`;
     case "refund":
@@ -134,7 +139,9 @@ function describe(kind: string, d: Record<string, unknown>, currency: string): s
     case "no_sale_open":
       return s("reason") || "بلا سبب مذكور";
     case "high_waste":
-      return `${s("material")}: ${n("qty")} في يوم واحد.`;
+      return `${s("material")}: هدر ${stockLabel(n("qty"), s("unit"))} في يوم واحد — ${drinksLabel(
+        Number(d["doses"] ?? 0)
+      )}. الهدر الكبير قد يكون معايرة صادقة، وقد يكون غطاءً لمواد خرجت بلا فاتورة.`;
     case "excessive_discounts":
       return `${n("count")} خصماً بمجموع ${money(n("total"), currency)} خلال أسبوع.`;
     case "unusual_staff_drinks":

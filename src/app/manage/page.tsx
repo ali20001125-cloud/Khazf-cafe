@@ -5,7 +5,7 @@ import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import { getSettings, strSetting } from "@/lib/settings";
-import { money, timeAr } from "@/lib/format";
+import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
 import {
   todayGlance, recentShiftVariances, recentStockVariances, recentExceptions,
@@ -265,8 +265,8 @@ export default async function Overview() {
                     <span className="text-sm">
                       <span className="text-ink">{s.material_name}</span>
                       {s.equivalent_doses != null && Number(s.equivalent_doses) >= 1 && (
-                        <span className="nums block text-[11px] text-amber-700">
-                          ≈ {s.equivalent_doses} جرعة
+                        <span className="block text-[11px] text-amber-700">
+                          ≈ {drinksLabel(Number(s.equivalent_doses))}
                         </span>
                       )}
                     </span>

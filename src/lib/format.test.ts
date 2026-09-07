@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { money, num, stockLabel, unitLabel } from "./format";
+import { money, num, stockLabel, unitLabel, drinksLabel } from "./format";
 
 describe("money — أرقام إنجليزية بلا كسور", () => {
   it("يُنسّق بفواصل إنجليزية مع العملة", () => {
@@ -28,6 +28,24 @@ describe("stockLabel — تحويل الوحدات للعرض", () => {
   });
   it("القطع تبقى حبّات", () => {
     expect(stockLabel(300, "pcs")).toBe("300 حبة");
+  });
+});
+
+describe("drinksLabel — ترجمة النقص إلى مشروبات", () => {
+  it("يصوغ الجمع العربي صواباً", () => {
+    expect(drinksLabel(1)).toBe("مشروب واحد");
+    expect(drinksLabel(2)).toBe("مشروبين");
+    expect(drinksLabel(3)).toBe("3 مشروبات");
+    expect(drinksLabel(10)).toBe("10 مشروبات");
+    expect(drinksLabel(13)).toBe("13 مشروباً");
+  });
+  it("يقرّب الكسر لأقرب مشروب", () => {
+    expect(drinksLabel(3.6)).toBe("4 مشروبات"); // ٥٤٠مل ÷ ١٥٠
+    expect(drinksLabel(2.4)).toBe("مشروبين");
+  });
+  it("ما دون المشروب الواحد لا يُسمّى صفراً", () => {
+    expect(drinksLabel(0.3)).toBe("أقلّ من مشروب");
+    expect(drinksLabel(0)).toBe("أقلّ من مشروب");
   });
 });
 

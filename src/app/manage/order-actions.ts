@@ -26,7 +26,13 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 export async function voidOrder(
   orderId: string,
   reason: string,
-  ownerPin: string
+  ownerPin: string,
+  /**
+   * هل أُعيد المال للزبون؟ سؤال إلزامي لا يُستنتج (هجرة 0021):
+   * نعم ← يُنقص الدرج المتوقّع فلا يظهر نقص كاذب.
+   * لا  ← المال يجب أن يبقى في الدرج، وغيابه نقص حقيقي بلا عذر.
+   */
+  cashReturned: boolean
 ): Promise<ActionResult> {
   let user;
   try {
@@ -55,8 +61,8 @@ export async function voidOrder(
       return { ok: false, error: `الطلب ${order.status} بالفعل` };
 
     await db()`
-      insert into order_voids (order_id, reason, voided_by, approved_by)
-      values (${orderId}, ${reason.trim()}, ${user.uid}, ${approvedBy})
+      insert into order_voids (order_id, reason, voided_by, approved_by, cash_returned)
+      values (${orderId}, ${reason.trim()}, ${user.uid}, ${approvedBy}, ${cashReturned})
     `;
     // مُشغّل آلة الحالة في القاعدة يرفض أي انتقال غير مسموح
     await db()`update orders set status = 'VOIDED' where id = ${orderId}`;
@@ -67,7 +73,8 @@ export async function voidOrder(
       values (${user.bid}, ${branch.id}, ${user.uid}, ${approvedBy}, 'order_voided',
               'order', ${orderId},
               ${JSON.stringify({ status: order.status, total: order.total })}::jsonb,
-              ${JSON.stringify({ status: "VOIDED" })}::jsonb, ${reason.trim()})
+              ${JSON.stringify({ status: "VOIDED", cash_returned: cashReturned })}::jsonb,
+              ${reason.trim()})
     `;
 
     revalidatePath("/manage/orders");
