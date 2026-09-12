@@ -14,3 +14,15 @@ update order_counters set next_number = 1001;
 set session_replication_role = replica;
 update materials set cached_stock = 0;
 set session_replication_role = origin;
+
+-- مواد ومنتجات أنشأتها اختبارات سابقة (09_new_product) تتراكم وتُشوّش القراءة.
+-- حذفها آمن هنا: دفتر المخزون فُرّغ للتوّ، فلا حركة معلّقة عليها.
+delete from recipe_items where recipe_id in (
+  select r.id from recipes r join products p on p.id = r.product_id where p.name like '%اختبار%');
+delete from recipes where product_id in (select id from products where name like '%اختبار%');
+delete from product_crops where product_id in (select id from products where name like '%اختبار%')
+   or material_id in (select id from materials where name like '%اختبار%');
+delete from price_history where product_id in (select id from products where name like '%اختبار%')
+   or material_id in (select id from materials where name like '%اختبار%');
+delete from products where name like '%اختبار%';
+delete from materials where name like '%اختبار%';

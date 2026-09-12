@@ -8,6 +8,7 @@ import { getSettings, strSetting } from "@/lib/settings";
 import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
 import { defaultPinCount } from "@/lib/users";
+import { dayProfit, netProfit } from "@/lib/profit";
 import {
   todayGlance, recentShiftVariances, recentStockVariances, recentExceptions,
   salesLast7Days, topProductsToday,
@@ -34,7 +35,7 @@ export default async function Overview() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins] =
+  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins, profit] =
     await Promise.all([
       todayGlance(branch.id),
       salesLast7Days(branch.id),
@@ -44,6 +45,7 @@ export default async function Overview() {
       recentExceptions(user.bid, 40),
       getOpenShift(branch.id),
       defaultPinCount(user.bid),
+      dayProfit(branch.id),
     ]);
 
   // ما يحتاج نظر المالك فعلاً — كل عنصر بوجهة يشرحه
@@ -155,12 +157,18 @@ export default async function Overview() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi label="طلبات اليوم" value={String(glance.orders)} href="/manage/orders" accent />
           <Kpi label="إيراد اليوم" value={money(glance.revenue, currency)} href="/manage/orders" accent />
+          <Kpi
+            label="ربح اليوم"
+            value={money(netProfit(profit), currency)}
+            href="/manage/profit"
+            accent
+          />
           <Kpi label="كاش" value={money(glance.cash, currency)} href="/manage/orders" />
-          <Kpi label="بطاقة" value={money(glance.card, currency)} href="/manage/orders" />
         </div>
         <p className="mt-2 text-xs text-muted">
-          الإيراد = مجموع فواتير البيع المكتملة. الفكّة الافتتاحية ليست إيراداً، والفاتورة
-          الملغاة خارج كل هذه الأرقام.
+          الإيراد = مجموع فواتير البيع المكتملة (الفكّة ليست إيراداً، والملغاة خارج
+          الحساب). والربح = الإيراد ناقص ثمن ما استُهلك فعلاً — قهوةً وحليباً وكوباً
+          وهدراً ومجانيّات. بلا إيجار ولا رواتب.
         </p>
       </div>
 
