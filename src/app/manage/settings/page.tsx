@@ -4,6 +4,9 @@ import { can } from "@/lib/permissions";
 import { getSettings, strSetting, numSetting } from "@/lib/settings";
 import { getActiveBranch } from "@/lib/branch";
 import SettingsEditor from "@/components/SettingsEditor";
+import BackupPanel from "@/components/BackupPanel";
+import { backupSize, lastBackupAt } from "@/lib/backup";
+import { timeAr } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +15,16 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
   if (!(await can(user, "settings.manage"))) redirect("/");
 
-  const [s, branch] = await Promise.all([getSettings(), getActiveBranch(user.bid)]);
+  const [s, branch, size, lastBackup] = await Promise.all([
+    getSettings(),
+    getActiveBranch(user.bid),
+    backupSize(),
+    lastBackupAt(user.bid),
+  ]);
   if (!branch) return <p className="card p-8 text-center">لا يوجد فرع فعّال.</p>;
 
   return (
+    <div className="space-y-6">
     <SettingsEditor
       currency={strSetting(s, "currency", "د.ع")}
       shop={{
@@ -30,5 +39,12 @@ export default async function SettingsPage() {
         variance_threshold_pct: branch.variance_threshold_pct,
       }}
     />
+
+    <BackupPanel
+      tables={size.tables}
+      rows={size.rows}
+      lastBackupAt={lastBackup ? timeAr(lastBackup) : null}
+    />
+    </div>
   );
 }
