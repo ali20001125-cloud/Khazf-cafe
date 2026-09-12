@@ -47,7 +47,10 @@ cross join (values
 where r.key = 'barista';
 
 -- ── المستخدمون (PIN مُهشّر bcrypt عبر pgcrypto) ──────────────────────
--- أرقام دخول ابتدائية تُغيَّر فوراً من اللوحة: المالك 1111 · الباريستا 0000
+-- أرقام دخول ابتدائية: المالك 1111 · الباريستا 0000.
+-- **تُغيَّر من «الموظفون والرموز» (/manage/users) قبل أول بيع.** و`pin_changed_at`
+-- يُترك فارغاً عن قصد: فراغُه هو ما يُطلق التحذير الأحمر في لوحة المالك وفي
+-- شاشة الباريستا، فلا يمرّ الأمر بصمت كما مرّ أوّل مرّة (هجرة 0023).
 insert into users (business_id, name, role, pin_hash)
 select id, 'المالك', 'owner', crypt('1111', gen_salt('bf')) from businesses;
 insert into users (business_id, name, role, pin_hash)

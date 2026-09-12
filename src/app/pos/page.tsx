@@ -8,6 +8,7 @@ import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import PosScreen from "@/components/PosScreen";
 import OpenShiftPanel from "@/components/OpenShiftPanel";
+import { myPinIsDefault } from "@/lib/users";
 import { pendingHandoverForMe } from "@/app/pos/shift-actions";
 
 export const dynamic = "force-dynamic";
@@ -59,10 +60,11 @@ export default async function PosPage() {
   }
 
   // الصلاحيات تُقرَّر في الخادم؛ الواجهة تُخفي فقط، والفعل يُفحص ثانيةً (§66).
-  const [canNoSale, canHandover, pendingHandover] = await Promise.all([
+  const [canNoSale, canHandover, pendingHandover, pinIsDefault] = await Promise.all([
     can(user, "cash.no_sale_open"),
     can(user, "cash.handover"),
     pendingHandoverForMe(),
+    myPinIsDefault(user.uid),
   ]);
 
   return (
@@ -70,6 +72,7 @@ export default async function PosPage() {
       catalog={catalog}
       currency={currency}
       userName={user.name}
+      pinIsDefault={pinIsDefault}
       shift={{ id: shift.id, opening_float: shift.opening_float }}
       canNoSale={canNoSale}
       canHandover={canHandover}

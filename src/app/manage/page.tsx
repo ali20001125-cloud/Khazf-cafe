@@ -7,6 +7,7 @@ import { getOpenShift } from "@/lib/shifts";
 import { getSettings, strSetting } from "@/lib/settings";
 import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
+import { defaultPinCount } from "@/lib/users";
 import {
   todayGlance, recentShiftVariances, recentStockVariances, recentExceptions,
   salesLast7Days, topProductsToday,
@@ -33,18 +34,32 @@ export default async function Overview() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [glance, series, top, shiftVars, stockVars, events, shift] = await Promise.all([
-    todayGlance(branch.id),
-    salesLast7Days(branch.id),
-    topProductsToday(branch.id),
-    recentShiftVariances(branch.id, 6),
-    recentStockVariances(branch.id, 6),
-    recentExceptions(user.bid, 40),
-    getOpenShift(branch.id),
-  ]);
+  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins] =
+    await Promise.all([
+      todayGlance(branch.id),
+      salesLast7Days(branch.id),
+      topProductsToday(branch.id),
+      recentShiftVariances(branch.id, 6),
+      recentStockVariances(branch.id, 6),
+      recentExceptions(user.bid, 40),
+      getOpenShift(branch.id),
+      defaultPinCount(user.bid),
+    ]);
 
   // ما يحتاج نظر المالك فعلاً — كل عنصر بوجهة يشرحه
   const attention: { text: string; href: string }[] = [];
+
+  // الأمن قبل المال: رمز المالك هو نفسه رمز الموافقة على الإلغاء والإرجاع،
+  // فبقاؤه افتراضياً يعني أن باب الصندوق مفتوح لمن يجرّب 1111.
+  if (defaultPins > 0) {
+    attention.push({
+      text:
+        defaultPins === 1
+          ? "رمز دخول ما زال افتراضياً — ورمز المالك هو رمز الموافقة على الإلغاء"
+          : `${defaultPins} رموز دخول ما زالت افتراضية (1111 · 0000)`,
+      href: "/manage/users",
+    });
+  }
   for (const s of shiftVars) {
     if (s.variance !== 0 && s.business_day === glance.businessDay) {
       attention.push({

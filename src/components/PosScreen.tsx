@@ -10,6 +10,7 @@ import StaffDrinkDialog from "@/components/StaffDrinkDialog";
 import ModifierSheet from "@/components/ModifierSheet";
 import CustomerPanel, { type LinkedCustomer } from "@/components/CustomerPanel";
 import { HandoverInbox } from "@/components/DrawerDialogs";
+import MyPinDialog from "@/components/MyPinDialog";
 
 export type CartOption = { id: string; name: string; price_delta: number };
 export type CartLine = {
@@ -31,6 +32,7 @@ export default function PosScreen({
   catalog,
   currency,
   userName,
+  pinIsDefault,
   shift,
   canNoSale = false,
   canHandover = false,
@@ -39,6 +41,9 @@ export default function PosScreen({
   catalog: CatalogProduct[];
   currency: string;
   userName: string;
+  /** رمزه ما زال الافتراضي (0000) — نطالبه بتغييره في شاشته، لأن لوحة
+   *  الإدارة مقفلة عليه فلا يصله تحذير المالك. */
+  pinIsDefault: boolean;
   shift: { id: string; opening_float: number };
   canNoSale?: boolean;
   canHandover?: boolean;
@@ -49,6 +54,7 @@ export default function PosScreen({
   const [sheetFor, setSheetFor] = useState<CatalogProduct | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
   const [parkedCount, setParkedCount] = useState(0);
   const [showParked, setShowParked] = useState(false);
   // ولاء الزبون (§38): يُربط بالفاتورة قبل الدفع، والأختام تُحتسب في القاعدة.
@@ -137,6 +143,16 @@ export default function PosScreen({
                 {customer ? `ولاء · ${customer.stamps}` : "ولاء"}
               </button>
               <button onClick={() => setStaffOpen(true)} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">مشروب موظف</button>
+              <button
+                onClick={() => setPinOpen(true)}
+                className={`tap chip border ${
+                  pinIsDefault
+                    ? "border-red-400/50 bg-red-400/20 text-red-100"
+                    : "border-cream/20 bg-cream/5 text-cream/80"
+                }`}
+              >
+                {pinIsDefault ? "رمزك افتراضي — غيّره" : "رمزي"}
+              </button>
               <ShiftControls openingFloat={shift.opening_float} currency={currency} canNoSale={canNoSale} canHandover={canHandover} />
             </div>
           </div>
@@ -236,6 +252,9 @@ export default function PosScreen({
           onClose={() => setPayOpen(false)} onPaid={() => { setPayOpen(false); clearCart(); }} />
       )}
       {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}
+      {pinOpen && (
+        <MyPinDialog onClose={() => setPinOpen(false)} onDone={() => setPinOpen(false)} />
+      )}
       {customerOpen && (
         <CustomerPanel
           catalog={catalog}
