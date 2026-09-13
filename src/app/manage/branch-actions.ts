@@ -16,6 +16,8 @@ export type BranchPatch = {
   standard_float: number;
   day_start_hour: number;
   variance_threshold_pct: number;
+  /** من يعدّ الدرج عند إغلاق الوردية (هجرة 0026) */
+  drawer_count_by: "barista" | "owner" | "none";
 };
 
 export async function updateBranchAction(
@@ -32,6 +34,9 @@ export async function updateBranchAction(
   const float = Math.round(Number(patch.standard_float));
   const hour = Math.round(Number(patch.day_start_hour));
   const pct = Number(patch.variance_threshold_pct);
+  const countBy = patch.drawer_count_by;
+  if (!["barista", "owner", "none"].includes(countBy))
+    return { ok: false, error: "خيار عدّ الدرج غير صالح" };
 
   if (!Number.isFinite(float) || float < 0) return { ok: false, error: "الفكّة غير صالحة" };
   if (!Number.isInteger(hour) || hour < 0 || hour > 23)
@@ -47,13 +52,15 @@ export async function updateBranchAction(
       standard_float: branch.standard_float,
       day_start_hour: branch.day_start_hour,
       variance_threshold_pct: branch.variance_threshold_pct,
+      drawer_count_by: branch.drawer_count_by,
     };
 
     await db()`
       update branches
          set standard_float = ${float},
              day_start_hour = ${hour},
-             variance_threshold_pct = ${pct}
+             variance_threshold_pct = ${pct},
+             drawer_count_by = ${countBy}::drawer_count_by
        where id = ${branch.id}
     `;
 
@@ -62,7 +69,7 @@ export async function updateBranchAction(
                              before, after, reason)
       values (${user.bid}, ${branch.id}, ${user.uid}, 'settings_change', 'branch', ${branch.id},
               ${JSON.stringify(before)}::jsonb,
-              ${JSON.stringify({ standard_float: float, day_start_hour: hour, variance_threshold_pct: pct })}::jsonb,
+              ${JSON.stringify({ standard_float: float, day_start_hour: hour, variance_threshold_pct: pct, drawer_count_by: countBy })}::jsonb,
               'إعدادات الفرع')
     `;
 

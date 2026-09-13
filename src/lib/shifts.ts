@@ -81,3 +81,24 @@ export async function cashDrop(
   `;
   return { ok: true };
 }
+
+/**
+ * ورديات أُغلقت والمالك لم يعدّ درجها بعد (هجرة 0026).
+ * كلّما طال الانتظار ضعف معنى العدّ: الدرج يُفتح ويُغلق، والمسؤولية تذوب.
+ */
+export type AwaitingCount = {
+  id: string;
+  employee_name: string;
+  opened_at: string;
+  closed_at: string;
+  business_day: string;
+};
+
+export async function shiftsAwaitingCount(branchId: string): Promise<AwaitingCount[]> {
+  return (await db()`
+    select id, employee_name, opened_at, closed_at, business_day::text as business_day
+    from v_shifts_awaiting_count
+    where branch_id = ${branchId}
+    order by closed_at desc
+  `) as AwaitingCount[];
+}

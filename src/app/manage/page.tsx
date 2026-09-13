@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
-import { getOpenShift } from "@/lib/shifts";
+import { getOpenShift, shiftsAwaitingCount } from "@/lib/shifts";
 import { getSettings, strSetting } from "@/lib/settings";
 import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
@@ -15,6 +15,7 @@ import {
 } from "@/lib/reports";
 import DayCloseButton from "@/components/DayCloseButton";
 import LockToggle from "@/components/LockToggle";
+import AwaitingCountList from "@/components/AwaitingCountList";
 
 /**
  * لوحة المالك.
@@ -35,7 +36,7 @@ export default async function Overview() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins, profit] =
+  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins, profit, awaiting] =
     await Promise.all([
       todayGlance(branch.id),
       salesLast7Days(branch.id),
@@ -46,6 +47,7 @@ export default async function Overview() {
       getOpenShift(branch.id),
       defaultPinCount(user.bid),
       dayProfit(branch.id),
+      shiftsAwaitingCount(branch.id),
     ]);
 
   // ما يحتاج نظر المالك فعلاً — كل عنصر بوجهة يشرحه
@@ -123,6 +125,8 @@ export default async function Overview() {
         </p>
       )}
 
+      <AwaitingCountList rows={awaiting} currency={currency} />
+
       {/* ما يحتاج نظرك — كل سطر رابط */}
       {attention.length === 0 ? (
         <div className="card border-emerald-200 bg-emerald-50/40 p-4">
@@ -173,7 +177,7 @@ export default async function Overview() {
       </div>
 
       {/* حالة الدرج */}
-      {(glance.expectedCash > 0 || glance.actualCash > 0) && (
+      {(glance.expectedCash > 0 || glance.actualCash > 0) && awaiting.length === 0 && (
         <section className="card p-5">
           <h2 className="mb-3 font-display text-sm font-bold text-ink">درج اليوم</h2>
           <div className="grid grid-cols-3 gap-3">

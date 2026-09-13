@@ -73,6 +73,7 @@ export default async function PosPage() {
       currency={currency}
       userName={user.name}
       pinIsDefault={pinIsDefault}
+      countedBy={branch?.drawer_count_by ?? "owner"}
       shift={{ id: shift.id, opening_float: shift.opening_float }}
       canNoSale={canNoSale}
       canHandover={canHandover}

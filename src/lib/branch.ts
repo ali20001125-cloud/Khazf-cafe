@@ -21,12 +21,15 @@ export type ActiveBranch = {
   day_start_hour: number;
   /** عتبة تنبيه فرق الجرد بالنسبة المئوية — تنبيه، لا «هدر مسموح». */
   variance_threshold_pct: number;
+  /** من يعدّ الدرج عند الإغلاق (هجرة 0026) */
+  drawer_count_by: "barista" | "owner" | "none";
 };
 
 export async function getActiveBranch(businessId: string): Promise<ActiveBranch | null> {
   const rows = (await db()`
     select id, name, timezone, pos_locked, standard_float, day_start_hour,
-           variance_threshold_pct::float8 as variance_threshold_pct
+           variance_threshold_pct::float8 as variance_threshold_pct,
+           drawer_count_by::text as drawer_count_by
     from branches
     where business_id = ${businessId} and active
     order by created_at limit 1

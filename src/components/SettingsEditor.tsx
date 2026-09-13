@@ -27,6 +27,7 @@ type Branch = {
   standard_float: number;
   day_start_hour: number;
   variance_threshold_pct: number;
+  drawer_count_by: "barista" | "owner" | "none";
 };
 
 export default function SettingsEditor({
@@ -62,6 +63,7 @@ export default function SettingsEditor({
         standard_float: Math.round(Number(b.standard_float) || 0),
         day_start_hour: Math.round(Number(b.day_start_hour) || 0),
         variance_threshold_pct: Number(b.variance_threshold_pct) || 0,
+        drawer_count_by: b.drawer_count_by,
       });
       if (!r2.ok) return setError(r2.error);
 
@@ -135,6 +137,40 @@ export default function SettingsEditor({
             <span className="nums font-semibold text-ink">{hour}:٠٠</span> من الغد.
           </p>
         </Field>
+      </section>
+
+      {/* الدرج */}
+      <section className="card space-y-4 p-5">
+        <div>
+          <h2 className="font-display font-bold text-ink">من يعدّ الدرج؟</h2>
+          <p className="mt-1 text-sm text-muted">
+            العدّ هو لحظة انتقال المسؤولية عن النقد. فإن لم يعدّه أحدٌ عند
+            الإغلاق، ثم ظهر نقصٌ صباحاً، لم يُعرف متى وقع — ولا يُتّهم أحد ولا
+            يُبرّأ أحد.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <CountOption
+            active={b.drawer_count_by === "owner"}
+            onClick={() => { setB({ ...b, drawer_count_by: "owner" }); setSaved(false); }}
+            title="أنا أعدّه"
+            desc="الباريستا يُنهي ورديته ويطلع، والنقد يبقى في الدرج. يظهر لك بندٌ في اللوحة: «درج وردية فلان بانتظار عدّك»، فتعدّ وتُدخل الرقم متى شئت."
+          />
+          <CountOption
+            active={b.drawer_count_by === "barista"}
+            onClick={() => { setB({ ...b, drawer_count_by: "barista" }); setSaved(false); }}
+            title="الباريستا يعدّه (أعمى)"
+            desc="يعدّ النقد ويكتب المجموع، ولا يرى المتوقّع ولا الفرق ولا مبيعات اليوم. يخرج وهو لا يدري أزاد أم نقص — فالفرق يُكشف لحظة إغلاقه، لا صباح الغد."
+          />
+          <CountOption
+            active={b.drawer_count_by === "none"}
+            onClick={() => { setB({ ...b, drawer_count_by: "none" }); setSaved(false); }}
+            title="لا أحد"
+            desc="لا عدّ ولا فحص للدرج. النقص لا يُكتشف أصلاً، وتبقى الفواتير والمخزون وحدها ما يُراجَع."
+            warn
+          />
+        </div>
       </section>
 
       {/* التنبيهات */}
@@ -214,5 +250,36 @@ function Field({
       <p className="mb-2 text-xs leading-relaxed text-muted">{hint}</p>
       {children}
     </div>
+  );
+}
+
+function CountOption({
+  active,
+  onClick,
+  title,
+  desc,
+  warn,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  desc: string;
+  warn?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`tap w-full rounded-xl border p-3 text-right ${
+        active
+          ? warn
+            ? "border-red-400 bg-red-50"
+            : "border-accent bg-accent/10"
+          : "border-line bg-cream"
+      }`}
+    >
+      <span className="block text-sm font-bold text-ink">{title}</span>
+      <span className="mt-0.5 block text-xs leading-relaxed text-muted">{desc}</span>
+    </button>
   );
 }

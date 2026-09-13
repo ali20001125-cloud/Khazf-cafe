@@ -33,6 +33,7 @@ export default function PosScreen({
   catalog,
   currency,
   userName,
+  countedBy,
   pinIsDefault,
   shift,
   canNoSale = false,
@@ -42,6 +43,8 @@ export default function PosScreen({
   catalog: CatalogProduct[];
   currency: string;
   userName: string;
+  /** من يعدّ الدرج عند الإغلاق — يقرّره المالك (هجرة 0026). */
+  countedBy: "barista" | "owner" | "none";
   /** رمزه ما زال الافتراضي (0000) — نطالبه بتغييره في شاشته، لأن لوحة
    *  الإدارة مقفلة عليه فلا يصله تحذير المالك. */
   pinIsDefault: boolean;
@@ -154,7 +157,7 @@ export default function PosScreen({
               >
                 {pinIsDefault ? "رمزك افتراضي — غيّره" : "رمزي"}
               </button>
-              <ShiftControls openingFloat={shift.opening_float} currency={currency} canNoSale={canNoSale} canHandover={canHandover} />
+              <ShiftControls openingFloat={shift.opening_float} currency={currency} canNoSale={canNoSale} canHandover={canHandover} countedBy={countedBy} />
             </div>
           </div>
         </header>

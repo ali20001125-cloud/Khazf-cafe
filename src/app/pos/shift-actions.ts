@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
-import { getActiveBranchId } from "@/lib/branch";
+import { getActiveBranchId, getActiveBranch } from "@/lib/branch";
 import { getOpenShift, openShift, closeShift, cashDrop } from "@/lib/shifts";
 import { getSettings, numSetting } from "@/lib/settings";
 import { can } from "@/lib/permissions";
@@ -64,16 +64,27 @@ export async function openShiftAction(openingFloat: number): Promise<Ok | Err> {
 }
 
 /** إغلاق أعمى: يُعيد {ok} فقط — لا يكشف المتوقّع/الفرق للباريستا. */
-export async function closeShiftAction(countedCash: number): Promise<Ok | Err> {
+export async function closeShiftAction(countedCash: number | null): Promise<Ok | Err> {
   return withPerm("cash.close_shift", async (u) => {
-    if (!Number.isFinite(countedCash) || countedCash < 0) return { ok: false as const, error: "المبلغ غير صالح" };
-    const branchId = await getActiveBranchId(u.bid);
-    if (!branchId) return { ok: false as const, error: "لا يوجد فرع فعّال" };
-    const shift = await getOpenShift(branchId);
+    const branch = await getActiveBranch(u.bid);
+    if (!branch) return { ok: false as const, error: "لا يوجد فرع فعّال" };
+    const shift = await getOpenShift(branch.id);
     if (!shift) return { ok: false as const, error: "لا توجد وردية مفتوحة" };
-    const res = await closeShift(shift.id, Math.round(countedCash));
-    if (!res.ok) return { ok: false as const, error: res.error };
-    // الدالة نفسها تكتب سطر التدقيق بالمتوقّع والفرق — لا يمرّان من هنا.
+
+    const mode = branch.drawer_count_by;
+
+    // من يعدّ الدرج قرارُ المالك (هجرة 0026). والفحص هنا لا في الواجهة:
+    // إخفاء حقلٍ ليس منعاً.
+    if (mode === "barista") {
+      if (countedCash == null || !Number.isFinite(countedCash) || countedCash < 0)
+        return { ok: false as const, error: "أدخل المبلغ المعدود" };
+      await closeShift(shift.id, Math.round(countedCash));
+      return { ok: true as const };
+    }
+
+    // الباريستا لا يعدّ: يُنهي ورديته، ويبقى المعدود فارغاً حتى يعدّ المالك.
+    // فارغٌ يعني «لم يُعدّ»، لا «طابق» — والخلط بينهما طمأنينة كاذبة.
+    await db()`select close_shift_uncounted(${shift.id}, ${u.uid})`;
     return { ok: true as const };
   });
 }

@@ -18,7 +18,7 @@ export PGHOST=/tmp/pg PGPORT=55432 PGUSER=postgres PGDATABASE=khazf_cafe
 for f in db/migrations/0001*.sql db/migrations/000[2-8]*.sql db/seed.sql db/seed-modifiers.sql; do
   psql -v ON_ERROR_STOP=1 -f "$f"
 done
-for f in db/migrations/00{09,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25}_*.sql; do
+for f in db/migrations/00{09,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26}_*.sql; do
   psql -v ON_ERROR_STOP=1 -f "$f"
 done
 # 0010 (الأنواع) يُطبَّق جملة‑جملة خارج معاملة — انظر db/README.md
@@ -47,6 +47,7 @@ db/tests/run-all.sh
 | `13_profit` | ختم التكلفة · ربح اليوم والمشروب · وما لا تكلفة له يُعرض فارغاً |
 | `14_offline` | البيع بلا إنترنت: يُرفع بوقته لا بوقت رفعه · بلا تكرار |
 | `15_permissions` | ما يملكه الباريستا فعلاً · العدّ الأعمى سليم · المنح والسحب |
+| `16_drawer_count_by` | من يعدّ الدرج · «فارغ ≠ صفر» · لا أثر رجعي للإعداد |
 
 وخارج `run-all.sh` (لأنه يحتاج node وقاعدةً ثانية):
 
@@ -71,4 +72,4 @@ db/tests/backup-roundtrip.sh   # هل تُستعاد النسخة الاحتيا
 > `cached_stock` بعد `truncate`، والثاني ليُمثّل مرور يوم بزحزحة التواريخ.
 > هذا مسار أدوات اختبار لا يمرّ به التطبيق، والحارس نفسه مُثبَت في `02`.
 
-النتائج المثبتة (٩٥ حالة) في `docs/KHAZAF-POS-TECHSPEC.md` §19.
+النتائج المثبتة (١٠٠ حالة) في `docs/KHAZAF-POS-TECHSPEC.md` §19.

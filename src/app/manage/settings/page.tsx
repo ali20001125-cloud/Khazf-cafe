@@ -37,6 +37,7 @@ export default async function SettingsPage() {
         standard_float: branch.standard_float,
         day_start_hour: branch.day_start_hour,
         variance_threshold_pct: branch.variance_threshold_pct,
+        drawer_count_by: branch.drawer_count_by,
       }}
     />
 
