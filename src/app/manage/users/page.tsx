@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { listStaff } from "@/lib/users";
+import { baristaPermissions } from "@/lib/roles";
 import StaffManager from "@/components/StaffManager";
+import PermissionsEditor from "@/components/PermissionsEditor";
 
 /**
  * الموظفون والرموز (§51 · §52).
@@ -17,9 +19,9 @@ export default async function UsersPage() {
   if (!user) redirect("/login");
 
   const canManage = await can(user, "users.manage");
-  const staff = canManage
-    ? await listStaff(user.bid)
-    : (await listStaff(user.bid)).filter((u) => u.id === user.uid);
+  const all = await listStaff(user.bid);
+  const staff = canManage ? all : all.filter((u) => u.id === user.uid);
+  const perms = canManage ? await baristaPermissions(user.bid) : [];
 
   return (
     <div className="space-y-4">
@@ -32,6 +34,13 @@ export default async function UsersPage() {
       </header>
 
       <StaffManager staff={staff} meId={user.uid} canManage={canManage} />
+
+      {canManage && perms.length > 0 && (
+        <>
+          <hr className="border-line" />
+          <PermissionsEditor perms={perms} />
+        </>
+      )}
     </div>
   );
 }
