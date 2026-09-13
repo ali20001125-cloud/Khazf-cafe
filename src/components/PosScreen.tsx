@@ -11,6 +11,7 @@ import ModifierSheet from "@/components/ModifierSheet";
 import CustomerPanel, { type LinkedCustomer } from "@/components/CustomerPanel";
 import { HandoverInbox } from "@/components/DrawerDialogs";
 import MyPinDialog from "@/components/MyPinDialog";
+import OfflineSync from "@/components/OfflineSync";
 
 export type CartOption = { id: string; name: string; price_delta: number };
 export type CartLine = {
@@ -158,6 +159,8 @@ export default function PosScreen({
           </div>
         </header>
 
+        <OfflineSync currency={currency} />
+
         <div className="grid flex-1 grid-cols-2 content-start gap-3 p-4 sm:grid-cols-3">
           {shown.map((p) => {
             const avail = p.crops.filter((c) => c.available);
@@ -248,7 +251,7 @@ export default function PosScreen({
       )}
       {payOpen && (
         <PaymentDialog lines={lines} total={total} fulfillment={fulfillment} currency={currency}
-          customerId={customer?.id ?? null}
+          customerId={customer?.id ?? null} shiftId={shift.id}
           onClose={() => setPayOpen(false)} onPaid={() => { setPayOpen(false); clearCart(); }} />
       )}
       {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}

@@ -6,6 +6,7 @@ import Modal from "@/components/Modal";
 import type { CartLine } from "@/components/PosScreen";
 import Receipt, { type ReceiptInfo } from "@/components/Receipt";
 import { pay } from "@/app/pos/actions";
+import { enqueue } from "@/lib/offline-queue";
 
 type Method = "cash" | "card";
 
@@ -15,6 +16,7 @@ export default function PaymentDialog({
   fulfillment,
   currency,
   customerId,
+  shiftId,
   onClose,
   onPaid,
 }: {
@@ -24,6 +26,8 @@ export default function PaymentDialog({
   currency: string;
   /** حساب الولاء المربوط — الأختام تُحتسب داخل معاملة البيع نفسها (§59). */
   customerId?: string | null;
+  /** وردية البيع — تُحفظ مع الفاتورة المؤجّلة لتُرفع إلى ورديتها هي. */
+  shiftId: string;
   onClose: () => void;
   onPaid: () => void;
 }) {
@@ -55,24 +59,71 @@ export default function PaymentDialog({
       return;
     }
     setError(null);
-    start(async () => {
-      const res = await pay({
-        items: lines.map((l) => ({
-          product_id: l.product_id,
-          crop_material_id: l.crop_material_id,
-          qty: l.qty,
-          options: l.options.map((o) => o.id),
-        })),
+
+    const items = lines.map((l) => ({
+      product_id: l.product_id,
+      crop_material_id: l.crop_material_id,
+      qty: l.qty,
+      options: l.options.map((o) => o.id),
+    }));
+    // لحظة البيع تُلتقط **الآن**، لا حين يُرفع: هي ما يحدّد اليوم المحاسبي
+    // ووردية الدرج، ولو أُخذت وقت الرفع لانتقل بيع الليل إلى صباح الغد.
+    const at = new Date().toISOString();
+
+    /** يحفظ البيع محلياً ويُظهر إيصالاً صريحاً بأنه لم يُرفع بعد. */
+    function keepLocally(reason: string) {
+      const row = enqueue({
+        idempotencyKey: idemKey,
+        occurredAt: at,
+        shiftId,
+        items,
         fulfillment,
         method,
         tendered: method === "cash" ? tenderedNum : null,
-        idempotencyKey: idemKey,
+        total,
         customerId: customerId ?? null,
       });
+      if (!row) {
+        // ذاكرة الجهاز رفضت الحفظ. لا نُظهر إيصالاً لبيعٍ لم يُحفظ —
+        // إيصالٌ بلا سجلّ أسوأ من بيعٍ لم يتمّ.
+        setError("تعذّر حفظ البيع في الجهاز. لا تسلّم الطلب، وأعد المحاولة.");
+        return;
+      }
+      setReceipt({
+        orderNumber: row.localRef, total, change: method === "cash" && tenderedNum != null ? tenderedNum - total : null,
+        method, fulfillment, currency, shopName: "مقهى خزف", shopPhone: "", lines, at,
+        pendingUpload: true, pendingReason: reason,
+      });
+    }
+
+    start(async () => {
+      // الشبكة غائبة أصلاً: لا نُضيّع ثانيةً في محاولة تفشل
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        keepLocally("بلا إنترنت");
+        return;
+      }
+      let res;
+      try {
+        res = await pay({
+          items,
+          fulfillment,
+          method,
+          tendered: method === "cash" ? tenderedNum : null,
+          idempotencyKey: idemKey,
+          customerId: customerId ?? null,
+          occurredAt: at,
+          shiftId,
+        });
+      } catch {
+        // سقطت الشبكة أثناء الإرسال. قد يكون الخادم استلمها وقد لا — والمفتاح
+        // الفريد يحسم ذلك عند الرفع: إن كانت وصلت رُدَّت الأولى بلا تكرار.
+        keepLocally("انقطع الاتصال أثناء الإرسال");
+        return;
+      }
       if (res.ok) {
         setReceipt({
           orderNumber: res.orderNumber, total: res.total, change: res.change, method, fulfillment,
-          currency, shopName: "مقهى خزف", shopPhone: "", lines, at: new Date().toISOString(),
+          currency, shopName: "مقهى خزف", shopPhone: "", lines, at,
         });
       } else {
         setError(res.error);
@@ -82,9 +133,23 @@ export default function PaymentDialog({
 
   if (receipt) {
     return (
-      <Modal title={`تم الطلب #${receipt.orderNumber}`} onClose={onPaid}>
+      <Modal
+        title={receipt.pendingUpload ? `طلب محلّي #${receipt.orderNumber}` : `تم الطلب #${receipt.orderNumber}`}
+        onClose={onPaid}
+      >
+        {receipt.pendingUpload && (
+          <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <span className="font-semibold">محفوظ في الجهاز — لم يُرفع بعد</span>
+            <span className="mt-0.5 block text-xs">
+              {receipt.pendingReason}. الرقم أعلاه محلّي مؤقّت، ورقم الفاتورة
+              الحقيقي يُعطى عند الرفع. سلّم الطلب واقبض عادةً — البيع مسجَّل.
+            </span>
+          </div>
+        )}
         <div className="mb-4 rounded-2xl bg-accent/10 p-4 text-center">
-          <div className="text-sm text-accentdeep">تم الدفع بنجاح</div>
+          <div className="text-sm text-accentdeep">
+            {receipt.pendingUpload ? "تم استلام المبلغ" : "تم الدفع بنجاح"}
+          </div>
           {receipt.method === "cash" && receipt.change != null && (
             <div className="nums mt-1 font-display text-2xl font-bold text-accentdeep">
               الباقي {money(receipt.change, currency)}

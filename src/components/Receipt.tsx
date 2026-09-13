@@ -5,6 +5,9 @@ import type { CartLine } from "@/components/PosScreen";
 
 export type ReceiptInfo = {
   orderNumber: number;
+  /** بيعٌ تمّ بلا إنترنت ولم يُرفع بعد: الرقم محلّي مؤقّت، ويُقال ذلك على الورقة. */
+  pendingUpload?: boolean;
+  pendingReason?: string;
   total: number;
   change: number | null;
   method: "cash" | "card";
@@ -26,7 +29,9 @@ export default function Receipt({ info }: { info: ReceiptInfo }) {
       </div>
       <div className="my-2 border-t border-dashed border-black" />
       <div className="flex justify-between text-xs">
-        <span>طلب #{info.orderNumber}</span>
+        <span>
+          {info.pendingUpload ? `طلب محلّي #${info.orderNumber}` : `طلب #${info.orderNumber}`}
+        </span>
         <span>{info.fulfillment === "takeaway" ? "سفري" : "جلوس"}</span>
       </div>
       <div className="text-xs">{timeAr(info.at)}</div>

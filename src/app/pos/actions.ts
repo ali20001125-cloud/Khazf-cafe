@@ -15,6 +15,15 @@ export type PayInput = {
   idempotencyKey: string;
   /** حساب ولاء مربوط بالفاتورة (§38). الأختام تُحتسب في نفس معاملة البيع (§59). */
   customerId?: string | null;
+  /**
+   * لحظة البيع الحقيقية (ISO) — تُمرَّر للفواتير التي تمّت بلا إنترنت ورُفعت
+   * لاحقاً. بدونها يُكتب البيع بوقت **الرفع**، فبيعُ ١١ ليلاً المرفوع ٨
+   * صباحاً يقع في يوم محاسبي آخر ووردية أخرى: مبيعات ليلة أمس تنتقل إلى
+   * اليوم، ونقدُه يظهر في درج وردية لم تقبضه (هجرة 0025).
+   */
+  occurredAt?: string | null;
+  /** وردية البيع — تُمرَّر للمرفوع لاحقاً لأن المفتوحة الآن قد تكون غيرها. */
+  shiftId?: string | null;
 };
 
 export type PayResult =
@@ -41,9 +50,14 @@ export async function pay(input: PayInput): Promise<PayResult> {
     if (branch.pos_locked) return { ok: false, error: "الكاشير مقفل من قبل المالك" };
     const branchId = branch.id;
 
-    // كل بيع ينتمي لوردية مفتوحة (لتسوية الكاش وكشف النقص)
-    const shift = await getOpenShift(branchId);
-    if (!shift) return { ok: false, error: "افتح الوردية أولاً" };
+    // كل بيع ينتمي لوردية (لتسوية الكاش وكشف النقص). البيع المرفوع لاحقاً
+    // يحمل ورديته معه: قد تكون أُغلقت، وهو مع ذلك وقع فيها.
+    let shiftId = input.shiftId ?? null;
+    if (!shiftId) {
+      const shift = await getOpenShift(branchId);
+      if (!shift) return { ok: false, error: "افتح الوردية أولاً" };
+      shiftId = shift.id;
+    }
 
     const itemsJson = JSON.stringify(
       input.items.map((i) => ({
@@ -57,10 +71,11 @@ export async function pay(input: PayInput): Promise<PayResult> {
     // النسخة ذات ١١ وسيطاً: تربط العميل وتترك الخصم فارغاً (الخصم شاشة مستقلّة).
     const rows = (await db()`
       select checkout(
-        ${user.bid}, ${branchId}, ${user.uid}, ${shift.id},
+        ${user.bid}, ${branchId}, ${user.uid}, ${shiftId},
         ${input.fulfillment}, ${input.method}, ${input.tendered},
         ${input.idempotencyKey}, ${itemsJson}::jsonb,
-        ${input.customerId ?? null}, ${null}::jsonb
+        ${input.customerId ?? null}, ${null}::jsonb,
+        ${input.occurredAt ?? null}::timestamptz
       ) as result
     `) as { result: { order_number: number; total: number; change: number | null; replay: boolean } }[];
 
