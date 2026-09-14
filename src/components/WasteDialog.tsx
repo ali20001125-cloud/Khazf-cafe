@@ -3,12 +3,16 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { WASTE_REASONS, inputUnit, toBase } from "@/lib/labels";
-import { listWasteMaterials, wasteAction, type WasteMaterial } from "@/app/pos/waste-actions";
+import { inputUnit, toBase } from "@/lib/labels";
+import {
+  listWasteMaterials, listWasteReasons, wasteAction, type WasteMaterial,
+} from "@/app/pos/waste-actions";
 
 export default function WasteDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [materials, setMaterials] = useState<WasteMaterial[] | null>(null);
+  // الأسباب من القاعدة لا من قائمة ثابتة في الكود: المالك يعدّلها بكلامه
+  const [reasons, setReasons] = useState<{ key: string; label: string }[]>([]);
   const [materialId, setMaterialId] = useState("");
   const [qty, setQty] = useState("");
   const [reason, setReason] = useState("");
@@ -19,6 +23,9 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
     listWasteMaterials().then((res) => {
       if (Array.isArray(res)) setMaterials(res);
       else setError(res.error);
+    });
+    listWasteReasons().then((res) => {
+      if (Array.isArray(res)) setReasons(res);
     });
   }, []);
 
@@ -82,21 +89,28 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
           />
 
           <label className="mb-1 block text-sm text-muted">السبب</label>
-          <div className="mb-3 grid grid-cols-3 gap-2">
-            {WASTE_REASONS.map((r) => (
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {reasons.map((r) => (
               <button
-                key={r.value}
+                key={r.key}
                 onClick={() => {
-                  setReason(r.value);
+                  setReason(r.key);
                   setError(null);
                 }}
-                className={`rounded-lg py-2 text-xs ${
-                  reason === r.value ? "bg-accent text-white" : "border border-line bg-cream text-muted"
+                className={`tap min-h-[2.75rem] rounded-xl px-2 py-2 text-sm ${
+                  reason === r.key
+                    ? "bg-accent font-semibold text-cream"
+                    : "border border-line bg-cream text-muted"
                 }`}
               >
                 {r.label}
               </button>
             ))}
+            {reasons.length === 0 && (
+              <p className="col-span-2 py-3 text-center text-xs text-muted">
+                لا أسباب معرّفة — يضيفها المالك من المخزون.
+              </p>
+            )}
           </div>
 
           {error && <div className="mb-3 text-center text-sm text-red-600">{error}</div>}

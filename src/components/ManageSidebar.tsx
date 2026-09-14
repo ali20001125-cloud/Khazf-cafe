@@ -11,6 +11,7 @@ const NAV = [
   { href: "/manage/profit", label: "الأرباح" },
   { href: "/manage/sales", label: "مبيعات المشروبات" },
   { href: "/manage/inventory", label: "المخزون" },
+  { href: "/manage/shopping", label: "قائمة الشراء" },
   { href: "/manage/products", label: "المشروبات والأسعار" },
   { href: "/manage/loyalty", label: "الولاء" },
   { href: "/manage/exceptions", label: "الشاذّ" },

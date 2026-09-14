@@ -4,10 +4,14 @@ import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getSettings, strSetting } from "@/lib/settings";
-import { materialOverview, type MaterialOverview } from "@/lib/inventory-overview";
+import {
+  materialOverview, materialUnits, wasteReasons, wasteByReason, shoppingList,
+  type MaterialOverview,
+} from "@/lib/inventory-overview";
 import { listPurchases, listWasteLog, listCounts } from "@/lib/inventory";
 import { money, stockLabel } from "@/lib/format";
 import InventoryActions from "@/components/InventoryActions";
+import InventorySettings from "@/components/InventorySettings";
 
 /**
  * المخزون.
@@ -30,13 +34,18 @@ export default async function InventoryPage() {
   const branch = await getActiveBranch(user.bid);
   if (!branch) return <p className="card p-8 text-center text-red-600">لا يوجد فرع فعّال.</p>;
 
-  const [items, settings, purchases, waste, counts] = await Promise.all([
-    materialOverview(user.bid, 30),
-    getSettings(),
-    listPurchases(user.bid),
-    listWasteLog(user.bid),
-    listCounts(branch.id),
-  ]);
+  const [items, settings, purchases, waste, counts, units, reasons, byReason, shopping] =
+    await Promise.all([
+      materialOverview(user.bid, 30),
+      getSettings(),
+      listPurchases(user.bid),
+      listWasteLog(user.bid),
+      listCounts(branch.id),
+      materialUnits(user.bid),
+      wasteReasons(user.bid, true),
+      wasteByReason(branch.id, 30),
+      shoppingList(user.bid, 14),
+    ]);
   const currency = strSetting(settings, "currency", "د.ع");
 
   const crops = items.filter((m) => m.is_crop);
@@ -54,10 +63,46 @@ export default async function InventoryPage() {
             الرصيد تراكمي: كل شراء يُضاف، وكل بيع وهدر يُنقص، والدفتر يحفظ السلسلة.
           </p>
         </div>
-        <InventoryActions materials={items.map((m) => ({
-          id: m.id, name: m.name, base_unit: m.base_unit, stock: m.stock,
-        }))} currency={currency} />
+        <div className="flex flex-wrap items-center gap-2">
+          {shopping.some((r) => r.urgency !== "ok") && (
+            <Link href="/manage/shopping" className="btn-primary px-4 py-2 text-sm">
+              قائمة الشراء ({shopping.filter((r) => r.urgency !== "ok").length})
+            </Link>
+          )}
+          <InventoryActions materials={items.map((m) => ({
+            id: m.id, name: m.name, base_unit: m.base_unit, stock: m.stock,
+          }))} currency={currency} units={units} reasons={reasons.filter((r) => r.active)} />
+        </div>
       </div>
+
+      {byReason.length > 0 && (
+        <section className="card p-5">
+          <h2 className="mb-1 font-display text-sm font-bold text-ink">
+            الهدر في ٣٠ يوماً — بالدينار
+          </h2>
+          <p className="mb-3 text-xs text-muted">
+            «٢٫٥ كغ» لا يُقرأ، و«٦٢٬٥٠٠ دينار» يُقرأ. وترتيبها بالكلفة يقول من
+            أين يبدأ التوفير.
+          </p>
+          <ul className="divide-y divide-line">
+            {byReason.map((r) => (
+              <li key={r.reason} className="flex items-center justify-between py-2 text-sm">
+                <span className="text-ink">
+                  {r.label}
+                  <span className="nums mr-2 text-xs text-muted">({r.events} مرّة)</span>
+                </span>
+                <span className="nums font-medium text-ink">{money(r.cost, currency)}</span>
+              </li>
+            ))}
+            <li className="flex items-center justify-between pt-2 font-display font-bold text-ink">
+              <span>المجموع</span>
+              <span className="nums">
+                {money(byReason.reduce((a, r) => a + r.cost, 0), currency)}
+              </span>
+            </li>
+          </ul>
+        </section>
+      )}
 
       {/* تنبيهات تسبق الأرقام */}
       {(lowCount > 0 || soonCount > 0) && (
@@ -136,6 +181,16 @@ export default async function InventoryPage() {
           ))}
         </Log>
       </div>
+
+      <InventorySettings
+        materials={items.map((m) => ({
+          id: m.id, name: m.name, base_unit: m.base_unit, stock: m.stock,
+          low_threshold: m.low_threshold,
+          par_level: shopping.find((r) => r.material_id === m.id)?.par_level ?? 0,
+        }))}
+        units={units}
+        reasons={reasons}
+      />
     </div>
   );
 }

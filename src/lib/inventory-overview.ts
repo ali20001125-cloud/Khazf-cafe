@@ -98,3 +98,91 @@ export const MOVE_LABELS: Record<string, string> = {
   TRANSFER_OUT: "نقل صادر",
   OTHER_APPROVED: "عملية بموافقة",
 };
+
+// ── مخزون متقدّم (هجرة 0028) ─────────────────────────────────────────
+
+export type MaterialUnit = {
+  id: string;
+  material_id: string;
+  name: string;
+  base_qty: number;
+  is_default: boolean;
+};
+
+/** وحدات الشراء لكل مادة — يعرّفها المالك مرّة ويشتري بها دائماً. */
+export async function materialUnits(businessId: string): Promise<MaterialUnit[]> {
+  return (await db()`
+    select u.id, u.material_id, u.name, u.base_qty, u.is_default
+    from material_units u
+    join materials m on m.id = u.material_id
+    where m.business_id = ${businessId} and u.active and m.active
+    order by u.material_id, u.sort, u.name
+  `) as MaterialUnit[];
+}
+
+export type ShoppingRow = {
+  material_id: string;
+  name: string;
+  base_unit: string;
+  stock: number;
+  low_threshold: number;
+  par_level: number;
+  need_base: number;
+  avg_per_day: number;
+  days_left: number | null;
+  unit_id: string | null;
+  unit_name: string | null;
+  unit_base_qty: number | null;
+  need_units: number | null;
+  urgency: "out" | "low" | "top_up" | "ok";
+};
+
+/** ما ينبغي شراؤه اليوم — الناقص أولاً، بوحدة الشراء لا بالغرام. */
+export async function shoppingList(businessId: string, days = 14): Promise<ShoppingRow[]> {
+  return (await db()`
+    select material_id, name, base_unit::text as base_unit, stock, low_threshold, par_level,
+           need_base, avg_per_day, days_left,
+           unit_id, unit_name, unit_base_qty, need_units, urgency
+    from shopping_list(${businessId}, ${days})
+  `) as ShoppingRow[];
+}
+
+export type WasteReason = { key: string; label: string; active: boolean; sort: number };
+
+export async function wasteReasons(businessId: string, all = false): Promise<WasteReason[]> {
+  return (await db()`
+    select key, label, active, sort from waste_reasons
+    where business_id = ${businessId} and (${all} or active)
+    order by active desc, sort, label
+  `) as WasteReason[];
+}
+
+export type WasteByReason = { reason: string; label: string; events: number; cost: number };
+
+/** تكلفة الهدر موزّعةً على أسبابه — بالدينار، فالغرام لا يُقرأ. */
+export async function wasteByReason(branchId: string, days = 30): Promise<WasteByReason[]> {
+  return (await db()`
+    select reason, label, events, cost::int as cost
+    from waste_by_reason(${branchId}, ${days})
+  `) as WasteByReason[];
+}
+
+export type CountDoc = {
+  id: string;
+  user_name: string;
+  created_at: string;
+  business_day: string;
+  counted_materials: number;
+  total_materials: number | null;
+  is_partial: boolean;
+  with_variance: number;
+};
+
+export async function recentCounts(branchId: string, limit = 10): Promise<CountDoc[]> {
+  return (await db()`
+    select id, user_name, created_at, business_day::text as business_day,
+           counted_materials, total_materials, is_partial, with_variance
+    from v_stock_counts where branch_id = ${branchId}
+    order by created_at desc limit ${limit}
+  `) as CountDoc[];
+}

@@ -7,6 +7,13 @@ import { recordPurchase, applyStockCount, type CountItem, type CountResult } fro
 
 type Err = { ok: false; error: string };
 
+/** الفرع الفعّال أو فراغ — للأحداث التي تخصّ العمل كلّه لا فرعاً بعينه. */
+async function branchOrNull(bid: string): Promise<string> {
+  const b = await getActiveBranchId(bid);
+  if (!b) throw new Error("لا يوجد فرع فعّال");
+  return b;
+}
+
 async function branchOrErr(bid: string): Promise<string | Err> {
   const b = await getActiveBranchId(bid);
   return b ?? { ok: false, error: "لا يوجد فرع فعّال" };
@@ -78,6 +85,119 @@ export const setLowThresholdAction = guard(
       returning id
     `) as { id: string }[];
     if (!rows[0]) return { ok: false as const, error: "مادة غير موجودة" };
+    return { ok: true as const };
+  }
+);
+
+// ── مخزون متقدّم (هجرة 0028) ─────────────────────────────────────────
+
+/**
+ * شراء **بوحدة الشراء**: «٢ كرتون» بدل «٢٤٠٠٠ مل».
+ *
+ * التحويل يقع في القاعدة لا هنا: هي التي تعرف `base_qty` وتكتب الوحدة مع
+ * صفّ الدفتر في إدراجٍ واحد — والدفتر للإلحاق فقط، فلا يُدرَج ثم يُرقَّع.
+ */
+export const addStockByUnitAction = guard(
+  "inventory.receive",
+  async (u, materialId: string, unitId: string, unitQty: number, costPerUnit: number, reason: string) => {
+    if (!Number.isFinite(unitQty) || unitQty <= 0)
+      return { ok: false as const, error: "الكمية غير صالحة" };
+    const b = await branchOrErr(u.bid);
+    if (typeof b !== "string") return b;
+    const rows = (await db()`
+      select record_purchase_units(${u.bid}, ${b}, ${u.uid}, ${materialId}, ${unitId},
+                                   ${unitQty}, ${Math.round(costPerUnit || 0)}, ${reason || "شراء"}) as r
+    `) as { r: { base_qty: number; unit_cost: number; unit: string } }[];
+    const r = rows[0].r;
+    await audit(u.bid, b, u.uid, "add_stock", `+${unitQty} ${r.unit} (= ${r.base_qty})`);
+    return { ok: true as const, ...r };
+  }
+);
+
+/** تعريف وحدة شراء لمادة: «كرتون = ١٢٠٠٠ مل». */
+export const addMaterialUnitAction = guard(
+  "inventory.adjust",
+  async (u, materialId: string, name: string, baseQty: number, isDefault: boolean) => {
+    if (!name.trim()) return { ok: false as const, error: "اكتب اسم الوحدة" };
+    if (!Number.isFinite(baseQty) || baseQty <= 0)
+      return { ok: false as const, error: "كم وحدة أساس في هذه الوحدة؟" };
+    // افتراضيّ واحد لكل مادة: أكثرُ من واحد يعني «أيّهما؟» في كل شاشة
+    if (isDefault) {
+      await db()`
+        update material_units set is_default = false
+        where material_id = ${materialId} and is_default
+      `;
+    }
+    await db()`
+      insert into material_units (material_id, name, base_qty, is_default, sort)
+      values (${materialId}, ${name.trim()}, ${Math.round(baseQty)}, ${isDefault},
+              coalesce((select max(sort) + 1 from material_units where material_id = ${materialId}), 1))
+    `;
+    await audit(u.bid, await branchOrNull(u.bid), u.uid, "material_unit_added",
+                `${name.trim()} = ${Math.round(baseQty)}`);
+    return { ok: true as const };
+  }
+);
+
+export const removeMaterialUnitAction = guard(
+  "inventory.adjust",
+  async (u, unitId: string) => {
+    // تُعطَّل ولا تُحذف: حركاتٌ قديمة تشير إليها، وحذفها يُفقد «كم كرتوناً اشتريت»
+    await db()`update material_units set active = false where id = ${unitId}`;
+    await audit(u.bid, await branchOrNull(u.bid), u.uid, "material_unit_removed", "تعطيل وحدة شراء");
+    return { ok: true as const };
+  }
+);
+
+/**
+ * «كم أريد أن يبقى في المحلّ؟» — الرقم الذي تُبنى عليه قائمة الشراء.
+ *
+ * غير حدّ التنبيه: ذاك يقول **متى** أُنبّهك، وهذا يقول **كم** تشتري.
+ * ومن لا يعرف كم يشتري يشتري قليلاً فينفد أو كثيراً فيتلف.
+ */
+export const setParLevelAction = guard(
+  "inventory.adjust",
+  async (u, materialId: string, parLevel: number) => {
+    if (!Number.isFinite(parLevel) || parLevel < 0)
+      return { ok: false as const, error: "رقم غير صالح" };
+    await db()`
+      update materials set par_level = ${Math.round(parLevel)}
+      where id = ${materialId} and business_id = ${u.bid}
+    `;
+    await audit(u.bid, await branchOrNull(u.bid), u.uid, "par_level_set",
+                `المطلوب بعد الشراء ${Math.round(parLevel)}`);
+    return { ok: true as const };
+  }
+);
+
+// ── أسباب الهدر ──────────────────────────────────────────────────────
+export const addWasteReasonAction = guard(
+  "settings.manage",
+  async (u, label: string) => {
+    const l = label.trim();
+    if (l.length < 2) return { ok: false as const, error: "اكتب السبب" };
+    // مفتاح مستقرّ لا يتغيّر بتغيّر النصّ: الحركات القديمة تشير إليه
+    const key = `r_${Date.now().toString(36)}`;
+    await db()`
+      insert into waste_reasons (key, business_id, label, sort)
+      values (${key}, ${u.bid}, ${l},
+              coalesce((select max(sort) + 1 from waste_reasons where business_id = ${u.bid}), 1))
+    `;
+    await audit(u.bid, await branchOrNull(u.bid), u.uid, "waste_reason_added", l);
+    return { ok: true as const };
+  }
+);
+
+export const setWasteReasonActiveAction = guard(
+  "settings.manage",
+  async (u, key: string, active: boolean) => {
+    // تُعطَّل ولا تُحذف: هدرٌ سُجّل بها في الماضي يجب أن يبقى مقروءاً
+    await db()`
+      update waste_reasons set active = ${active}
+      where key = ${key} and business_id = ${u.bid}
+    `;
+    await audit(u.bid, await branchOrNull(u.bid), u.uid,
+                active ? "waste_reason_enabled" : "waste_reason_disabled", key);
     return { ok: true as const };
   }
 );

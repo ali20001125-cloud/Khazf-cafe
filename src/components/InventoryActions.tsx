@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { money, stockLabel } from "@/lib/format";
 import { inputUnit, toBase, costToBase } from "@/lib/labels";
-import { addStockAction, stockCountAction } from "@/app/manage/actions";
+import { addStockAction, addStockByUnitAction, stockCountAction } from "@/app/manage/actions";
 import type { CountResult } from "@/lib/inventory";
 
 type M = { id: string; name: string; base_unit: "g" | "ml" | "pcs"; stock: number };
@@ -18,10 +18,15 @@ type M = { id: string; name: string; base_unit: "g" | "ml" | "pcs"; stock: numbe
  */
 export default function InventoryActions({
   materials,
+  units = [],
+  reasons = [],
   currency,
 }: {
   materials: M[];
   currency: string;
+  /** وحدات الشراء — الشراء بها بدل الوحدة الأساس (هجرة 0028). */
+  units?: { id: string; material_id: string; name: string; base_qty: number; is_default: boolean }[];
+  reasons?: { key: string; label: string }[];
 }) {
   const [mode, setMode] = useState<null | "add" | "count">(null);
 
@@ -35,7 +40,7 @@ export default function InventoryActions({
       </button>
 
       {mode === "add" && (
-        <AddStock materials={materials} currency={currency} onClose={() => setMode(null)} />
+        <AddStock materials={materials} currency={currency} units={units} onClose={() => setMode(null)} />
       )}
       {mode === "count" && <StockCount materials={materials} onClose={() => setMode(null)} />}
     </div>
@@ -45,27 +50,37 @@ export default function InventoryActions({
 function AddStock({
   materials,
   currency,
+  units,
   onClose,
 }: {
   materials: M[];
   currency: string;
+  units: { id: string; material_id: string; name: string; base_qty: number; is_default: boolean }[];
   onClose: () => void;
 }) {
   const router = useRouter();
   const [id, setId] = useState("");
   const [qty, setQty] = useState("");
   const [cost, setCost] = useState("");
+  // وحدة الشراء المختارة — فارغةٌ تعني الوحدة الأساس كما كان
+  const [unitId, setUnitId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ name: string; added: string; now: string } | null>(null);
   const [pending, start] = useTransition();
 
   const m = materials.find((x) => x.id === id);
   const u = m ? inputUnit(m.base_unit) : null;
+  const myUnits = units.filter((x) => x.material_id === id);
+  const unit = myUnits.find((x) => x.id === unitId) ?? null;
   const qtyNum = Number(qty);
-  const preview =
-    m && u && Number.isFinite(qtyNum) && qtyNum > 0
-      ? m.stock + toBase(qtyNum, m.base_unit)
+  // بوحدة الشراء: الكمية × ما فيها. وبلا وحدة: التحويل القديم (كغ ← غ).
+  const addedBase =
+    m && Number.isFinite(qtyNum) && qtyNum > 0
+      ? unit
+        ? Math.round(qtyNum * unit.base_qty)
+        : toBase(qtyNum, m.base_unit)
       : null;
+  const preview = m && addedBase != null ? m.stock + addedBase : null;
 
   function submit() {
     if (!m || !u) return setError("اختر المادة");
@@ -74,6 +89,18 @@ function AddStock({
     if (cost !== "" && (!Number.isFinite(c) || c < 0)) return setError("تكلفة غير صالحة");
     setError(null);
     start(async () => {
+      // بوحدة شراء: القاعدة تحوّل الكمية والتكلفة وتحفظ الوحدة مع الصفّ.
+      if (unit) {
+        const r = await addStockByUnitAction(m.id, unit.id, qtyNum, cost === "" ? 0 : c, "شراء");
+        if (!("ok" in r) || !r.ok) return setError("error" in r ? r.error : "تعذّرت الإضافة");
+        setDone({
+          name: m.name,
+          added: `${qtyNum} ${unit.name}`,
+          now: stockLabel(m.stock + Math.round(qtyNum * unit.base_qty), m.base_unit),
+        });
+        router.refresh();
+        return;
+      }
       const r = await addStockAction(
         m.id,
         toBase(qtyNum, m.base_unit),
@@ -124,10 +151,39 @@ function AddStock({
         ))}
       </select>
 
+      {m && myUnits.length > 0 && (
+        <>
+          <label className="mb-1.5 block text-sm font-semibold text-ink">وحدة الشراء</label>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {myUnits.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                onClick={() => { setUnitId(x.id); setError(null); }}
+                className={`tap rounded-xl border px-3 py-2 text-sm ${
+                  unitId === x.id ? "border-accent bg-accent/10 text-ink" : "border-line bg-cream text-muted"
+                }`}
+              >
+                {x.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => { setUnitId(""); setError(null); }}
+              className={`tap rounded-xl border px-3 py-2 text-sm ${
+                unitId === "" ? "border-accent bg-accent/10 text-ink" : "border-line bg-cream text-muted"
+              }`}
+            >
+              بالـ{u?.label}
+            </button>
+          </div>
+        </>
+      )}
+
       {m && u && (
         <>
           <label className="mb-1.5 block text-sm font-semibold text-ink">
-            الكمية المُضافة ({u.label})
+            الكمية المُضافة ({unit ? unit.name : u.label})
           </label>
           <input
             type="number"
@@ -139,13 +195,15 @@ function AddStock({
           />
           {preview != null && (
             <p className="nums mb-4 text-center text-sm text-accentdeep">
-              {stockLabel(m.stock, m.base_unit)} + {qty} {u.label} ={" "}
+              {stockLabel(m.stock, m.base_unit)} + {qty} {unit ? unit.name : u.label}
+              {unit && ` (${stockLabel(addedBase ?? 0, m.base_unit)})`} ={" "}
               <span className="font-bold">{stockLabel(preview, m.base_unit)}</span>
             </p>
           )}
 
           <label className="mb-1.5 block text-sm font-semibold text-ink">
-            التكلفة لكل {u.label} <span className="font-normal text-muted">(اختياري)</span>
+            التكلفة لكل {unit ? unit.name : u.label}{" "}
+            <span className="font-normal text-muted">(اختياري)</span>
           </label>
           <input
             type="number"

@@ -47,3 +47,20 @@ export async function wasteAction(
     return { ok: false, error: msg };
   }
 }
+
+/**
+ * أسباب الهدر الفعّالة — يملكها المالك ويعدّلها (هجرة 0028).
+ * كانت قائمة ثابتة في الكود، فلم تكن بلغة المقهى ولا تتغيّر بتغيّر عمله.
+ */
+export async function listWasteReasons(): Promise<{ key: string; label: string }[] | { error: string }> {
+  try {
+    const u = await requirePermission("inventory.waste");
+    return (await db()`
+      select key, label from waste_reasons
+      where business_id = ${u.bid} and active order by sort, label
+    `) as { key: string; label: string }[];
+  } catch (e) {
+    if (e instanceof AuthError) return { error: e.message };
+    return { error: "تعذّر جلب الأسباب" };
+  }
+}
