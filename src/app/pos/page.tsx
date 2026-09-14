@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { getCatalog } from "@/lib/catalog";
+import { getCatalog, topSellerRank } from "@/lib/catalog";
 import { getSettings, strSetting } from "@/lib/settings";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
@@ -26,10 +26,11 @@ export default async function PosPage() {
     );
   }
 
-  const [catalog, settings, branch] = await Promise.all([
+  const [catalog, settings, branch, sellRank] = await Promise.all([
     getCatalog(user.bid),
     getSettings(),
     getActiveBranch(user.bid),
+    topSellerRank(user.bid),
   ]);
   const currency = strSetting(settings, "currency", "د.ع");
 
@@ -70,6 +71,7 @@ export default async function PosPage() {
   return (
     <PosScreen
       catalog={catalog}
+      sellRank={Object.fromEntries(sellRank)}
       currency={currency}
       userName={user.name}
       pinIsDefault={pinIsDefault}

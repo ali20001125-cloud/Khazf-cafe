@@ -9,17 +9,37 @@ export default function ModifierSheet({
   product,
   currency,
   onAdd,
+  fulfillment,
   onClose,
 }: {
   product: CatalogProduct;
   currency: string;
   onAdd: (line: Omit<CartLine, "key" | "qty">) => void;
+  /** يحدّد أي رصيد يُقاس عليه: الكوب والغطاء للسفري وحده. */
+  fulfillment: "takeaway" | "dine_in";
   onClose: () => void;
 }) {
-  const crops = product.crops.filter((c) => c.available);
+  // المحصول الذي لا يكفي مخزونه كوباً واحداً لا يُعرض خياراً: اختياره
+  // يعني طلباً يفشل عند الدفع بعد أن حُضِّر المشروب.
+  const inStock = (c: CatalogProduct["crops"][number]) =>
+    (fulfillment === "takeaway" ? c.servings_takeaway : c.servings_dine_in) > 0;
+  const crops = product.crops.filter((c) => c.available && inStock(c));
   const [cropId, setCropId] = useState<string>(crops.length === 1 ? crops[0].material_id : "");
   // single groups → optionId | ""; multi groups → Set of ids
-  const [singles, setSingles] = useState<Record<string, string>>({});
+  //
+  // المجموعة **الإلزامية** تبدأ مختارةً على الخيار المجّاني (الحليب البقري
+  // مثلاً): هو ما يطلبه أكثر الزبائن. بدون ذلك يفتح اللاتيه — أكثر ما يُباع —
+  // حواراً يتطلّب ضغطتين في كل مرّة، والضغطة الزائدة تتكرّر مئة مرّة في اليوم.
+  // ومن أراد غيره يبدّله بضغطة واحدة، فلا شيء خُفي.
+  const [singles, setSingles] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const g of product.groups) {
+      if (g.selection !== "single" || !g.required || g.options.length === 0) continue;
+      const free = g.options.find((o) => o.price_delta === 0) ?? g.options[0];
+      init[g.id] = free.id;
+    }
+    return init;
+  });
   const [multis, setMultis] = useState<Record<string, Set<string>>>({});
 
   const crop = crops.find((c) => c.material_id === cropId);
@@ -83,6 +103,12 @@ export default function ModifierSheet({
             {crops.map((c) => (
               <Pill key={c.material_id} active={cropId === c.material_id} onClick={() => setCropId(c.material_id)}>
                 {c.crop_name} <span className="nums text-xs opacity-70">{money(c.price, "")}</span>
+                {(() => {
+                  const n = fulfillment === "takeaway" ? c.servings_takeaway : c.servings_dine_in;
+                  return n > 0 && n <= 5 ? (
+                    <span className="nums mr-1 text-[10px] text-amber-700">باقي {n}</span>
+                  ) : null;
+                })()}
               </Pill>
             ))}
           </Group>

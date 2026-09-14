@@ -31,6 +31,7 @@ const PARK_KEY = "khazf_parked_v1";
 
 export default function PosScreen({
   catalog,
+  sellRank,
   currency,
   userName,
   countedBy,
@@ -41,6 +42,8 @@ export default function PosScreen({
   pendingHandover = null,
 }: {
   catalog: CatalogProduct[];
+  /** أكواب كل مشروب في آخر ٣٠ يوماً — يرتّب الشبكة بالأكثر طلباً. */
+  sellRank: Record<string, number>;
   currency: string;
   userName: string;
   /** من يعدّ الدرج عند الإغلاق — يقرّره المالك (هجرة 0026). */
@@ -65,22 +68,40 @@ export default function PosScreen({
   const [customerOpen, setCustomerOpen] = useState(false);
   const [customer, setCustomer] = useState<LinkedCustomer | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [added, setAdded] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => { setParkedCount(readParked().length); }, []);
 
   const total = useMemo(() => lines.reduce((s, l) => s + l.unit_price * l.qty, 0), [lines]);
   const count = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines]);
+  // كم كوباً من كل مشروب في التذكرة — يُعرض على البطاقة نفسها، فلا يحتاج
+  // الباريستا أن ينقل عينه إلى التذكرة ليتأكّد.
+  const inCart = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const l of lines) m[l.product_id] = (m[l.product_id] ?? 0) + l.qty;
+    return m;
+  }, [lines]);
   // كل المشروبات في شبكة واحدة: المقهى فيه عشرات المشروبات لا مئات،
-  // والتبويبات تضيف ضغطة قبل كل طلب بلا فائدة. المتاح أولاً، والموقوف آخراً.
-  const shown = useMemo(
-    () =>
-      [...catalog].sort((a, b) => {
-        const av = a.paused || !a.crops.some((c) => c.available) ? 1 : 0;
-        const bv = b.paused || !b.crops.some((c) => c.available) ? 1 : 0;
-        return av - bv;
-      }),
-    [catalog]
-  );
+  // والتبويبات تضيف ضغطة قبل كل طلب بلا فائدة.
+  //
+  // والترتيب: المتاح أولاً، ثم **الأكثر مبيعاً فعلاً** — لا ترتيب يدوي
+  // يضعه أحد مرّة وينساه. القائمة ترتّب نفسها كلّما تغيّر ذوق الزبائن،
+  // فيقع الأكثر طلباً تحت الإبهام. والموقوف والفارغ في الآخر.
+  const shown = useMemo(() => {
+    const rank = (p: CatalogProduct) => {
+      const avail = p.crops.filter((c) => c.available);
+      const left = avail.reduce(
+        (m, c) => Math.max(m, fulfillment === "takeaway" ? c.servings_takeaway : c.servings_dine_in),
+        0
+      );
+      if (p.paused || avail.length === 0) return 2;
+      return left === 0 ? 1 : 0;
+    };
+    return [...catalog].sort(
+      (a, b) => rank(a) - rank(b) || (sellRank[b.id] ?? 0) - (sellRank[a.id] ?? 0)
+    );
+  }, [catalog, sellRank, fulfillment]);
 
   function addLine(l: Omit<CartLine, "key" | "qty">) {
     const key = `${l.product_id}:${l.crop_material_id}:${l.options.map((o) => o.id).sort().join(",")}`;
@@ -89,15 +110,28 @@ export default function PosScreen({
       if (found) return prev.map((x) => (x.key === key ? { ...x, qty: x.qty + 1 } : x));
       return [...prev, { ...l, key, qty: 1 }];
     });
+    // تأكيد فوري: عين الباريستا على الشبكة لا على التذكرة، فلو لم يرَ أثراً
+    // ضغط ثانيةً — ويصير كوبان. والاهتزاز يصل ولو كانت اليد مشغولة.
+    setAdded(key);
+    window.setTimeout(() => setAdded((k) => (k === key ? null : k)), 450);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(12);
   }
 
   function onProduct(p: CatalogProduct) {
     if (p.paused) return;
-    const avail = p.crops.filter((c) => c.available);
+    const servings = (c: CatalogProduct["crops"][number]) =>
+      fulfillment === "takeaway" ? c.servings_takeaway : c.servings_dine_in;
+    const avail = p.crops.filter((c) => c.available && servings(c) > 0);
     if (avail.length === 0) return;
-    // بلا خيارات ومحصول واحد → إضافة مباشرة
+    // بلا خيارات ومحصول واحد → إضافة مباشرة بلا حوار.
+    // (المجموعات الإلزامية لها افتراضي داخل الحوار، لكن فتحه يبقى ضرورياً
+    //  ما دام فيها خيارٌ يُبدَّل — الافتراضي يُسرِّع الحوار لا يُلغيه.)
     if (avail.length === 1 && p.groups.length === 0) {
-      addLine({ product_id: p.id, name: p.name, crop_material_id: avail[0].material_id, crop_name: avail[0].crop_name, unit_price: avail[0].price, options: [] });
+      addLine({
+        product_id: p.id, name: p.name,
+        crop_material_id: avail[0].material_id, crop_name: avail[0].crop_name,
+        unit_price: avail[0].price, options: [],
+      });
     } else {
       setSheetFor(p);
     }
@@ -129,9 +163,11 @@ export default function PosScreen({
   }
 
   return (
-    <div className="flex min-h-screen flex-col lg:flex-row" dir="rtl">
+    // `md` لا `lg`: الآيباد العمودي ٧٦٨ بكسل، وكان يقع تحت العتبة فتنزل
+    // التذكرة خارج الشاشة — يضغط الباريستا مشروباً فلا يرى شيئاً.
+    <div className="flex h-[100dvh] flex-col overflow-hidden md:flex-row" dir="rtl">
       {/* الجانب: المنتجات */}
-      <section className="flex flex-1 flex-col">
+      <section className="flex min-h-0 flex-1 flex-col">
         {pendingHandover && (
           <HandoverInbox handoverId={pendingHandover.id} fromName={pendingHandover.from_name} />
         )}
@@ -141,43 +177,86 @@ export default function PosScreen({
               <Link href="/" className="tap chip border border-cream/20 bg-cream/5 text-cream/80">→ الرئيسية</Link>
               <h1 className="font-display text-lg font-bold text-cream">خزف <span className="text-sm font-normal text-cream/50">· {userName}</span></h1>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setCustomerOpen(true)}
-                className={`tap chip border ${customer ? "border-green-400/40 bg-green-400/15 text-green-200" : "border-cream/20 bg-cream/5 text-cream/80"}`}>
-                {customer ? `ولاء · ${customer.stamps}` : "ولاء"}
-              </button>
-              <button onClick={() => setStaffOpen(true)} className="tap chip border border-cream/20 bg-cream/5 text-cream/80">مشروب موظف</button>
+            {/* ثلاثة عناصر لا عشرة: الشريط الأعلى أثمن مساحة في الشاشة،
+                وكل زرّ فيه يسرق نظرةً من المشروبات. ما يُستعمل مرّةً في
+                الوردية ينزل تحت «المزيد». */}
+            <div className="flex items-center gap-2">
+              {pinIsDefault && (
+                <button
+                  onClick={() => setPinOpen(true)}
+                  className="tap chip border border-red-400/50 bg-red-400/20 text-red-100"
+                >
+                  رمزك افتراضي
+                </button>
+              )}
               <button
-                onClick={() => setPinOpen(true)}
+                onClick={() => setCustomerOpen(true)}
                 className={`tap chip border ${
-                  pinIsDefault
-                    ? "border-red-400/50 bg-red-400/20 text-red-100"
+                  customer
+                    ? "border-green-400/40 bg-green-400/15 text-green-200"
                     : "border-cream/20 bg-cream/5 text-cream/80"
                 }`}
               >
-                {pinIsDefault ? "رمزك افتراضي — غيّره" : "رمزي"}
+                {customer ? `ولاء · ${customer.stamps}` : "ولاء"}
               </button>
-              <ShiftControls openingFloat={shift.opening_float} currency={currency} canNoSale={canNoSale} canHandover={canHandover} countedBy={countedBy} />
+              <button
+                onClick={() => setMoreOpen(true)}
+                aria-label="المزيد"
+                className="tap chip border border-cream/20 bg-cream/5 text-cream/80"
+              >
+                المزيد ⋯
+              </button>
             </div>
           </div>
         </header>
 
         <OfflineSync currency={currency} />
 
-        <div className="grid flex-1 grid-cols-2 content-start gap-3 p-4 sm:grid-cols-3">
+        <div className="grid min-h-0 flex-1 content-start gap-2.5 overflow-y-auto p-3 grid-cols-[repeat(auto-fill,minmax(8.25rem,1fr))]">
           {shown.map((p) => {
             const avail = p.crops.filter((c) => c.available);
             const from = avail.length ? Math.min(...avail.map((c) => c.price)) : 0;
-            const disabled = p.paused || avail.length === 0;
+            // المخزون الحقيقي لا راية المالك وحدها: أكثر ما يمكن تحضيره من
+            // هذا المشروب بأيّ محصول متاح، بحسب طريقة التقديم المختارة.
+            const left = avail.reduce(
+              (m, c) => Math.max(m, fulfillment === "takeaway" ? c.servings_takeaway : c.servings_dine_in),
+              0
+            );
+            const outOfStock = avail.length > 0 && left === 0;
+            const disabled = p.paused || avail.length === 0 || outOfStock;
+            const justAdded = added != null && added.startsWith(`${p.id}:`);
             return (
-              <button key={p.id} onClick={() => onProduct(p)} disabled={disabled}
-                className="tap card flex h-28 flex-col items-center justify-center px-2 text-center hover:border-accent/40 disabled:opacity-40">
-                <span className="font-display text-base font-bold text-ink">{p.name}</span>
-                <span className="nums mt-1 text-xs text-muted">{avail.length > 1 ? "من " : ""}{money(from, currency)}</span>
-                {(p.groups.length > 0 || avail.length > 1) && !p.paused && (
-                  <span className="mt-1 text-[10px] text-accent">خيارات</span>
+              <button
+                key={p.id}
+                onClick={() => onProduct(p)}
+                disabled={disabled}
+                className={`tap card relative flex min-h-[6.5rem] flex-col items-center justify-center gap-1 px-2 py-3 text-center transition-colors ${
+                  disabled
+                    ? "opacity-45"
+                    : justAdded
+                      ? "border-accent bg-accent/15"
+                      : "hover:border-accent/40 active:border-accent"
+                }`}
+              >
+                {inCart[p.id] > 0 && (
+                  <span className="nums absolute left-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-cream">
+                    {inCart[p.id]}
+                  </span>
                 )}
-                {p.paused && <span className="mt-1 chip bg-amber-100 text-amber-700">موقوف</span>}
+                <span className="font-display text-[15px] font-bold leading-tight text-ink">{p.name}</span>
+                <span className="nums text-xs text-muted">
+                  {avail.length > 1 ? "من " : ""}
+                  {money(from, currency)}
+                </span>
+                {p.paused ? (
+                  <span className="chip bg-amber-100 text-amber-700">موقوف</span>
+                ) : outOfStock ? (
+                  <span className="chip bg-red-100 text-red-700">خلصت مادته</span>
+                ) : left > 0 && left <= 5 ? (
+                  <span className="nums chip bg-amber-100 text-amber-800">باقي {left}</span>
+                ) : (p.groups.length > 0 || avail.length > 1) ? (
+                  <span className="text-[10px] text-accent">خيارات</span>
+                ) : null}
               </button>
             );
           })}
@@ -185,7 +264,7 @@ export default function PosScreen({
       </section>
 
       {/* التذكرة */}
-      <aside className="flex w-full flex-col border-t border-line bg-sandalt lg:w-[340px] lg:border-r lg:border-t-0">
+      <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-line bg-sandalt md:w-[17rem] md:border-r md:border-t-0 lg:w-[21rem]">
         <div className="flex items-center justify-between px-4 pt-4">
           <h2 className="font-display font-bold text-ink">الطلب الحالي</h2>
           <div className="flex items-center gap-3">
@@ -227,9 +306,9 @@ export default function PosScreen({
                   <span className="nums text-sm font-medium text-ink">{money(l.unit_price * l.qty, currency)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-end gap-2 nums" dir="ltr">
-                  <Step onClick={() => changeQty(l.key, -1)}>−</Step>
-                  <span className="w-6 text-center text-sm">{l.qty}</span>
-                  <Step onClick={() => changeQty(l.key, +1)}>+</Step>
+                  <Step onClick={() => changeQty(l.key, -1)} label={`أنقص ${l.name}`}>−</Step>
+                  <span className="w-8 text-center text-base font-semibold">{l.qty}</span>
+                  <Step onClick={() => changeQty(l.key, +1)} label={`زد ${l.name}`}>+</Step>
                 </div>
               </div>
             ))
@@ -249,13 +328,27 @@ export default function PosScreen({
       </aside>
 
       {sheetFor && (
-        <ModifierSheet product={sheetFor} currency={currency} onClose={() => setSheetFor(null)}
+        <ModifierSheet product={sheetFor} currency={currency} fulfillment={fulfillment}
+          onClose={() => setSheetFor(null)}
           onAdd={(l) => { addLine(l); setSheetFor(null); }} />
       )}
       {payOpen && (
         <PaymentDialog lines={lines} total={total} fulfillment={fulfillment} currency={currency}
           customerId={customer?.id ?? null} shiftId={shift.id}
           onClose={() => setPayOpen(false)} onPaid={() => { setPayOpen(false); clearCart(); }} />
+      )}
+      {moreOpen && (
+        <MoreSheet
+          openingFloat={shift.opening_float}
+          currency={currency}
+          canNoSale={canNoSale}
+          canHandover={canHandover}
+          countedBy={countedBy}
+          pinIsDefault={pinIsDefault}
+          onStaffDrink={() => { setMoreOpen(false); setStaffOpen(true); }}
+          onMyPin={() => { setMoreOpen(false); setPinOpen(true); }}
+          onClose={() => setMoreOpen(false)}
+        />
       )}
       {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}
       {pinOpen && (
@@ -285,6 +378,81 @@ export default function PosScreen({
       {showParked && (
         <ParkedList currency={currency} onClose={() => setShowParked(false)} onRecall={recall} />
       )}
+    </div>
+  );
+}
+
+/**
+ * «المزيد» — ما يُستعمل مرّةً أو مرّتين في الوردية.
+ * إخراجه من الشريط الأعلى لم يُخفه: صار في مكانٍ واحد متوقّع بدل ستّة أزرار
+ * متراصّة تُقرأ كلّها قبل كل طلب.
+ */
+function MoreSheet({
+  openingFloat,
+  currency,
+  canNoSale,
+  canHandover,
+  countedBy,
+  pinIsDefault,
+  onStaffDrink,
+  onMyPin,
+  onClose,
+}: {
+  openingFloat: number;
+  currency: string;
+  canNoSale: boolean;
+  canHandover: boolean;
+  countedBy: "barista" | "owner" | "none";
+  pinIsDefault: boolean;
+  onStaffDrink: () => void;
+  onMyPin: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-dark/50 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-t-3xl bg-sand p-5 shadow-lift sm:rounded-3xl"
+        dir="rtl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-display text-lg font-bold text-ink">المزيد</h3>
+          <button
+            onClick={onClose}
+            aria-label="إغلاق"
+            className="tap flex h-11 w-11 items-center justify-center rounded-full bg-dark/5 text-muted"
+          >
+            ✕
+          </button>
+        </div>
+
+        <p className="mb-3 nums rounded-xl bg-dark/5 px-3 py-2 text-center text-sm text-muted">
+          فكّة الوردية {money(openingFloat, currency)}
+        </p>
+
+        <div className="space-y-2">
+          <button onClick={onStaffDrink} className="btn-ghost w-full py-4 text-right">
+            مشروب موظف
+          </button>
+          <button onClick={onMyPin} className="btn-ghost w-full py-4 text-right">
+            {pinIsDefault ? "رمزي — ما زال الافتراضي، غيّره" : "تغيير رمزي"}
+          </button>
+        </div>
+
+        <div className="mt-3 border-t border-line pt-3">
+          <ShiftControls
+            openingFloat={openingFloat}
+            currency={currency}
+            canNoSale={canNoSale}
+            canHandover={canHandover}
+            countedBy={countedBy}
+            layout="list"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -330,11 +498,37 @@ function writeParked(p: Parked[]) {
 
 function Seg({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`tap rounded-lg py-2 text-sm font-medium ${active ? "bg-cream text-ink shadow-soft" : "text-muted"}`}>{children}</button>
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`tap rounded-lg py-3 text-sm font-semibold ${
+        active ? "bg-cream text-ink shadow-soft" : "text-muted"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
-function Step({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+/**
+ * زرّ الكمية. ١١ × ٢٫٧٥ = ٤٤ بكسل — الحدّ الأدنى لهدف اللمس. كان ٢٨،
+ * فيضغط الإبهام ناقصاً ويصيب الزيادة.
+ */
+function Step({
+  onClick,
+  label,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <button onClick={onClick} className="tap flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-cream text-lg leading-none text-ink">{children}</button>
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="tap flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-cream text-xl leading-none text-ink active:bg-sand"
+    >
+      {children}
+    </button>
   );
 }

@@ -7,7 +7,15 @@ export type CatalogCrop = {
   material_id: string;
   crop_name: string;
   price: number;
+  /** راية المالك: «هذا المحصول يُقدَّم أو لا» */
   available: boolean;
+  /**
+   * كم كوباً يكفي له المخزون فعلاً (هجرة 0027). منفصلان لأن الكوب والغطاء
+   * يدخلان السفري وحده: قد تنفد الأكواب ويبقى الجلوس ممكناً، ورقمٌ واحد
+   * لهما يمنع بيعاً ممكناً.
+   */
+  servings_dine_in: number;
+  servings_takeaway: number;
 };
 
 export type CatalogOption = { id: string; name: string; price_delta: number };
@@ -31,15 +39,20 @@ export type CatalogProduct = {
 export async function getCatalog(businessId: string): Promise<CatalogProduct[]> {
   const rows = (await db()`
     select p.id, p.name, p.category, p.paused,
-           pc.material_id, m.name as crop_name, pc.price, pc.available
+           pc.material_id, m.name as crop_name, pc.price, pc.available,
+           coalesce(sl.servings_dine_in, 0)  as servings_dine_in,
+           coalesce(sl.servings_takeaway, 0) as servings_takeaway
     from products p
     join product_crops pc on pc.product_id = p.id
     join materials m on m.id = pc.material_id
+    left join v_servings_left sl
+           on sl.product_id = p.id and sl.crop_material_id = pc.material_id
     where p.active and p.business_id = ${businessId}
     order by p.sort, p.name, m.name
   `) as {
     id: string; name: string; category: string; paused: boolean;
     material_id: string; crop_name: string; price: number; available: boolean;
+    servings_dine_in: number; servings_takeaway: number;
   }[];
 
   const groupRows = (await db()`
@@ -63,7 +76,12 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
       prod = { id: r.id, name: r.name, category: r.category, paused: r.paused, crops: [], groups: [] };
       map.set(r.id, prod);
     }
-    prod.crops.push({ material_id: r.material_id, crop_name: r.crop_name, price: Number(r.price), available: r.available });
+    prod.crops.push({
+      material_id: r.material_id, crop_name: r.crop_name, price: Number(r.price),
+      available: r.available,
+      servings_dine_in: Number(r.servings_dine_in),
+      servings_takeaway: Number(r.servings_takeaway),
+    });
   }
 
   // مجموعات الخيارات لكل مشروب
@@ -82,4 +100,23 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
   }
 
   return [...map.values()];
+}
+
+/**
+ * ترتيب المشروبات بالأكثر مبيعاً في آخر ٣٠ يوماً.
+ *
+ * الشبكة يجب أن تضع ما يُطلب كثيراً تحت الإبهام. والترتيب من البيع الفعلي
+ * لا من ظنّ أحد: القائمة تُرتّب نفسها كلّما تغيّر ذوق الزبائن.
+ */
+export async function topSellerRank(businessId: string): Promise<Map<string, number>> {
+  const rows = (await db()`
+    select oi.product_id, sum(oi.qty)::int as cups
+    from order_items oi
+    join orders o on o.id = oi.order_id
+    where o.business_id = ${businessId}
+      and o.status not in ('VOIDED', 'CANCELLED', 'DRAFT', 'PENDING_PAYMENT')
+      and o.created_at >= now() - interval '30 days'
+    group by oi.product_id
+  `) as { product_id: string; cups: number }[];
+  return new Map(rows.map((r) => [r.product_id, r.cups]));
 }

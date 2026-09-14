@@ -181,23 +181,45 @@ export default function PaymentDialog({
 
       {method === "cash" ? (
         <>
-          <input
-            type="number" inputMode="numeric" value={tendered}
-            onChange={(e) => { setTendered(e.target.value); setError(null); }}
-            placeholder="المبلغ المدفوع"
-            className="field nums mb-2 text-center text-lg" dir="ltr"
-          />
-          <div className="mb-4 grid grid-cols-4 gap-2 nums">
+          {/* لوحة أرقام لا حقل كتابة: لوحة مفاتيح النظام تغطّي نصف الشاشة
+              وتُبطئ أكثر ما يُكرَّر في اليوم. والأزرار الجاهزة تكفي غالباً. */}
+          <div
+            className="mb-2 flex h-14 items-center justify-between rounded-2xl border border-line bg-cream px-4"
+            dir="ltr"
+          >
+            <span className="nums font-display text-2xl font-bold text-ink">
+              {tendered === "" ? "0" : Number(tendered).toLocaleString("en-US")}
+            </span>
+            <span className="text-xs text-muted" dir="rtl">المدفوع</span>
+          </div>
+
+          <div className="mb-2 grid grid-cols-4 gap-1.5 nums">
             {quick.map((q) => (
-              <button key={q} onClick={() => { setTendered(String(q)); setError(null); }} className="tap rounded-xl border border-line bg-cream py-2 text-xs text-ink">
+              <button
+                key={q}
+                onClick={() => { setTendered(String(q)); setError(null); }}
+                className="tap rounded-xl border border-line bg-cream py-2.5 text-xs font-semibold text-ink active:bg-sand"
+              >
                 {money(q, "")}
               </button>
             ))}
           </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-1.5">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0"].map((k) => (
+              <Key key={k} onClick={() => { setTendered((t) => (t === "0" ? k : t + k)); setError(null); }}>
+                {k}
+              </Key>
+            ))}
+            <Key onClick={() => { setTendered((t) => t.slice(0, -1)); setError(null); }} label="مسح رقم">
+              ⌫
+            </Key>
+          </div>
+
           {change != null && change >= 0 && (
             <div className="mb-4 flex items-center justify-between rounded-2xl bg-accent/10 px-4 py-3 text-accentdeep">
               <span className="text-sm">الباقي</span>
-              <span className="nums font-display font-bold">{money(change, currency)}</span>
+              <span className="nums font-display text-xl font-bold">{money(change, currency)}</span>
             </div>
           )}
         </>
@@ -207,7 +229,7 @@ export default function PaymentDialog({
 
       {error && <div className="mb-4 text-center text-sm text-red-600">{error}</div>}
 
-      <button onClick={confirm} disabled={pending} className="btn-primary w-full text-lg">
+      <button onClick={confirm} disabled={pending} className="btn-primary w-full py-4 text-lg">
         {pending ? "..." : "تأكيد الدفع"}
       </button>
     </Modal>
@@ -216,7 +238,32 @@ export default function PaymentDialog({
 
 function MSeg({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`tap rounded-lg py-2.5 text-sm font-medium ${active ? "bg-cream text-ink shadow-soft" : "text-muted"}`}>
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`tap rounded-lg py-3 text-sm font-semibold ${active ? "bg-cream text-ink shadow-soft" : "text-muted"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** مفتاح لوحة الأرقام — ٥٦ بكسل، يُضغط بإبهام مبلول بالحليب. */
+function Key({
+  onClick,
+  label,
+  children,
+}: {
+  onClick: () => void;
+  label?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="tap flex h-14 items-center justify-center rounded-xl border border-line bg-cream font-display text-xl font-bold text-ink active:bg-sand"
+    >
       {children}
     </button>
   );

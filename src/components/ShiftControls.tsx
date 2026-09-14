@@ -20,6 +20,7 @@ export default function ShiftControls({
   canNoSale = false,
   canHandover = false,
   countedBy = "owner",
+  layout = "bar",
 }: {
   openingFloat: number;
   currency: string;
@@ -27,8 +28,32 @@ export default function ShiftControls({
   canHandover?: boolean;
   /** من يعدّ الدرج — يقرّره المالك من الإعدادات (هجرة 0026). */
   countedBy?: "barista" | "owner" | "none";
+  /** `bar` شرائح في الشريط الأعلى · `list` أزرار كبيرة داخل «المزيد». */
+  layout?: "bar" | "list";
 }) {
   const [mode, setMode] = useState<null | "close" | "waste" | "orders" | "nosale" | "handover">(null);
+
+  if (layout === "list") {
+    return (
+      <div className="space-y-2">
+        <button onClick={() => setMode("orders")} className="btn-ghost w-full py-4 text-right">طلباتي</button>
+        <button onClick={() => setMode("waste")} className="btn-ghost w-full py-4 text-right">تسجيل هدر</button>
+        {canNoSale && (
+          <button onClick={() => setMode("nosale")} className="btn-ghost w-full py-4 text-right">فتح الدرج بلا بيع</button>
+        )}
+        {canHandover && (
+          <button onClick={() => setMode("handover")} className="btn-ghost w-full py-4 text-right">تسليم الدرج</button>
+        )}
+        <button onClick={() => setMode("close")} className="btn-primary w-full py-4 text-right">إغلاق الوردية</button>
+
+        {mode === "orders" && <OrdersDialog currency={currency} onClose={() => setMode(null)} />}
+        {mode === "close" && <CloseDialog countedBy={countedBy} onClose={() => setMode(null)} />}
+        {mode === "waste" && <WasteDialog onClose={() => setMode(null)} />}
+        {mode === "nosale" && <NoSaleDialog onClose={() => setMode(null)} />}
+        {mode === "handover" && <HandoverDialog onClose={() => setMode(null)} />}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
