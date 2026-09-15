@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
 
@@ -40,5 +41,44 @@ export async function updateSettingsAction(
     return { ok: true };
   } catch {
     return { ok: false, error: "تعذّر الحفظ" };
+  }
+}
+
+/**
+ * تصفير بيانات التجربة.
+ *
+ * أخطر زرّ في النظام، ولذلك ثلاثة حرّاس متتالية: صلاحية المالك هنا، ودورٌ
+ * ثانٍ يُفحص داخل القاعدة، وكلمة «تصفير» تُكتب بالحرف. والقاعدة هي من
+ * يمسح لا الخادم — فالعملية كلّها معاملة واحدة تقع أو لا تقع.
+ */
+export async function resetTransactionsAction(
+  confirm: string
+): Promise<{ ok: true; deleted: Record<string, number> } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("settings.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  if (confirm.trim() !== "تصفير")
+    return { ok: false, error: "اكتب كلمة «تصفير» للتأكيد" };
+
+  try {
+    const rows = (await db()`
+      select reset_transactions(${user.bid}, ${user.uid}, ${confirm.trim()}) as r
+    `) as { r: { ok: boolean; deleted: Record<string, number> } }[];
+
+    // كل صفحة تقرأ أرقاماً صارت كاذبة الآن
+    for (const p of ["/manage", "/manage/orders", "/manage/profit", "/manage/sales",
+                     "/manage/inventory", "/manage/shopping", "/manage/hours",
+                     "/manage/exceptions", "/manage/settings", "/pos"]) {
+      revalidatePath(p);
+    }
+    return { ok: true, deleted: rows[0]?.r?.deleted ?? {} };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message.replace(/^.*?:\s*/, "") : "تعذّر التصفير";
+    return { ok: false, error: msg };
   }
 }
