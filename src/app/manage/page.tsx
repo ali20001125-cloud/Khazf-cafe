@@ -5,6 +5,7 @@ import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift, shiftsAwaitingCount } from "@/lib/shifts";
 import { getSettings, strSetting } from "@/lib/settings";
+import { offlineStatus } from "@/lib/hours";
 import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
 import { defaultPinCount } from "@/lib/users";
@@ -36,7 +37,7 @@ export default async function Overview() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins, profit, awaiting] =
+  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins, profit, awaiting, offline] =
     await Promise.all([
       todayGlance(branch.id),
       salesLast7Days(branch.id),
@@ -48,6 +49,7 @@ export default async function Overview() {
       defaultPinCount(user.bid),
       dayProfit(branch.id),
       shiftsAwaitingCount(branch.id),
+      offlineStatus(user.bid, 7),
     ]);
 
   // ما يحتاج نظر المالك فعلاً — كل عنصر بوجهة يشرحه
@@ -126,6 +128,26 @@ export default async function Overview() {
       )}
 
       <AwaitingCountList rows={awaiting} currency={currency} />
+
+      {/* البيع بلا إنترنت — الخادم يشهد، لا متصفّح الباريستا. */}
+      {offline && offline.orders_offline > 0 && (
+        <div className="card border-sky-200 bg-sky-50/50 p-4">
+          <p className="font-display font-bold text-sky-900">
+            <span className="nums">{offline.orders_offline}</span> فاتورة بيعت بلا إنترنت
+            <span className="font-normal text-sky-900/70"> (آخر ٧ أيام)</span>
+          </p>
+          <p className="nums mt-1 text-sm text-sky-900/80">
+            {offline.today_offline > 0 && <>اليوم {offline.today_offline} · </>}
+            آخر مزامنة {offline.last_sync_at ? timeAr(offline.last_sync_at) : "—"}
+            {offline.longest_delay_minutes != null && offline.longest_delay_minutes > 60 && (
+              <> · أطول تأخير {Math.round(offline.longest_delay_minutes / 60)} ساعة</>
+            )}
+          </p>
+          <p className="mt-1.5 text-xs text-sky-900/60">
+            كلّها وصلت ومحسوبة في مبيعاتك — الرقم هنا ليقول متى انقطع النت، لا أن شيئاً ضاع.
+          </p>
+        </div>
+      )}
 
       {/* ما يحتاج نظرك — كل سطر رابط */}
       {attention.length === 0 ? (

@@ -18,6 +18,10 @@ export type BranchPatch = {
   variance_threshold_pct: number;
   /** من يعدّ الدرج عند إغلاق الوردية (هجرة 0026) */
   drawer_count_by: "barista" | "owner" | "none";
+  /** الدوام الرسمي — ما بعده إضافيّ (هجرة 0029). */
+  shift_start_hour: number;
+  shift_end_hour: number;
+  overtime_min_orders: number;
 };
 
 export async function updateBranchAction(
@@ -44,6 +48,18 @@ export async function updateBranchAction(
   if (!Number.isFinite(pct) || pct < 0 || pct > 100)
     return { ok: false, error: "العتبة نسبة بين ٠ و١٠٠" };
 
+  const startH = Math.round(Number(patch.shift_start_hour));
+  const endH = Math.round(Number(patch.shift_end_hour));
+  const minOrders = Math.round(Number(patch.overtime_min_orders));
+  if (!Number.isInteger(startH) || startH < 0 || startH > 23)
+    return { ok: false, error: "بداية الدوام بين ٠ و٢٣" };
+  // ٢٤ = منتصف الليل، وأكبر منها = بعده (٢٦ = ٢ فجراً). ونهايةٌ قبل البداية
+  // تجعل كل الوردية «إضافيّاً» — فتُرفض قبل أن تُحسب أجراً على غلط.
+  if (!Number.isInteger(endH) || endH <= startH || endH > 30)
+    return { ok: false, error: "نهاية الدوام بعد بدايته وحتى ٣٠ (٢٤ = منتصف الليل)" };
+  if (!Number.isInteger(minOrders) || minOrders < 0 || minOrders > 50)
+    return { ok: false, error: "عدد الفواتير بين ٠ و٥٠" };
+
   try {
     const branch = await getActiveBranch(user.bid);
     if (!branch) return { ok: false, error: "لا يوجد فرع فعّال" };
@@ -53,6 +69,9 @@ export async function updateBranchAction(
       day_start_hour: branch.day_start_hour,
       variance_threshold_pct: branch.variance_threshold_pct,
       drawer_count_by: branch.drawer_count_by,
+      shift_start_hour: branch.shift_start_hour,
+      shift_end_hour: branch.shift_end_hour,
+      overtime_min_orders: branch.overtime_min_orders,
     };
 
     await db()`
@@ -60,7 +79,10 @@ export async function updateBranchAction(
          set standard_float = ${float},
              day_start_hour = ${hour},
              variance_threshold_pct = ${pct},
-             drawer_count_by = ${countBy}::drawer_count_by
+             drawer_count_by = ${countBy}::drawer_count_by,
+             shift_start_hour = ${startH},
+             shift_end_hour = ${endH},
+             overtime_min_orders = ${minOrders}
        where id = ${branch.id}
     `;
 
@@ -69,7 +91,7 @@ export async function updateBranchAction(
                              before, after, reason)
       values (${user.bid}, ${branch.id}, ${user.uid}, 'settings_change', 'branch', ${branch.id},
               ${JSON.stringify(before)}::jsonb,
-              ${JSON.stringify({ standard_float: float, day_start_hour: hour, variance_threshold_pct: pct, drawer_count_by: countBy })}::jsonb,
+              ${JSON.stringify({ standard_float: float, day_start_hour: hour, variance_threshold_pct: pct, drawer_count_by: countBy, shift_start_hour: startH, shift_end_hour: endH, overtime_min_orders: minOrders })}::jsonb,
               'إعدادات الفرع')
     `;
 

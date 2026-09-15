@@ -26,3 +26,13 @@ delete from price_history where product_id in (select id from products where nam
    or material_id in (select id from materials where name like '%اختبار%');
 delete from products where name like '%اختبار%';
 delete from materials where name like '%اختبار%';
+
+-- نسخ الوصفات التي صنعها 19_recipe_versions تتراكم بين التشغيلات، فتقرأ
+-- الاختبارات التالية وصفةً غير التي زرعها `seed`. نُعيد الأولى فعّالةً
+-- ونحذف ما بعدها — التاريخ هنا أثرُ اختبارٍ لا أثرُ عمل.
+delete from recipe_items where recipe_id in (select id from recipes where version > 1);
+delete from recipes where version > 1;
+update recipes set active = true where version = 1 and not active;
+-- و19 يُوقف محصولاً ليُثبت أن الإيقاف لا يحذف. إعادته متاحاً تُعيد الكتالوج
+-- لما زرعه `seed`، وإلا قرأ ما بعده كتالوجاً ناقصاً بلا سبب.
+update product_crops set available = true where not available;

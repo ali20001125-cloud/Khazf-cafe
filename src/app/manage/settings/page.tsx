@@ -38,6 +38,9 @@ export default async function SettingsPage() {
         day_start_hour: branch.day_start_hour,
         variance_threshold_pct: branch.variance_threshold_pct,
         drawer_count_by: branch.drawer_count_by,
+        shift_start_hour: branch.shift_start_hour,
+        shift_end_hour: branch.shift_end_hour,
+        overtime_min_orders: branch.overtime_min_orders,
       }}
     />
 

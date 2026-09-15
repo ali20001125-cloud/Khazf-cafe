@@ -16,6 +16,7 @@ const NAV = [
   { href: "/manage/loyalty", label: "الولاء" },
   { href: "/manage/exceptions", label: "الشاذّ" },
   { href: "/manage/users", label: "الموظفون والرموز" },
+  { href: "/manage/hours", label: "الدوام" },
   { href: "/manage/settings", label: "الإعدادات" },
   { href: "/pos", label: "شاشة البيع" },
 ];

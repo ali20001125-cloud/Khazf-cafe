@@ -25,10 +25,17 @@ export default async function ProductsPage() {
     .filter((m) => m.base_unit === "g")
     .map((m) => ({ id: m.id, name: m.name, stock: m.stock }));
 
+  // المكوّنات = كل ما ليس حبوباً: الحليب والأكواب والأغطية. الحبوب تُختار
+  // كمحصول لا كمكوّن، فخلطهما يجعل الوصفة تخصم حبوباً مرّتين.
+  const ingredients = materials
+    .filter((m) => m.base_unit !== "g")
+    .map((m) => ({ id: m.id, name: m.name, base_unit: m.base_unit as "g" | "ml" | "pcs" }));
+
   return (
     <ProductsEditor
       products={products}
       crops={crops}
+      ingredients={ingredients}
       currency={strSetting(settings, "currency", "د.ع")}
     />
   );

@@ -279,3 +279,52 @@ export async function setCropAvailabilityAction(
     return { ok: false, error: "تعذّر التعديل" };
   }
 }
+
+/**
+ * تعديل الوصفة — **بنسخة جديدة**.
+ *
+ * الكتابة فوق الصفّ لا تُفسد التاريخ المالي (كل بند يحمل لقطة وصفته)، لكنها
+ * تمحو الجواب عن سؤالٍ يسأله المالك حتماً: متى صار اللاتيه ٢٠٠ مل؟
+ * فالتعديل هنا يصنع نسخةً ويُعطّل السابقة، والعملية كلّها في دالّة قاعدة
+ * واحدة لأن بينهما فهرساً يمنع وصفتين فعّالتين — فانقطاعٌ في المنتصف
+ * يترك المشروب بلا وصفة.
+ */
+export async function setRecipeAction(
+  productId: string,
+  coffeeGrams: number,
+  items: { material_id: string; qty: number; only_takeaway: boolean }[]
+): Promise<{ ok: true; changed: boolean; version: number } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("products.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  const g = Math.round(Number(coffeeGrams));
+  if (!Number.isFinite(g) || g < 0) return { ok: false, error: "غرامات غير صالحة" };
+
+  const clean = items
+    .filter((i) => i.material_id && Number(i.qty) > 0)
+    .map((i) => ({
+      material_id: i.material_id,
+      qty: Math.round(Number(i.qty)),
+      only_takeaway: !!i.only_takeaway,
+    }));
+  // مادة مرّتين في وصفة واحدة تُضاعف الخصم بلا أن ينتبه أحد
+  if (new Set(clean.map((i) => i.material_id)).size !== clean.length)
+    return { ok: false, error: "مادة مكرّرة في الوصفة" };
+
+  try {
+    const rows = (await db()`
+      select set_recipe(${user.bid}, ${productId}, ${user.uid}, ${g},
+                        ${JSON.stringify(clean)}::jsonb) as r
+    `) as { r: { changed: boolean; version: number } }[];
+    const r = rows[0]?.r;
+    return { ok: true, changed: !!r?.changed, version: Number(r?.version ?? 0) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message.replace(/^.*?:\s*/, "") : "تعذّر الحفظ";
+    return { ok: false, error: msg };
+  }
+}

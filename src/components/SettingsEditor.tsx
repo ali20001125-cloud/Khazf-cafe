@@ -28,6 +28,9 @@ type Branch = {
   day_start_hour: number;
   variance_threshold_pct: number;
   drawer_count_by: "barista" | "owner" | "none";
+  shift_start_hour: number;
+  shift_end_hour: number;
+  overtime_min_orders: number;
 };
 
 export default function SettingsEditor({
@@ -64,6 +67,9 @@ export default function SettingsEditor({
         day_start_hour: Math.round(Number(b.day_start_hour) || 0),
         variance_threshold_pct: Number(b.variance_threshold_pct) || 0,
         drawer_count_by: b.drawer_count_by,
+        shift_start_hour: Math.round(Number(b.shift_start_hour) || 0),
+        shift_end_hour: Math.round(Number(b.shift_end_hour) || 0),
+        overtime_min_orders: Math.round(Number(b.overtime_min_orders) || 0),
       });
       if (!r2.ok) return setError(r2.error);
 
@@ -173,6 +179,48 @@ export default function SettingsEditor({
         </div>
       </section>
 
+      {/* الدوام */}
+      <section className="card space-y-5 p-5">
+        <h2 className="font-display font-bold text-ink">الدوام والوقت الإضافي</h2>
+        <p className="rounded-xl bg-sand p-3 text-xs text-muted">
+          الدوام الرسمي من <span className="nums font-semibold text-ink">{hourAr(b.shift_start_hour)}</span>{" "}
+          إلى <span className="nums font-semibold text-ink">{hourAr(b.shift_end_hour)}</span>. ما بعده
+          يُحسب <span className="font-semibold text-ink">إضافيّاً</span>.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="بداية الدوام" hint="بتوقيت الفرع.">
+            <input
+              type="number" inputMode="numeric" dir="ltr" className="field nums text-center"
+              value={b.shift_start_hour}
+              onChange={(e) => { setB({ ...b, shift_start_hour: Number(e.target.value) }); setSaved(false); }}
+            />
+          </Field>
+          <Field label="نهاية الدوام" hint="٢٤ = منتصف الليل · ٢٦ = ٢ فجراً.">
+            <input
+              type="number" inputMode="numeric" dir="ltr" className="field nums text-center"
+              value={b.shift_end_hour}
+              onChange={(e) => { setB({ ...b, shift_end_hour: Number(e.target.value) }); setSaved(false); }}
+            />
+          </Field>
+        </div>
+
+        <Field
+          label="كم فاتورة تُثبت الوقت الإضافي؟"
+          hint="الوقت الإضافي يُدفع لأن عملاً جرى، لا لأن الموظف بقي. والفاتورة دليلٌ صعب التزوير: مالٌ دخل الدرج في تلك الدقيقة. صفر = يُحتسب دائماً بلا شرط."
+        >
+          <input
+            type="number" inputMode="numeric" dir="ltr" className="field nums"
+            value={b.overtime_min_orders}
+            onChange={(e) => { setB({ ...b, overtime_min_orders: Number(e.target.value) }); setSaved(false); }}
+          />
+          <p className="mt-1.5 rounded-lg bg-sand px-3 py-2 text-xs text-muted">
+            الدقائق التي لا تُثبتها فواتير <span className="font-semibold text-ink">تُعرض ولا تُخفى</span> —
+            تظهر في «الدوام» تحت «لا يُدفع»، والقرار فيها لك.
+          </p>
+        </Field>
+      </section>
+
       {/* التنبيهات */}
       <section className="card space-y-5 p-5">
         <h2 className="font-display font-bold text-ink">التنبيهات</h2>
@@ -233,6 +281,16 @@ export default function SettingsEditor({
       </button>
     </div>
   );
+}
+
+/** ٢٤ ← «١٢ منتصف الليل»، ٢٦ ← «٢ فجراً». الساعة ٢٦ لا تُقرأ، و«٢ فجراً» تُقرأ. */
+function hourAr(h: number) {
+  const n = Math.round(Number(h) || 0);
+  if (n === 24) return "١٢ منتصف الليل";
+  if (n > 24) return `${n - 24} فجراً`;
+  if (n === 12) return "١٢ ظهراً";
+  if (n === 0) return "١٢ منتصف الليل";
+  return n > 12 ? `${n - 12} مساءً` : `${n} صباحاً`;
 }
 
 function Field({
