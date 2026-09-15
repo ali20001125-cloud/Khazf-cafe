@@ -76,9 +76,15 @@ export default function WasteDialog({ onClose }: { onClose: () => void }) {
           <label className="mb-1 block text-sm text-muted">
             الكمية {unit ? `(${unit.label})` : ""}
           </label>
+          {material && (
+            <p className="mb-1 text-[11px] text-muted">
+              اكتبها بالـ{unit?.label} — جرعة الإسبريسو ١٨، وكوب الحليب ٢٠٠.
+            </p>
+          )}
           <input
             type="number"
-            inputMode="decimal"
+            inputMode="numeric"
+            step="1"
             value={qty}
             onChange={(e) => {
               setQty(e.target.value);

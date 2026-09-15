@@ -16,15 +16,19 @@ export const WASTE_REASONS: { value: string; label: string }[] = [
 ];
 
 /**
- * وحدة الإدخال المريحة لكل وحدة أساس:
- *  - غرام → كيلوغرام (×1000)
- *  - مل → لتر (×1000)
- *  - حبة → حبة (×1)
- * تُدخل الكميات بوحدة العرض وتُحوَّل للأساس قبل الإرسال.
+ * وحدة إدخال **الكميات**: وحدة الأساس نفسها، بلا تحويل.
+ *
+ * كانت بالكيلو (×1000)، فصار على المالك أن يكتب `5.82` ليقصد ٥٨٢٠ غراماً.
+ * وهو يفكّر بالغرام: «بعنا اليوم ٣٥٠ غ»، «بقي ٥٤٢٠». فكتب `50` يقصد
+ * غرامات، فقرأها النظام ٥٠ كيلو وسوّى الرصيد على ٥٠٬٠٠٠ — قفزةٌ ٨١٥٪
+ * قبلها بصمت. الكسر العشري هو الفخّ: يومٌ نبيع ٣٥٠ غ ويومٌ ربع كيلو،
+ * فلا رقم مستقرّ يُكتب بالكيلو بلا فاصلة.
+ *
+ * فالكمية الآن تُكتب كما تُقاس: بالغرام والمليلتر والحبّة، أعداداً صحيحة.
  */
 export function inputUnit(base: string): { label: string; factor: number } {
-  if (base === "g") return { label: "كغ", factor: 1000 };
-  if (base === "ml") return { label: "لتر", factor: 1000 };
+  if (base === "g") return { label: "غ", factor: 1 };
+  if (base === "ml") return { label: "مل", factor: 1 };
   return { label: "حبة", factor: 1 };
 }
 
@@ -32,7 +36,19 @@ export function toBase(displayValue: number, base: string): number {
   return Math.round(displayValue * inputUnit(base).factor);
 }
 
-/** التكلفة تُدخل لكل وحدة عرض (لكل كغ/لتر/حبة) وتُحوَّل لكل وحدة أساس. */
+/**
+ * وحدة إدخال **التكلفة** — تبقى الكبيرة (كغ/لتر).
+ *
+ * لأن الأسعار تُقال هكذا: «الكيلو بـ٣٠ ألفاً»، لا «الغرام بـ٣٠». وسعرُ
+ * الغرام كسرٌ في الغالب، فإدخاله يخسر دقّةً لا يملكها الدينار أصلاً.
+ */
+export function costUnit(base: string): { label: string; factor: number } {
+  if (base === "g") return { label: "كغ", factor: 1000 };
+  if (base === "ml") return { label: "لتر", factor: 1000 };
+  return { label: "حبة", factor: 1 };
+}
+
+/** التكلفة تُدخل لكل كغ/لتر/حبة وتُحوَّل لكل وحدة أساس. */
 export function costToBase(displayCost: number, base: string): number {
-  return Math.round(displayCost / inputUnit(base).factor);
+  return Math.round(displayCost / costUnit(base).factor);
 }

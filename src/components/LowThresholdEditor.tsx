@@ -48,7 +48,8 @@ export default function LowThresholdEditor({
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="number"
-          inputMode="decimal"
+          inputMode="numeric"
+          step="1"
           dir="ltr"
           className="field nums w-32 text-center"
           value={value}

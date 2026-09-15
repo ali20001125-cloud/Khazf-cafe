@@ -109,7 +109,7 @@ export default function InventorySettings({
                     <p className="mt-0.5 text-xs text-muted">
                       {us.length > 0 ? "تشتريها بـ:" : (
                         <span className="text-amber-700">
-                          ما حدّدت وحدة الشراء — ستشتري بالـ{m.base_unit === "g" ? "كيلو" : m.base_unit === "ml" ? "لتر" : "حبّة"}
+                          ما حدّدت وحدة الشراء — ستُدخل الكمية بالـ{m.base_unit === "g" ? "غرام" : m.base_unit === "ml" ? "مليلتر" : "حبّة"}
                         </span>
                       )}
                     </p>

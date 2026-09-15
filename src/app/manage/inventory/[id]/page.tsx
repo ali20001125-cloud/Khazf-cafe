@@ -5,7 +5,7 @@ import { can } from "@/lib/permissions";
 import { getSettings, strSetting } from "@/lib/settings";
 import { getMaterial, materialLedger, MOVE_LABELS } from "@/lib/inventory-overview";
 import { money, stockLabel, timeAr } from "@/lib/format";
-import { inputUnit } from "@/lib/labels";
+import { costUnit } from "@/lib/labels";
 import LowThresholdEditor from "@/components/LowThresholdEditor";
 
 /**
@@ -31,7 +31,8 @@ export default async function MaterialPage({ params }: { params: { id: string } 
   const currency = strSetting(settings, "currency", "د.ع");
 
   const lines = await materialLedger(material.id, 80);
-  const u = inputUnit(material.base_unit);
+  // التكلفة تُقرأ بالكيلو/اللتر: «الكيلو بـ٣٠ ألفاً» لا «الغرام بـ٣٠»
+  const u = costUnit(material.base_unit);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

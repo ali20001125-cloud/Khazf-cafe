@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { money, stockLabel } from "@/lib/format";
-import { inputUnit, toBase, costToBase } from "@/lib/labels";
+import { money, stockLabel, baseQtyLabel } from "@/lib/format";
+import { inputUnit, costUnit, toBase, costToBase } from "@/lib/labels";
 import { addStockAction, addStockByUnitAction, stockCountAction } from "@/app/manage/actions";
 import type { CountResult } from "@/lib/inventory";
 
@@ -70,6 +70,7 @@ function AddStock({
 
   const m = materials.find((x) => x.id === id);
   const u = m ? inputUnit(m.base_unit) : null;
+  const cu = m ? costUnit(m.base_unit) : null;
   const myUnits = units.filter((x) => x.material_id === id);
   const unit = myUnits.find((x) => x.id === unitId) ?? null;
   const qtyNum = Number(qty);
@@ -138,7 +139,8 @@ function AddStock({
     <Modal title="إضافة مخزون" onClose={onClose}>
       <p className="mb-4 rounded-xl bg-sand p-3 text-xs text-muted">
         الكمية <span className="font-semibold text-ink">تُضاف</span> إلى الموجود ولا تستبدله.
-        لو كان عندك ٣٫٥ كغ وأضفت ١ كغ يصير الرصيد ٤٫٥ كغ.
+        لو كان عندك ٣٥٠٠ غ وأضفت ١٠٠٠ غ يصير الرصيد ٤٥٠٠ غ. اكتب بالغرام —
+        ٥ كيلو تعني ٥٠٠٠.
       </p>
 
       <label className="mb-1.5 block text-sm font-semibold text-ink">المادة</label>
@@ -187,7 +189,8 @@ function AddStock({
           </label>
           <input
             type="number"
-            inputMode="decimal"
+            inputMode="numeric"
+            step={unit ? "any" : "1"}
             dir="ltr"
             className="field nums mb-1 text-center text-lg"
             value={qty}
@@ -195,14 +198,14 @@ function AddStock({
           />
           {preview != null && (
             <p className="nums mb-4 text-center text-sm text-accentdeep">
-              {stockLabel(m.stock, m.base_unit)} + {qty} {unit ? unit.name : u.label}
-              {unit && ` (${stockLabel(addedBase ?? 0, m.base_unit)})`} ={" "}
-              <span className="font-bold">{stockLabel(preview, m.base_unit)}</span>
+              {baseQtyLabel(m.stock, m.base_unit)} + {qty} {unit ? unit.name : u.label}
+              {unit && ` (${baseQtyLabel(addedBase ?? 0, m.base_unit)})`} ={" "}
+              <span className="font-bold">{baseQtyLabel(preview, m.base_unit)}</span>
             </p>
           )}
 
           <label className="mb-1.5 block text-sm font-semibold text-ink">
-            التكلفة لكل {unit ? unit.name : u.label}{" "}
+            التكلفة لكل {unit ? unit.name : cu?.label}{" "}
             <span className="font-normal text-muted">(اختياري)</span>
           </label>
           <input
@@ -232,13 +235,35 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CountResult | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [pending, start] = useTransition();
+
+  /**
+   * الجرد يسوّي الرصيد على ما يُكتَب، فخطأُ إدخالٍ واحد يفسد المخزون كلّه:
+   * كُتب `50` بدل `5000` فصار الرصيد ٥٠٬٠٠٠ غ، وقَبِلها النظام بصمت.
+   * فرقٌ يفوق النصف ليس عدّاً — هو رقمٌ غلط أو مفاجأةٌ تستحقّ وقفة.
+   */
+  const suspicious = materials
+    .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
+    .map((m) => ({ m, counted: toBase(Number(counts[m.id]), m.base_unit) }))
+    .filter(({ m, counted }) => {
+      if (!Number.isFinite(counted) || counted < 0) return false;
+      const gap = Math.abs(counted - m.stock);
+      return gap > Math.max(m.stock * 0.5, 500);
+    });
 
   function submit() {
     const items = materials
       .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
       .map((m) => ({ material_id: m.id, counted: toBase(Number(counts[m.id]), m.base_unit) }));
     if (items.length === 0) return setError("أدخل الكمية المعدودة لمادة واحدة على الأقل");
+    if (items.some((i) => !Number.isFinite(i.counted) || i.counted < 0))
+      return setError("كمية غير صالحة");
+    if (suspicious.length > 0 && !confirmed) {
+      setError(null);
+      return setAsking(true);
+    }
     setError(null);
     start(async () => {
       const r = await stockCountAction(items);
@@ -246,6 +271,58 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
       setResult(r.result);
       router.refresh();
     });
+  }
+
+  if (asking) {
+    return (
+      <Modal title="تأكيد قبل التسجيل" onClose={() => setAsking(false)}>
+        <p className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+          رقمٌ بعيدٌ جداً عن المتوقّع. الجرد يسوّي الرصيد على ما تكتبه، فراجعه
+          قبل التسجيل — واحفظ أن الكمية <span className="font-semibold">بالغرام</span>،
+          فـ«٥ كيلو» تُكتب ٥٠٠٠ لا ٥.
+        </p>
+        <ul className="divide-y divide-line">
+          {suspicious.map(({ m, counted }) => (
+            <li key={m.id} className="py-2 text-sm">
+              <span className="font-semibold text-ink">{m.name}</span>
+              <span className="nums mt-0.5 block text-xs text-muted">
+                المتوقّع {baseQtyLabel(m.stock, m.base_unit)} · كتبتَ{" "}
+                <span className="font-semibold text-amber-700">
+                  {baseQtyLabel(counted, m.base_unit)}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-4 flex gap-2">
+          <button onClick={() => setAsking(false)} className="btn-primary flex-1 py-3">
+            أرجع وأصحّح
+          </button>
+          <button
+            onClick={() => {
+              setConfirmed(true);
+              setAsking(false);
+              start(async () => {
+                const items = materials
+                  .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
+                  .map((m) => ({
+                    material_id: m.id,
+                    counted: toBase(Number(counts[m.id]), m.base_unit),
+                  }));
+                const r = await stockCountAction(items);
+                if (!("ok" in r) || !r.ok)
+                  return setError("error" in r ? r.error : "تعذّر الجرد");
+                setResult(r.result);
+                router.refresh();
+              });
+            }}
+            className="btn-ghost flex-1 py-3 text-sm"
+          >
+            الرقم صحيح، سجّله
+          </button>
+        </div>
+      </Modal>
+    );
   }
 
   if (result) {
@@ -285,8 +362,9 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
   return (
     <Modal title="جرد المخزون" onClose={onClose}>
       <p className="mb-4 rounded-xl bg-sand p-3 text-xs text-muted">
-        اعدد الموجود فعلاً وأدخله. النظام يقارنه بالمتوقّع ويسجّل الفرق ثم يسوّي
-        الرصيد. اترك المادة فارغة إن لم تعدّها.
+        اعدد الموجود فعلاً واكتبه <span className="font-semibold text-ink">بالغرام</span>
+        (٥ كيلو = ٥٠٠٠). النظام يقارنه بالمتوقّع ويسجّل الفرق ثم يسوّي الرصيد.
+        اترك المادة فارغة إن لم تعدّها.
       </p>
 
       <div className="max-h-[45vh] space-y-3 overflow-y-auto">
@@ -297,12 +375,13 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
               <span className="flex-1 text-sm text-ink">
                 {m.name}
                 <span className="nums block text-[11px] text-muted">
-                  المتوقّع {stockLabel(m.stock, m.base_unit)}
+                  المتوقّع {baseQtyLabel(m.stock, m.base_unit)}
                 </span>
               </span>
               <input
                 type="number"
-                inputMode="decimal"
+                inputMode="numeric"
+                step="1"
                 dir="ltr"
                 placeholder="المعدود"
                 className="field nums w-28 text-center"

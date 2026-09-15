@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { money, num, stockLabel, unitLabel, drinksLabel } from "./format";
+import { money, num, stockLabel, baseQtyLabel, unitLabel, drinksLabel } from "./format";
 
 describe("money — أرقام إنجليزية بلا كسور", () => {
   it("يُنسّق بفواصل إنجليزية مع العملة", () => {
@@ -74,5 +74,23 @@ describe("stockLabel — الكسر لا يُقرَّب للصحيح", () => {
   it("ما دون الألف يبقى بوحدته الأساس", () => {
     expect(stockLabel(900, "g")).toBe("900 غم");
     expect(stockLabel(267, "pcs")).toBe("267 حبة");
+  });
+});
+
+describe("baseQtyLabel — الرقم كما هو، ليُقاس عليه", () => {
+  it("لا يقرّب ولا يحوّل", () => {
+    expect(baseQtyLabel(5460, "g")).toBe("5,460 غ");
+    expect(baseQtyLabel(49980, "g")).toBe("49,980 غ");
+    expect(baseQtyLabel(200, "ml")).toBe("200 مل");
+    expect(baseQtyLabel(12, "pcs")).toBe("12 حبة");
+  });
+
+  /**
+   * ٤٩٬٩٨٠ تُعرض «50 كغ» في `stockLabel`، فيكتب المالك 50 ويصنع فرقاً
+   * وهمياً. الفرق بين الدالّتين هو الفرق بين تصفّحٍ ومقياس.
+   */
+  it("يختلف عن stockLabel حيث يُقاس عليه", () => {
+    expect(stockLabel(49980, "g")).toBe("50 كغ");
+    expect(baseQtyLabel(49980, "g")).toBe("49,980 غ");
   });
 });
