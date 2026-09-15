@@ -320,7 +320,7 @@ export default async function Overview() {
         <section className="card p-5">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="font-display text-sm font-bold text-ink">الأكثر مبيعاً اليوم</h2>
-            <Link href="/manage/sales" className="text-xs text-accent">شهرياً ←</Link>
+            <Link href="/manage/sales" className="navlink text-xs text-accent">شهرياً ←</Link>
           </div>
           {top.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">لا مبيعات اليوم بعد.</p>
@@ -430,7 +430,7 @@ export default async function Overview() {
               })}
             </ul>
           )}
-          <Link href="/manage/exceptions" className="mt-3 block text-xs text-accent">
+          <Link href="/manage/exceptions" className="navlink mt-1 text-xs text-accent">
             كل الأحداث والشاذّ ←
           </Link>
         </Section>

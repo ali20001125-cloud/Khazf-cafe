@@ -77,7 +77,7 @@ export default async function ShiftPage({ params }: { params: { id: string } }) 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href="/manage" className="text-sm text-muted hover:text-ink">← لوحة الإدارة</Link>
+        <Link href="/manage" className="navlink text-sm text-muted hover:text-ink">← لوحة الإدارة</Link>
         <h1 className="mt-2 font-display text-2xl font-bold text-ink">
           وردية {shift.employee_name}
         </h1>

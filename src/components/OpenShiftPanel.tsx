@@ -48,7 +48,10 @@ export default function OpenShiftPanel({
   return (
     <main className="flex min-h-screen flex-col">
       <div className="topbar px-5 pb-14 pt-4" dir="rtl">
-        <Link href="/" className="tap chip border border-cream/20 bg-cream/5 text-cream/80">
+        <Link
+          href="/"
+          className="tap navlink rounded-xl border border-cream/20 bg-cream/5 px-3 text-sm text-cream/80"
+        >
           → الرئيسية
         </Link>
         <div className="mt-8 text-center">

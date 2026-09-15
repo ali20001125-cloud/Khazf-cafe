@@ -57,6 +57,14 @@ h1, h2, h3, .font-display {
   .chip {
     @apply rounded-full px-3 py-1 text-xs font-medium;
   }
+  /*
+    رابط تنقّلٍ قائمٌ بذاته (لا داخل جملة). بحجم النصّ وحده يصير هدفَ
+    لمسٍ ارتفاعه ١٦ بكسل — يُخطئه الإبهام على الهاتف. والحشوة العمودية
+    ترفعه إلى ٤٤ بلا أن تكبر الخطّ ولا أن تزحزح ما حوله.
+  */
+  .navlink {
+    @apply inline-flex min-h-[44px] items-center;
+  }
   /* شريط علوي داكن دافئ */
   .topbar {
     @apply bg-dark text-cream;

@@ -33,7 +33,7 @@ export default async function SalesPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href="/manage" className="text-sm text-muted hover:text-ink">← لوحة الإدارة</Link>
+        <Link href="/manage" className="navlink text-sm text-muted hover:text-ink">← لوحة الإدارة</Link>
         <h1 className="mt-2 font-display text-2xl font-bold text-ink">مبيعات المشروبات</h1>
         <p className="mt-1 text-sm text-muted">
           آخر ستّة أشهر. الفواتير الملغاة والمشروبات المجانية خارج الحساب.

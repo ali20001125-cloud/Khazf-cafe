@@ -110,18 +110,28 @@ export default async function InventoryPage() {
       {(lowCount > 0 || soonCount > 0) && (
         <div className="card border-amber-200 bg-amber-50/50 p-4">
           <p className="font-display font-bold text-amber-900">قرب النفاد</p>
-          <ul className="mt-2 space-y-1 text-sm text-amber-900/80">
+          {/*
+            كان الاسم وحده رابطاً بارتفاع ١٦ بكسل داخل جملة — هدفٌ يُخطئه
+            الإبهام. والسطر كلّه يقصد شيئاً واحداً، فصار كلّه يُضغط.
+          */}
+          <ul className="mt-1 divide-y divide-amber-900/10 text-sm text-amber-900/80">
             {items
               .filter((m) => (m.days_left != null && m.days_left <= 7) || (m.low_threshold > 0 && m.stock <= m.low_threshold))
               .map((m) => (
                 <li key={m.id}>
-                  <Link href={`/manage/inventory/${m.id}`} className="underline">
-                    {m.name}
-                  </Link>{" "}
-                  — بقي <span className="nums">{stockLabel(m.stock, m.base_unit)}</span>
-                  {m.days_left != null && (
-                    <> · يكفي <span className="nums">{m.days_left}</span> يوماً تقريباً</>
-                  )}
+                  <Link
+                    href={`/manage/inventory/${m.id}`}
+                    className="tap flex min-h-[44px] flex-wrap items-center gap-x-1.5 py-1 hover:text-amber-950"
+                  >
+                    <span className="font-semibold">{m.name}</span>
+                    <span>
+                      — بقي <span className="nums">{stockLabel(m.stock, m.base_unit)}</span>
+                      {m.days_left != null && (
+                        <> · يكفي <span className="nums">{m.days_left}</span> يوماً تقريباً</>
+                      )}
+                    </span>
+                    <span className="mr-auto text-amber-900/50" aria-hidden>←</span>
+                  </Link>
                 </li>
               ))}
           </ul>

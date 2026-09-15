@@ -171,7 +171,7 @@ export default async function ProfitPage() {
       <section className="card p-5">
         <div className="mb-1 flex items-baseline justify-between">
           <h2 className="font-display text-sm font-bold text-ink">ربح كل مشروب — ٣٠ يوماً</h2>
-          <Link href="/manage/sales" className="text-xs text-accent">
+          <Link href="/manage/sales" className="navlink text-xs text-accent">
             عدد المبيعات ←
           </Link>
         </div>

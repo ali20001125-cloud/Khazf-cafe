@@ -37,7 +37,7 @@ export default async function MaterialPage({ params }: { params: { id: string } 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <Link href="/manage/inventory" className="text-sm text-muted hover:text-ink">← المخزون</Link>
+        <Link href="/manage/inventory" className="navlink text-sm text-muted hover:text-ink">← المخزون</Link>
         <h1 className="mt-2 font-display text-2xl font-bold text-ink">{material.name}</h1>
       </div>
 

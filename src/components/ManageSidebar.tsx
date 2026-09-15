@@ -50,7 +50,18 @@ export default function ManageSidebar({ userName }: { userName: string }) {
       {/* رأس الموبايل */}
       <div className="topbar flex items-center justify-between px-4 py-3 lg:hidden">
         <span className="font-display text-lg font-bold text-cream">خزف · الإدارة</span>
-        <button onClick={() => setOpen(true)} className="chip border border-cream/20 bg-cream/10 text-cream/80">☰ القائمة</button>
+        {/*
+          كانت `chip` فارتفعت ٢٦ بكسل — وهي المدخل الوحيد لكل شاشات
+          الإدارة على الهاتف. هدفُ لمسٍ أصغر من ٤٤ يُخطئه الإبهام، وهذا
+          الزرّ بالذات لا بديل عنه في الشاشة.
+        */}
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="فتح القائمة"
+          className="tap flex min-h-[44px] min-w-[44px] items-center gap-1.5 rounded-xl border border-cream/20 bg-cream/10 px-3 text-sm font-medium text-cream/90"
+        >
+          <span aria-hidden>☰</span> القائمة
+        </button>
       </div>
 
       {/* شريط جانبي ثابت (سطح المكتب) */}

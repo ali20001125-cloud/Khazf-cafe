@@ -414,8 +414,15 @@ function ProductCard({
 }
 
 function Toggle({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
+  // زرٌّ يُضغط لا وسمٌ يُقرأ: `chip` تركته بارتفاع ٢٤ بكسل على الهاتف
   return (
-    <button onClick={onClick} className={`chip ${on ? "bg-accent/12 text-accentdeep" : "bg-dark/5 text-muted"}`}>
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      className={`tap flex min-h-[40px] items-center rounded-full px-3.5 text-xs font-medium ${
+        on ? "bg-accent/12 text-accentdeep" : "bg-dark/5 text-muted"
+      }`}
+    >
       {label}
     </button>
   );
