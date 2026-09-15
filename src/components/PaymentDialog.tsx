@@ -111,7 +111,11 @@ export default function PaymentDialog({
           tendered: method === "cash" ? tenderedNum : null,
           idempotencyKey: idemKey,
           customerId: customerId ?? null,
-          occurredAt: at,
+          // **لا نُمرّر `occurredAt` ونحن متّصلون.** لحظة البيع هي الآن،
+          // والخادم يعرفها. وتمريرها هنا كان يختم `synced_at` على كل
+          // فاتورة، فتقرأ الإدارة «٥ فواتير بيعت بلا إنترنت» في يومٍ لم
+          // ينقطع فيه النت أصلاً — ومؤشّرٌ يصرخ دائماً لا يُقرأ أبداً.
+          // الطابور وحده يُمرّرها، لأن بيعه **تأخّر** فعلاً.
           shiftId,
         });
       } catch {

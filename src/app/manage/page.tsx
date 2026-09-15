@@ -68,7 +68,11 @@ export default async function Overview() {
     });
   }
   for (const s of shiftVars) {
-    if (s.variance !== 0 && s.business_day === glance.businessDay) {
+    // `variance = null` تعني **لم تُعدّ بعد**، لا «طابقت». وبلا هذا الشرط
+    // كانت تُقرأ «زيادة 0 د.ع» — وهو بالضبط الخلط الذي يمنعه النظام في
+    // القاعدة، فتسرّب إلى الشاشة. والوردية غير المعدودة لها بطاقتها
+    // («درجٌ بانتظار عدّك») فلا تُكرَّر هنا.
+    if (s.variance != null && s.variance !== 0 && s.business_day === glance.businessDay) {
       attention.push({
         text: `${s.variance < 0 ? "نقص" : "زيادة"} ${money(Math.abs(s.variance), currency)} في درج ${s.employee_name}`,
         href: `/manage/shifts/${s.id}`,
@@ -297,14 +301,18 @@ export default async function Overview() {
                         {s.business_day} · {s.orders_count} طلب
                       </span>
                     </span>
-                    <span
-                      className={`nums text-sm ${
-                        s.variance === 0 ? "text-emerald-600" : "font-semibold text-red-600"
-                      }`}
-                    >
-                      {s.variance > 0 ? "+" : ""}
-                      {money(s.variance, currency)}
-                    </span>
+                    {s.variance == null ? (
+                      <span className="chip bg-dark/5 text-[11px] text-muted">بانتظار العدّ</span>
+                    ) : (
+                      <span
+                        className={`nums text-sm ${
+                          s.variance === 0 ? "text-emerald-600" : "font-semibold text-red-600"
+                        }`}
+                      >
+                        {s.variance > 0 ? "+" : ""}
+                        {money(s.variance, currency)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}
