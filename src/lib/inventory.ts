@@ -79,6 +79,39 @@ export async function listCounts(branchId: string): Promise<CountLog[]> {
   `) as CountLog[];
 }
 
+/**
+ * سطر ورقة العدّ: الرصيد المتوقّع ومعه سنده.
+ *
+ * رقمٌ بلا سند لا يُراجَع: من لا يعرف من أين جاء «٥٬٦٠٠» لا يكتشف أنه
+ * غلط — لا في الرقم ولا في عدّه هو. و«٢٠ كوباً × ١٨ غ» يجعله يراجع
+ * الاثنين.
+ */
+export type CountSheetRow = {
+  material_id: string;
+  name: string;
+  base_unit: "g" | "ml" | "pcs";
+  expected: number;
+  last_count_at: string | null;
+  sold: number;
+  cups: number;
+  wasted: number;
+  staff: number;
+  purchased: number;
+};
+
+export async function countSheet(branchId: string): Promise<CountSheetRow[]> {
+  const rows = (await db()`select * from count_sheet(${branchId})`) as CountSheetRow[];
+  return rows.map((r) => ({
+    ...r,
+    expected: Number(r.expected),
+    sold: Number(r.sold),
+    cups: Number(r.cups),
+    wasted: Number(r.wasted),
+    staff: Number(r.staff),
+    purchased: Number(r.purchased),
+  }));
+}
+
 export type CountItem = { material_id: string; counted: number };
 export type CountResult = {
   count_id: string;

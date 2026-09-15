@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { money, stockLabel, baseQtyLabel } from "@/lib/format";
+import { money, num, stockLabel, baseQtyLabel } from "@/lib/format";
 import { inputUnit, costUnit, toBase, costToBase } from "@/lib/labels";
 import { addStockAction, addStockByUnitAction, stockCountAction } from "@/app/manage/actions";
-import type { CountResult } from "@/lib/inventory";
+import type { CountResult, CountSheetRow } from "@/lib/inventory";
+import { isSuspiciousCount } from "@/lib/count-guard";
 
 type M = { id: string; name: string; base_unit: "g" | "ml" | "pcs"; stock: number };
 
@@ -21,9 +22,12 @@ export default function InventoryActions({
   units = [],
   reasons = [],
   currency,
+  sheet = [],
 }: {
   materials: M[];
   currency: string;
+  /** سند المتوقّع لكل مادة — ما تحرّك منذ آخر عدّة (هجرة 0037). */
+  sheet?: CountSheetRow[];
   /** وحدات الشراء — الشراء بها بدل الوحدة الأساس (هجرة 0028). */
   units?: { id: string; material_id: string; name: string; base_qty: number; is_default: boolean }[];
   reasons?: { key: string; label: string }[];
@@ -42,7 +46,9 @@ export default function InventoryActions({
       {mode === "add" && (
         <AddStock materials={materials} currency={currency} units={units} onClose={() => setMode(null)} />
       )}
-      {mode === "count" && <StockCount materials={materials} onClose={() => setMode(null)} />}
+      {mode === "count" && (
+        <StockCount materials={materials} sheet={sheet} onClose={() => setMode(null)} />
+      )}
     </div>
   );
 }
@@ -230,7 +236,15 @@ function AddStock({
   );
 }
 
-function StockCount({ materials, onClose }: { materials: M[]; onClose: () => void }) {
+function StockCount({
+  materials,
+  sheet,
+  onClose,
+}: {
+  materials: M[];
+  sheet: CountSheetRow[];
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -239,19 +253,27 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
   const [confirmed, setConfirmed] = useState(false);
   const [pending, start] = useTransition();
 
+  const rowOf = (id: string) => sheet.find((r) => r.material_id === id);
+
   /**
-   * الجرد يسوّي الرصيد على ما يُكتَب، فخطأُ إدخالٍ واحد يفسد المخزون كلّه:
-   * كُتب `50` بدل `5000` فصار الرصيد ٥٠٬٠٠٠ غ، وقَبِلها النظام بصمت.
-   * فرقٌ يفوق النصف ليس عدّاً — هو رقمٌ غلط أو مفاجأةٌ تستحقّ وقفة.
+   * ما المعقول أن يفرق؟ **ما تحرّك منذ آخر عدّة** — لا نسبةٌ من الرصيد.
+   *
+   * مقهًى باع ٣٦٠ غ وأهدر ٤٠ لا يمكن أن يفرق جردُه ٤٬٨٦٠ غ مهما كان
+   * الرصيد كبيراً: أقصى ما يمكن أن يضيع هو ما مرّ من يدٍ إلى يد. فنسمح
+   * بضعف الحركة (زائد هامشٍ صغير لمن يعدّ بالتقريب) ونقف عند ما فوقها.
+   *
+   * وهذه المسطرة تمسك الأخطاء الثلاثة التي ذكرها المالك — 54000 و4500
+   * و540 على متوقّعٍ ٥٬٤٠٠ — بينما «ارفض كل زيادة» يمسك الأول وحده.
    */
   const suspicious = materials
     .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
-    .map((m) => ({ m, counted: toBase(Number(counts[m.id]), m.base_unit) }))
-    .filter(({ m, counted }) => {
-      if (!Number.isFinite(counted) || counted < 0) return false;
-      const gap = Math.abs(counted - m.stock);
-      return gap > Math.max(m.stock * 0.5, 500);
-    });
+    .map((m) => {
+      const r = rowOf(m.id);
+      const counted = toBase(Number(counts[m.id]), m.base_unit);
+      const moved = r ? r.sold + r.wasted + r.staff : 0;
+      return { m, counted, gap: counted - m.stock, moved };
+    })
+    .filter((x) => isSuspiciousCount({ counted: x.counted, expected: x.m.stock, moved: x.moved }));
 
   function submit() {
     const items = materials
@@ -277,20 +299,28 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
     return (
       <Modal title="تأكيد قبل التسجيل" onClose={() => setAsking(false)}>
         <p className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-          رقمٌ بعيدٌ جداً عن المتوقّع. الجرد يسوّي الرصيد على ما تكتبه، فراجعه
-          قبل التسجيل — واحفظ أن الكمية <span className="font-semibold">بالغرام</span>،
+          الفرق أكبر ممّا تحرّك فعلاً. لا يضيع من المخزون أكثر ممّا مرّ منه،
+          فراجع الرقم قبل التسجيل — والكمية <span className="font-semibold">بالغرام</span>،
           فـ«٥ كيلو» تُكتب ٥٠٠٠ لا ٥.
         </p>
         <ul className="divide-y divide-line">
-          {suspicious.map(({ m, counted }) => (
-            <li key={m.id} className="py-2 text-sm">
+          {suspicious.map(({ m, counted, gap, moved }) => (
+            <li key={m.id} className="py-2.5 text-sm">
               <span className="font-semibold text-ink">{m.name}</span>
               <span className="nums mt-0.5 block text-xs text-muted">
                 المتوقّع {baseQtyLabel(m.stock, m.base_unit)} · كتبتَ{" "}
                 <span className="font-semibold text-amber-700">
                   {baseQtyLabel(counted, m.base_unit)}
                 </span>
+                {moved > 0 && <> · والذي تحرّك {baseQtyLabel(moved, m.base_unit)} فقط</>}
               </span>
+              {gap > 0 && (
+                /* الزيادة ليست مستحيلة — لكنها دائماً تعني شيئاً لم يُسجَّل */
+                <span className="mt-1 block text-[11px] text-amber-800">
+                  زيادةٌ عن المتوقّع. إن لم يكن خطأ كتابة، فغالباً شراءٌ لم
+                  تُسجّله، أو عدّةٌ سابقة نقصت لأن بنّاً بقي في المطحنة.
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -377,6 +407,29 @@ function StockCount({ materials, onClose }: { materials: M[]; onClose: () => voi
                 <span className="nums block text-[11px] text-muted">
                   المتوقّع {baseQtyLabel(m.stock, m.base_unit)}
                 </span>
+                {/* سند المتوقّع: من لا يعرف من أين جاء الرقم لا يراجعه */}
+                {(() => {
+                  const r = rowOf(m.id);
+                  if (!r) return null;
+                  const parts: string[] = [];
+                  if (r.purchased > 0)
+                    parts.push(`اشتريتَ ${baseQtyLabel(r.purchased, m.base_unit)}`);
+                  if (r.sold > 0)
+                    parts.push(
+                      r.cups > 0
+                        ? `بعتَ ${num(r.cups)} كوباً (${baseQtyLabel(r.sold, m.base_unit)})`
+                        : `بيعاً ${baseQtyLabel(r.sold, m.base_unit)}`
+                    );
+                  if (r.wasted > 0) parts.push(`هدراً ${baseQtyLabel(r.wasted, m.base_unit)}`);
+                  if (r.staff > 0) parts.push(`للموظّف ${baseQtyLabel(r.staff, m.base_unit)}`);
+                  if (parts.length === 0) return null;
+                  return (
+                    <span className="nums block text-[11px] text-accentdeep">
+                      {r.last_count_at ? "منذ آخر عدّة: " : "منذ البداية: "}
+                      {parts.join(" · ")}
+                    </span>
+                  );
+                })()}
               </span>
               <input
                 type="number"
