@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { categoryLabel, money } from "@/lib/format";
 import type { AdminProduct } from "@/lib/products-admin";
@@ -87,6 +87,16 @@ function ProductCard({
   const [prices, setPrices] = useState<Record<string, number>>(
     Object.fromEntries(product.crops.map((c) => [c.id, c.price]))
   );
+  // `useState` يُهيَّأ عند التركيب وحده. فمحصولٌ رُبط للتوّ يصل مع
+  // `router.refresh()` بلا قيمةٍ في الحقل، فيظهر فارغاً ويُضطرّ المالك
+  // لكتابة السعر مرّةً ثانية. نُدخل الجديد وحده ولا نمسّ ما هو قيد التحرير.
+  useEffect(() => {
+    setPrices((prev) => {
+      const missing = product.crops.filter((c) => !(c.id in prev));
+      if (missing.length === 0) return prev;
+      return { ...prev, ...Object.fromEntries(missing.map((c) => [c.id, c.price])) };
+    });
+  }, [product.crops]);
   // الوصفة تُحرَّر كقائمة كاملة لا كتعديلاتٍ على صفوف: النسخة الجديدة تُكتب
   // بأكملها، فما حُذف من هنا يُحذف منها.
   const [recipe, setRecipe] = useState(
@@ -241,15 +251,11 @@ function ProductCard({
           </p>
         )}
         {product.crops.map((c) => (
-          <div key={c.id} className={`flex items-center justify-between ${c.available ? "" : "opacity-50"}`}>
-            <button
-              onClick={() => toggleCrop(c.id, !c.available)}
-              className="text-right text-sm text-ink hover:text-accentdeep"
-              title={c.available ? "إيقافه عن هذا المشروب" : "إعادته"}
-            >
+          <div key={c.id} className={`flex items-center justify-between gap-2 ${c.available ? "" : "opacity-50"}`}>
+            <span className="min-w-0 flex-1 truncate text-sm text-ink">
               {c.crop_name}
-              <span className="mr-1.5 text-[11px] text-muted">{c.available ? "" : "(موقوف)"}</span>
-            </button>
+              {!c.available && <span className="mr-1.5 text-[11px] text-muted">(موقوف)</span>}
+            </span>
             <div className="flex items-center gap-1">
               <input
                 type="number" inputMode="numeric" value={prices[c.id]}
@@ -257,6 +263,17 @@ function ProductCard({
                 className="field nums w-28 py-2 text-center" dir="ltr"
               />
               <span className="w-8 text-xs text-muted">{currency}</span>
+              {/* لا يُحذف الصفّ: فواتير قديمة تشير إليه، وحذفه يكسر تاريخاً
+                  مدفوعاً. يُوقَف فيختفي من شاشة البيع ويبقى ما بيع منه مقروءاً. */}
+              <button
+                onClick={() => toggleCrop(c.id, !c.available)}
+                disabled={pending}
+                className="tap rounded-lg px-2 py-1.5 text-sm text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                title={c.available ? `أوقف ${c.crop_name} عن ${product.name}` : "أعِده"}
+                aria-label={c.available ? "إيقاف المحصول" : "إعادة المحصول"}
+              >
+                {c.available ? "✕" : "↺"}
+              </button>
             </div>
           </div>
         ))}

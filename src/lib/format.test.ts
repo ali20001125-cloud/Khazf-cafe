@@ -56,3 +56,23 @@ describe("unitLabel", () => {
     expect(unitLabel("pcs")).toBe("حبة");
   });
 });
+
+describe("stockLabel — الكسر لا يُقرَّب للصحيح", () => {
+  it("٥٬٥٠٠ غم = ٥٫٥ كغ، لا ٦", () => {
+    expect(stockLabel(5500, "g")).toBe("5.5 كغ");
+  });
+  it("٤٬٥٣٢ غم = ٤٫٥ كغ — كان يُعرض «٥ كغ»، كذبةً بـ٤٦٨ غم (٢٦ مشروباً)", () => {
+    expect(stockLabel(4532, "g")).toBe("4.5 كغ");
+  });
+  it("١١٬٨٥٠ مل = ١١٫٩ لتر، لا ١٢", () => {
+    expect(stockLabel(11850, "ml")).toBe("11.9 لتر");
+  });
+  it("الرقم الصحيح يبقى بلا كسرٍ زائد", () => {
+    expect(stockLabel(5000, "g")).toBe("5 كغ");
+    expect(stockLabel(12000, "ml")).toBe("12 لتر");
+  });
+  it("ما دون الألف يبقى بوحدته الأساس", () => {
+    expect(stockLabel(900, "g")).toBe("900 غم");
+    expect(stockLabel(267, "pcs")).toBe("267 حبة");
+  });
+});

@@ -23,10 +23,20 @@ export function unitLabel(unit: string): string {
   return unit;
 }
 
+/**
+ * المخزون بكسرٍ واحد — **لا يُقرَّب للصحيح**.
+ *
+ * كان يُعرض بـ`NUM` نفسه، وهو مضبوطٌ على صفر كسور لأن الدينار عددٌ صحيح.
+ * فصارت ٥٬٥٠٠ غم تُقرأ «٦ كغ»، و٤٬٥٣٢ غم تُقرأ «٥ كغ» — كذبةٌ بـ٤٦٨ غم،
+ * أي ستةٍ وعشرين مشروباً. وأخطر مواضعها شاشة الجرد: المالك يعدّ على
+ * «المتوقّع» المعروض، فيقيس صحيحه على رقمٍ مغلوط.
+ */
+const STOCK_NUM = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+
 /** عرض كمية المخزون بوحدة مقروءة (كيلو/لتر عند الكبر). */
 export function stockLabel(qty: number, unit: string): string {
-  if (unit === "g" && qty >= 1000) return `${NUM.format(Math.round(qty / 100) / 10)} كغ`;
-  if (unit === "ml" && qty >= 1000) return `${NUM.format(Math.round(qty / 100) / 10)} لتر`;
+  if (unit === "g" && qty >= 1000) return `${STOCK_NUM.format(qty / 1000)} كغ`;
+  if (unit === "ml" && qty >= 1000) return `${STOCK_NUM.format(qty / 1000)} لتر`;
   return `${num(qty)} ${unitLabel(unit)}`;
 }
 

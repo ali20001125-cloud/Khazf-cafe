@@ -54,7 +54,7 @@ export default function InventorySettings({
             إعدادات المخزون
           </span>
           <span className="block text-xs text-muted">
-            وحدات الشراء · المطلوب بعد الشراء · أسباب الهدر
+            بأي شيء تشتري كل مادة · كم تريد يبقى منها · أسباب الهدر
           </span>
         </span>
         <span className="text-muted" aria-hidden="true">▾</span>
@@ -72,12 +72,13 @@ export default function InventorySettings({
         <span className="font-display text-sm font-bold text-ink">إعدادات المخزون</span>
         <span className="text-xs text-muted">إخفاء ▴</span>
       </button>
-      {/* وحدات الشراء والمطلوب */}
+      {/* لكل مادة سطران بلغةٍ مفهومة، لا زرّان باسمين مبهمين («+ وحدة» و«المطلوب»). */}
       <section className="card p-5">
-        <h2 className="font-display text-sm font-bold text-ink">وحدات الشراء والحدود</h2>
+        <h2 className="font-display text-sm font-bold text-ink">كيف تشتري كل مادة</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          عرّف كيف تشتري كل مادة («كرتون = ١٢ لتر»)، وكم تريد أن يبقى منها بعد
-          الشراء. الأول يُنهي التحويل في الرأس، والثاني يبني قائمة الشراء.
+          جوابان لكل مادة: <span className="font-semibold text-ink">بأي شيء تشتريها</span>{" "}
+          (كرتون؟ كيس؟)، و<span className="font-semibold text-ink">كم تريد أن يبقى عندك</span>.
+          بهما تحسب لك قائمة الشراء «اشترِ ٣ كراتين» بدل «ناقص ٢٬٤٠٠ مل».
         </p>
 
         <ul className="mt-4 divide-y divide-line">
@@ -87,12 +88,30 @@ export default function InventorySettings({
               <li key={m.id} className="py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-display font-bold text-ink">{m.name}</p>
-                    <p className="nums mt-0.5 text-xs text-muted">
-                      الآن {stockLabel(m.stock, m.base_unit)}
-                      {m.par_level > 0
-                        ? ` · المطلوب ${stockLabel(m.par_level, m.base_unit)}`
-                        : " · بلا اقتراح شراء"}
+                    <p className="font-display font-bold text-ink">
+                      {m.name}
+                      <span className="nums mr-2 text-xs font-normal text-muted">
+                        الآن {stockLabel(m.stock, m.base_unit)}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      تريد يبقى عندك:{" "}
+                      {m.par_level > 0 ? (
+                        <span className="nums font-semibold text-ink">
+                          {stockLabel(m.par_level, m.base_unit)}
+                        </span>
+                      ) : (
+                        <span className="text-amber-700">
+                          ما حدّدته — فلن تقترح عليك قائمة الشراء شيئاً
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {us.length > 0 ? "تشتريها بـ:" : (
+                        <span className="text-amber-700">
+                          ما حدّدت وحدة الشراء — ستشتري بالـ{m.base_unit === "g" ? "كيلو" : m.base_unit === "ml" ? "لتر" : "حبّة"}
+                        </span>
+                      )}
                     </p>
                     {us.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -118,11 +137,11 @@ export default function InventorySettings({
                     )}
                   </div>
                   <div className="flex shrink-0 flex-col gap-1.5">
-                    <button onClick={() => setUnitFor(m)} className="btn-ghost px-3 py-2 text-xs">
-                      + وحدة
+                    <button onClick={() => setUnitFor(m)} className="btn-ghost whitespace-nowrap px-3 py-2 text-xs">
+                      + وحدة شراء
                     </button>
-                    <button onClick={() => setParFor(m)} className="btn-ghost px-3 py-2 text-xs">
-                      المطلوب
+                    <button onClick={() => setParFor(m)} className="btn-ghost whitespace-nowrap px-3 py-2 text-xs">
+                      كم يبقى؟
                     </button>
                   </div>
                 </div>
@@ -131,8 +150,8 @@ export default function InventorySettings({
           })}
         </ul>
         <p className="mt-3 text-xs text-muted">
-          ★ = الوحدة الافتراضية عند الشراء. والوحدة تُعطَّل ولا تُحذف، فمشترياتٌ
-          قديمة تشير إليها.
+          ★ = الوحدة التي تُقترح عليك أوّلاً عند الشراء. والوحدة تُعطَّل ولا
+          تُحذف، لأن مشترياتٍ قديمة تشير إليها.
         </p>
       </section>
 

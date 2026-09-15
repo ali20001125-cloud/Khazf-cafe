@@ -254,7 +254,16 @@ export default function PosScreen({
                 {p.paused ? (
                   <span className="chip bg-amber-100 text-amber-700">موقوف</span>
                 ) : outOfStock ? (
-                  <span className="chip bg-red-100 text-red-700">خلصت مادته</span>
+                  <span className="chip bg-red-100 text-red-700">
+                    {(() => {
+                      // «خلصت مادته» وحدها تُرجع الباريستا للتخمين. نسمّي
+                      // المادة التي حدّت العدد، فيعرف ما يُشترى في سطرٍ واحد.
+                      const blocked = p.crops
+                        .map((c) => (fulfillment === "takeaway" ? c.blocker_takeaway : c.blocker_dine_in))
+                        .filter(Boolean) as string[];
+                      return blocked.length ? `ينقص ${blocked[0]}` : "خلصت مادته";
+                    })()}
+                  </span>
                 ) : left > 0 && left <= 5 ? (
                   <span className="nums chip bg-amber-100 text-amber-800">باقي {left}</span>
                 ) : (p.groups.length > 0 || avail.length > 1) ? (

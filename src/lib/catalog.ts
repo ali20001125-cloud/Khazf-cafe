@@ -16,6 +16,9 @@ export type CatalogCrop = {
    */
   servings_dine_in: number;
   servings_takeaway: number;
+  /** المادة التي حدّت العدد — تُقال للباريستا ليعرف ما يُشترى (هجرة 0035). */
+  blocker_dine_in: string | null;
+  blocker_takeaway: string | null;
 };
 
 export type CatalogOption = { id: string; name: string; price_delta: number };
@@ -41,7 +44,8 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
     select p.id, p.name, p.category, p.paused,
            pc.material_id, m.name as crop_name, pc.price, pc.available,
            coalesce(sl.servings_dine_in, 0)  as servings_dine_in,
-           coalesce(sl.servings_takeaway, 0) as servings_takeaway
+           coalesce(sl.servings_takeaway, 0) as servings_takeaway,
+           sl.blocker_dine_in, sl.blocker_takeaway
     from products p
     join product_crops pc on pc.product_id = p.id
     join materials m on m.id = pc.material_id
@@ -53,6 +57,7 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
     id: string; name: string; category: string; paused: boolean;
     material_id: string; crop_name: string; price: number; available: boolean;
     servings_dine_in: number; servings_takeaway: number;
+    blocker_dine_in: string | null; blocker_takeaway: string | null;
   }[];
 
   const groupRows = (await db()`
@@ -81,6 +86,8 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
       available: r.available,
       servings_dine_in: Number(r.servings_dine_in),
       servings_takeaway: Number(r.servings_takeaway),
+      blocker_dine_in: r.blocker_dine_in ?? null,
+      blocker_takeaway: r.blocker_takeaway ?? null,
     });
   }
 

@@ -65,7 +65,7 @@ export default async function Home() {
                 <span className="nums">منذ {timeAr(shift.opened_at)}</span>
                 <span className="nums">الفكّة {money(shift.opening_float, currency)}</span>
               </div>
-              <Link href="/pos" className="btn-primary mt-4 block py-5 text-center text-xl">ابدأ البيع</Link>
+              <Link href="/pos" className="btn-primary mt-4 block py-5 text-center text-xl">افتح شاشة البيع ←</Link>
             </>
           ) : (
             <>
