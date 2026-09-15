@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { categoryLabel } from "@/lib/format";
+import { categoryLabel, money } from "@/lib/format";
 import type { AdminProduct } from "@/lib/products-admin";
 import {
   updateProductAction,
@@ -80,6 +80,7 @@ function ProductCard({
   currency: string;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [paused, setPaused] = useState(product.paused);
   const [active, setActive] = useState(product.active);
   const [grams, setGrams] = useState(product.coffee_grams);
@@ -174,13 +175,58 @@ function ProductCard({
     });
   }
 
+  // مطويّ افتراضياً: أحد عشر مشروباً مفتوحةً دفعةً واحدة تصنع صفحةً بطول
+  // ستة آلاف بكسل على الهاتف — والمالك يعدّل مشروباً واحداً في المرّة.
+  const summary = product.crops.length
+    ? product.crops.filter((c) => c.available).map((c) => c.crop_name).join(" · ") || "لا محصول متاح"
+    : "لا محصول مربوط";
+
+  if (!open) {
+    return (
+      <div className={`card p-4 ${!active ? "opacity-60" : ""}`}>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-2 text-right"
+            aria-expanded="false"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="font-display font-bold text-ink">{product.name}</span>
+              <span className="mr-2 text-xs text-muted">{categoryLabel(product.category)}</span>
+              <span className="block truncate text-xs text-muted">{summary}</span>
+            </span>
+            <span className="nums whitespace-nowrap text-sm text-accentdeep">
+              {product.crops.length
+                ? money(Math.min(...product.crops.map((c) => c.price)), currency)
+                : "—"}
+            </span>
+            <span className="text-muted" aria-hidden="true">▾</span>
+          </button>
+          <Toggle
+            on={!paused}
+            label={paused ? "موقوف" : "شغّال"}
+            onClick={() => {
+              const next = !paused;
+              setPaused(next);
+              start(async () => {
+                await updateProductAction(product.id, { paused: next });
+                router.refresh();
+              });
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`card p-4 ${!active ? "opacity-60" : ""}`}>
       <div className="mb-3 flex items-center justify-between">
-        <div>
+        <button onClick={() => setOpen(false)} className="min-w-0 text-right" aria-expanded="true">
           <span className="font-display font-bold text-ink">{product.name}</span>
           <span className="mr-2 text-xs text-muted">{categoryLabel(product.category)}</span>
-        </div>
+          <span className="mr-2 text-muted" aria-hidden="true">▴</span>
+        </button>
         <div className="flex gap-2">
           <Toggle on={!paused} label={paused ? "موقوف" : "شغّال"} onClick={() => { setPaused(!paused); setSaved(false); }} />
         </div>

@@ -81,6 +81,9 @@ export default function StaffManager({
                   <p className="text-xs text-muted">
                     {u.role === "owner" ? "مالك — كل الصلاحيات" : "باريستا — بيع وتشغيل، بلا مال ولا تقارير"}
                   </p>
+                  {u.phone && (
+                    <p className="nums text-xs text-muted" dir="ltr">{u.phone}</p>
+                  )}
 
                   <div className="mt-2 space-y-0.5 text-xs">
                     {!u.active && <Tag tone="muted">معطّل — لا يستطيع الدخول</Tag>}
@@ -197,6 +200,7 @@ function ResetPinDialog({
 
 function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"owner" | "barista">("barista");
   const [pin, setPin] = useState("");
   const [ownerPin, setOwnerPin] = useState("");
@@ -220,6 +224,25 @@ function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
         </div>
 
         <div>
+          <label htmlFor="ph" className="mb-1.5 block text-sm font-semibold text-ink">
+            رقم الهاتف <span className="font-normal text-muted">(اختياري)</span>
+          </label>
+          <input
+            id="ph"
+            type="tel"
+            inputMode="tel"
+            dir="ltr"
+            className="field nums"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="07XX XXX XXXX"
+          />
+          <p className="mt-1 text-xs text-muted">
+            للتعريف والتواصل — لا يُدخل به. الدخول باسمه ورمزه.
+          </p>
+        </div>
+
+        <div>
           <span className="mb-1.5 block text-sm font-semibold text-ink">الدور</span>
           <div className="space-y-2">
             <RoleCard
@@ -237,7 +260,12 @@ function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           </div>
         </div>
 
-        <Pin label="رمز دخوله" value={pin} onChange={setPin} hint="٤ إلى ٨ أرقام — أخبره به" />
+        <Pin
+          label="رمز دخوله"
+          value={pin}
+          onChange={setPin}
+          hint="٤ إلى ٨ أرقام. أنت تضعه وتخبره به — ولا يستطيع تغييره بنفسه."
+        />
         <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <Actions
@@ -248,7 +276,7 @@ function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           onSubmit={() => {
             setError(null);
             start(async () => {
-              const r = await createUserAction({ name, role, pin, ownerPin });
+              const r = await createUserAction({ name, phone, role, pin, ownerPin });
               if (!r.ok) return setError(r.error);
               onDone();
             });

@@ -41,6 +41,7 @@ export default async function SettingsPage() {
     <SettingsEditor
       currency={strSetting(s, "currency", "د.ع")}
       shop={{
+        currency: strSetting(s, "currency", "د.ع"),
         shop_name: strSetting(s, "shop_name", "مقهى خزف"),
         shop_phone: strSetting(s, "shop_phone", ""),
         staff_drink_limit: numSetting(s, "staff_drink_limit", 1),

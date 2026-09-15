@@ -6,6 +6,7 @@ import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift, shiftsAwaitingCount } from "@/lib/shifts";
 import { getSettings, strSetting } from "@/lib/settings";
 import { offlineStatus } from "@/lib/hours";
+import StuckShiftCard from "@/components/StuckShiftCard";
 import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
 import { defaultPinCount } from "@/lib/users";
@@ -126,6 +127,14 @@ export default async function Overview() {
           حتى تفتحه — الطلب الجاري وقت القفل يُكمَّل عادةً.
         </p>
       )}
+
+      {/* وردية تجاوزت يومها: لا تُفتح وردية جديدة قبل إغلاقها، فالمقهى يقف. */}
+      {shift && (() => {
+        const hrs = Math.floor((Date.now() - new Date(shift.opened_at).getTime()) / 3600000);
+        return hrs >= 18 ? (
+          <StuckShiftCard shiftId={shift.id} employeeName={shift.employee_name} hours={hrs} />
+        ) : null;
+      })()}
 
       <AwaitingCountList rows={awaiting} currency={currency} />
 

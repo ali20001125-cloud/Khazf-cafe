@@ -10,7 +10,6 @@ import StaffDrinkDialog from "@/components/StaffDrinkDialog";
 import ModifierSheet from "@/components/ModifierSheet";
 import CustomerPanel, { type LinkedCustomer } from "@/components/CustomerPanel";
 import { HandoverInbox } from "@/components/DrawerDialogs";
-import MyPinDialog from "@/components/MyPinDialog";
 import OfflineSync from "@/components/OfflineSync";
 
 export type CartOption = { id: string; name: string; price_delta: number };
@@ -61,7 +60,6 @@ export default function PosScreen({
   const [sheetFor, setSheetFor] = useState<CatalogProduct | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
-  const [pinOpen, setPinOpen] = useState(false);
   const [parkedCount, setParkedCount] = useState(0);
   const [showParked, setShowParked] = useState(false);
   // ولاء الزبون (§38): يُربط بالفاتورة قبل الدفع، والأختام تُحتسب في القاعدة.
@@ -182,12 +180,12 @@ export default function PosScreen({
                 الوردية ينزل تحت «المزيد». */}
             <div className="flex items-center gap-2">
               {pinIsDefault && (
-                <button
-                  onClick={() => setPinOpen(true)}
-                  className="tap chip border border-red-400/50 bg-red-400/20 text-red-100"
+                <span
+                  className="chip border border-red-400/50 bg-red-400/20 text-red-100"
+                  title="رمزك يضعه المالك — اطلب منه تغييره"
                 >
                   رمزك افتراضي
-                </button>
+                </span>
               )}
               <button
                 onClick={() => setCustomerOpen(true)}
@@ -346,14 +344,10 @@ export default function PosScreen({
           countedBy={countedBy}
           pinIsDefault={pinIsDefault}
           onStaffDrink={() => { setMoreOpen(false); setStaffOpen(true); }}
-          onMyPin={() => { setMoreOpen(false); setPinOpen(true); }}
           onClose={() => setMoreOpen(false)}
         />
       )}
       {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}
-      {pinOpen && (
-        <MyPinDialog onClose={() => setPinOpen(false)} onDone={() => setPinOpen(false)} />
-      )}
       {customerOpen && (
         <CustomerPanel
           catalog={catalog}
@@ -395,7 +389,6 @@ function MoreSheet({
   countedBy,
   pinIsDefault,
   onStaffDrink,
-  onMyPin,
   onClose,
 }: {
   openingFloat: number;
@@ -405,7 +398,6 @@ function MoreSheet({
   countedBy: "barista" | "owner" | "none";
   pinIsDefault: boolean;
   onStaffDrink: () => void;
-  onMyPin: () => void;
   onClose: () => void;
 }) {
   return (
@@ -436,9 +428,6 @@ function MoreSheet({
         <div className="space-y-2">
           <button onClick={onStaffDrink} className="btn-ghost w-full py-4 text-right">
             مشروب موظف
-          </button>
-          <button onClick={onMyPin} className="btn-ghost w-full py-4 text-right">
-            {pinIsDefault ? "رمزي — ما زال الافتراضي، غيّره" : "تغيير رمزي"}
           </button>
         </div>
 

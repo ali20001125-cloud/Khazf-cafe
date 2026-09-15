@@ -41,3 +41,39 @@ export async function countClosedShiftAction(
     return { ok: false, error: msg.replace(/^.*?:\s*/, "") };
   }
 }
+
+/**
+ * إغلاق وردية عالقة.
+ *
+ * القاعدة تمنع ورديتين مفتوحتين في الفرع، فوردية بقيت مفتوحة — مات الجهاز
+ * أو خرج الباريستا ولم يُنهِها — **تمنع فتح وردية غداً**. ولم يكن للمالك
+ * سبيلٌ لإغلاقها. تُغلق هنا بسببٍ مكتوب، وتنزل في «بانتظار عدّك»: الدرج
+ * ما زال يحتاج من يعدّه، والإغلاق القسري لا يُلغي ذلك.
+ */
+export async function forceCloseShiftAction(
+  shiftId: string,
+  reason: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let user;
+  try {
+    // `cash.view_expected` للمالك وحده (مُثبَت في اختبار الصلاحيات 15)،
+    // وهو المناسب هنا: الإغلاق القسري يكتب المتوقّع في الدرج. والقاعدة
+    // تفحص الدور مرّةً ثانية — الواجهة لا تكون الحارس الوحيد.
+    user = await requirePermission("cash.view_expected");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  if (!reason.trim()) return { ok: false, error: "اكتب سبب الإغلاق" };
+
+  try {
+    await db()`select force_close_shift(${shiftId}, ${user.uid}, ${reason.trim()})`;
+    revalidatePath("/manage");
+    revalidatePath("/pos");
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message.replace(/^.*?:\s*/, "") : "تعذّر الإغلاق";
+    return { ok: false, error: msg };
+  }
+}

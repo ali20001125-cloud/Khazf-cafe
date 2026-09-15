@@ -36,3 +36,7 @@ update recipes set active = true where version = 1 and not active;
 -- و19 يُوقف محصولاً ليُثبت أن الإيقاف لا يحذف. إعادته متاحاً تُعيد الكتالوج
 -- لما زرعه `seed`، وإلا قرأ ما بعده كتالوجاً ناقصاً بلا سبب.
 update product_crops set available = true where not available;
+
+-- وحدات الشراء التي ينشئها 17 تتراكم بين التشغيلات فتظهر مكرّرةً في الشاشة
+-- (وهذا ما كشف غياب قيد الاسم الفريد — هجرة 0034).
+delete from material_units;

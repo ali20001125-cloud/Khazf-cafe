@@ -9,6 +9,8 @@ import { requirePermission, AuthError } from "@/lib/permissions";
 // — إعداد بمكانين يعني أن المالك قد يغيّر واحداً بينما يقرأ النظام الآخر.
 const ALLOWED = new Set([
   "shop_name", "shop_phone", "staff_drink_limit", "session_timeout_minutes",
+  // كانت تُزرع «IQD» وتظهر في كل سعرٍ وفاتورة بلا سبيلٍ لتغييرها
+  "currency",
 ]);
 
 export async function updateSettingsAction(

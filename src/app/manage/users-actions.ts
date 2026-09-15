@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { requirePermission, AuthError } from "@/lib/permissions";
 import { verifyOwnerPin } from "@/lib/approvals";
+import { normalizePhone } from "@/lib/phone";
 
 /**
  * إدارة المستخدمين والرموز (المواصفة §51 · §52).
@@ -81,12 +82,22 @@ async function audit(
 
 // ── كل مستخدم يغيّر رمزه بنفسه ───────────────────────────────────────
 // الباريستا يحتاج هذا: رمزه الحالي 0000، ولا يجوز أن ينتظر المالك ليغيّره.
+/**
+ * تغيير الرمز الشخصي — **للمالك وحده**.
+ *
+ * الرمز ليس كلمة سرٍّ يملكها صاحبها، بل مفتاح توقيع: به يُوافَق على الإلغاء
+ * وبه يُنسَب كل فعلٍ لفاعله. وباريستا يبدّل مفتاحه بنفسه يكسر سلسلةً كان
+ * المالك طرفها — «من أعطى هذا الرمز؟» يصير سؤالاً بلا جواب. فرمز الباريستا
+ * يضعه المالك ويعيد ضبطه عند الحاجة (`resetUserPinAction`).
+ */
 export async function changeMyPinAction(
   currentPin: string,
   newPin: string
 ): Promise<ActionResult> {
   const user = currentUser();
   if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+  if (user.role !== "owner")
+    return { ok: false, error: "رمزك يضعه المالك — راجعه لتغييره" };
 
   const bad = validatePin(newPin);
   if (bad) return { ok: false, error: bad };
@@ -175,6 +186,7 @@ export async function resetUserPinAction(
 // ── إضافة موظف ───────────────────────────────────────────────────────
 export async function createUserAction(input: {
   name: string;
+  phone?: string;
   role: "owner" | "barista";
   pin: string;
   ownerPin: string;
@@ -190,6 +202,12 @@ export async function createUserAction(input: {
   const name = input.name.trim();
   if (name.length < 2) return { ok: false, error: "الاسم قصير" };
 
+  // نفس التوحيد المستعمل في الولاء: الرقم الواحد بصيغٍ مختلفة رقمٌ واحد،
+  // وإلا صار للموظف سجلّان ولم يُعرف صاحب أيّهما.
+  const phone = input.phone?.trim() ? normalizePhone(input.phone) : null;
+  if (input.phone?.trim() && !phone)
+    return { ok: false, error: "رقم هاتف غير صالح" };
+
   const bad = validatePin(input.pin);
   if (bad) return { ok: false, error: bad };
 
@@ -200,10 +218,17 @@ export async function createUserAction(input: {
     const clash = await pinTakenBy(user.bid, input.pin, null);
     if (clash) return { ok: false, error: `هذا الرمز لـ${clash} — اختر غيره` };
 
+    if (phone) {
+      const taken = (await db()`
+        select name from users where business_id = ${user.bid} and phone = ${phone}
+      `) as { name: string }[];
+      if (taken[0]) return { ok: false, error: `هذا الرقم لـ${taken[0].name}` };
+    }
+
     const hash = await bcrypt.hash(input.pin, 10);
     const rows = (await db()`
-      insert into users (business_id, name, role, pin_hash, pin_changed_at)
-      values (${user.bid}, ${name}, ${input.role}, ${hash}, now())
+      insert into users (business_id, name, phone, role, pin_hash, pin_changed_at)
+      values (${user.bid}, ${name}, ${phone}, ${input.role}, ${hash}, now())
       returning id
     `) as { id: string }[];
     const newId = rows[0].id;
@@ -215,7 +240,7 @@ export async function createUserAction(input: {
     `;
 
     await audit(user.bid, user.uid, approvedBy, "user_created", newId,
-                { name, role: input.role }, `إضافة ${input.role === "owner" ? "مالك" : "باريستا"}: ${name}`);
+                { name, phone, role: input.role }, `إضافة ${input.role === "owner" ? "مالك" : "باريستا"}: ${name}`);
 
     revalidatePath("/manage/users");
     return { ok: true };

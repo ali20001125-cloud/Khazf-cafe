@@ -30,6 +30,7 @@ export default function InventorySettings({
   units: MaterialUnit[];
   reasons: WasteReason[];
 }) {
+  const [open, setOpen] = useState(false);
   const [unitFor, setUnitFor] = useState<Mat | null>(null);
   const [parFor, setParFor] = useState<Mat | null>(null);
   const [newReason, setNewReason] = useState("");
@@ -39,8 +40,38 @@ export default function InventorySettings({
 
   const unitsOf = (id: string) => units.filter((u) => u.material_id === id);
 
+  // مطويّة افتراضياً: هذه إعدادات تُضبط مرّةً ثم لا تُفتح لأسابيع، وبقاؤها
+  // مفتوحةً يُطيل صفحة المخزون حتى يضيع فيها ما يُقرأ كل يوم.
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="card flex w-full items-center justify-between p-5 text-right"
+        aria-expanded="false"
+      >
+        <span>
+          <span className="block font-display text-sm font-bold text-ink">
+            إعدادات المخزون
+          </span>
+          <span className="block text-xs text-muted">
+            وحدات الشراء · المطلوب بعد الشراء · أسباب الهدر
+          </span>
+        </span>
+        <span className="text-muted" aria-hidden="true">▾</span>
+      </button>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <button
+        onClick={() => setOpen(false)}
+        className="flex w-full items-center justify-between text-right"
+        aria-expanded="true"
+      >
+        <span className="font-display text-sm font-bold text-ink">إعدادات المخزون</span>
+        <span className="text-xs text-muted">إخفاء ▴</span>
+      </button>
       {/* وحدات الشراء والمطلوب */}
       <section className="card p-5">
         <h2 className="font-display text-sm font-bold text-ink">وحدات الشراء والحدود</h2>

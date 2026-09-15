@@ -9,6 +9,8 @@ import { db } from "./db";
 export type StaffRow = {
   id: string;
   name: string;
+  /** هاتفه — للتعريف لا للدخول. الدخول باسمٍ يُختار ورمزٍ يضعه المالك. */
+  phone: string | null;
   role: "owner" | "barista";
   active: boolean;
   /** فارغ = ما زال الرمز الافتراضي من التنصيب */
@@ -24,7 +26,7 @@ export type StaffRow = {
 
 export async function listStaff(businessId: string): Promise<StaffRow[]> {
   return (await db()`
-    select u.id, u.name, u.role::text as role, u.active,
+    select u.id, u.name, u.phone, u.role::text as role, u.active,
            u.pin_changed_at, u.locked_until,
            coalesce(u.failed_pin_attempts, 0) as failed_pin_attempts,
            u.last_login_at,

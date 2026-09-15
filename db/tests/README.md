@@ -18,7 +18,7 @@ export PGHOST=/tmp/pg PGPORT=55432 PGUSER=postgres PGDATABASE=khazf_cafe
 for f in db/migrations/0001*.sql db/migrations/000[2-8]*.sql db/seed.sql db/seed-modifiers.sql; do
   psql -v ON_ERROR_STOP=1 -f "$f"
 done
-for f in db/migrations/00{09,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31}_*.sql; do
+for f in db/migrations/00{09,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34}_*.sql; do
   psql -v ON_ERROR_STOP=1 -f "$f"
 done
 # 0010 (الأنواع) يُطبَّق جملة‑جملة خارج معاملة — انظر db/README.md

@@ -17,6 +17,7 @@ import { updateBranchAction } from "@/app/manage/branch-actions";
  */
 
 type Shop = {
+  currency: string;
   shop_name: string;
   shop_phone: string;
   staff_drink_limit: number;
@@ -55,6 +56,7 @@ export default function SettingsEditor({
     setSaved(false);
     start(async () => {
       const r1 = await updateSettingsAction({
+        currency: s.currency.trim() || "د.ع",
         shop_name: s.shop_name,
         shop_phone: s.shop_phone,
         staff_drink_limit: Math.round(Number(s.staff_drink_limit) || 0),
@@ -97,6 +99,17 @@ export default function SettingsEditor({
           hint="يظهر أعلى الفاتورة المطبوعة."
         >
           <input className="field" value={s.shop_name} onChange={(e) => { setS({ ...s, shop_name: e.target.value }); setSaved(false); }} />
+        </Field>
+        <Field
+          label="رمز العملة"
+          hint="يظهر بعد كل مبلغ في الشاشة والفاتورة: «3,500 د.ع»."
+        >
+          <input
+            className="field"
+            value={s.currency}
+            onChange={(e) => { setS({ ...s, currency: e.target.value }); setSaved(false); }}
+            placeholder="د.ع"
+          />
         </Field>
         <Field label="هاتف المحل" hint="يظهر أسفل الفاتورة.">
           <input className="field nums" dir="ltr" value={s.shop_phone} onChange={(e) => { setS({ ...s, shop_phone: e.target.value }); setSaved(false); }} />
