@@ -38,6 +38,7 @@ export default function PosScreen({
   shift,
   canNoSale = false,
   canHandover = false,
+  canManage = false,
   pendingHandover = null,
 }: {
   catalog: CatalogProduct[];
@@ -53,6 +54,8 @@ export default function PosScreen({
   shift: { id: string; opening_float: number };
   canNoSale?: boolean;
   canHandover?: boolean;
+  /** يملك لوحة الإدارة — فله وحده منفذٌ إليها، وهو تحت «المزيد» لا في الشريط. */
+  canManage?: boolean;
   pendingHandover?: { id: string; from_name: string } | null;
 }) {
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -171,8 +174,10 @@ export default function PosScreen({
         )}
         <header className="topbar sticky top-0 z-10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* لا مخرج من الكاشير في الشريط الأعلى: ضغطةٌ بالغلط وسط بيعة
+                تُخرج الباريستا وتُفقد السلّة، وهو لا يعرف أين ذهبت. المنفذ
+                الوحيد للوحة الإدارة تحت «المزيد»، ولمن يملكها. */}
             <div className="flex items-center gap-3">
-              <Link href="/" className="tap chip border border-cream/20 bg-cream/5 text-cream/80">→ الرئيسية</Link>
               <h1 className="font-display text-lg font-bold text-cream">خزف <span className="text-sm font-normal text-cream/50">· {userName}</span></h1>
             </div>
             {/* ثلاثة عناصر لا عشرة: الشريط الأعلى أثمن مساحة في الشاشة،
@@ -343,6 +348,7 @@ export default function PosScreen({
           canHandover={canHandover}
           countedBy={countedBy}
           pinIsDefault={pinIsDefault}
+          canManage={canManage}
           onStaffDrink={() => { setMoreOpen(false); setStaffOpen(true); }}
           onClose={() => setMoreOpen(false)}
         />
@@ -388,6 +394,7 @@ function MoreSheet({
   canHandover,
   countedBy,
   pinIsDefault,
+  canManage,
   onStaffDrink,
   onClose,
 }: {
@@ -397,6 +404,7 @@ function MoreSheet({
   canHandover: boolean;
   countedBy: "barista" | "owner" | "none";
   pinIsDefault: boolean;
+  canManage: boolean;
   onStaffDrink: () => void;
   onClose: () => void;
 }) {
@@ -429,6 +437,11 @@ function MoreSheet({
           <button onClick={onStaffDrink} className="btn-ghost w-full py-4 text-right">
             مشروب موظف
           </button>
+          {canManage && (
+            <Link href="/manage" className="btn-ghost block w-full py-4 text-right">
+              لوحة الإدارة
+            </Link>
+          )}
         </div>
 
         <div className="mt-3 border-t border-line pt-3">

@@ -61,11 +61,12 @@ export default async function PosPage() {
   }
 
   // الصلاحيات تُقرَّر في الخادم؛ الواجهة تُخفي فقط، والفعل يُفحص ثانيةً (§66).
-  const [canNoSale, canHandover, pendingHandover, pinIsDefault] = await Promise.all([
+  const [canNoSale, canHandover, pendingHandover, pinIsDefault, canManage] = await Promise.all([
     can(user, "cash.no_sale_open"),
     can(user, "cash.handover"),
     pendingHandoverForMe(),
     myPinIsDefault(user.uid),
+    can(user, "reports.financial"),
   ]);
 
   return (
@@ -79,6 +80,7 @@ export default async function PosPage() {
       shift={{ id: shift.id, opening_float: shift.opening_float }}
       canNoSale={canNoSale}
       canHandover={canHandover}
+      canManage={canManage}
       pendingHandover={pendingHandover}
     />
   );
