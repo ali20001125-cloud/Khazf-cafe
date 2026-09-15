@@ -31,7 +31,7 @@ insert into recipe_items (recipe_id, material_id, qty, only_takeaway)
 values (:'rec', :'milk', 150, false);
 insert into recipe_items (recipe_id, material_id, qty, only_takeaway)
 select :'rec', id, 1, true from materials
-where business_id = :'biz' and name in ('كوب سفري','غطاء');
+where business_id = :'biz' and name in ('كوب ورقي','غطاء ورقي');
 
 insert into shifts (business_id,branch_id,employee_id,drawer_owner_id,opening_float,status)
 values (:'biz',:'branch',:'bar',:'bar',50000,'OPEN') returning id as shift \gset

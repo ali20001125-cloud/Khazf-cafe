@@ -197,11 +197,16 @@ export async function createProductAction(
     }
 
     if (input.takeawayCup) {
+      // البارد يُصبّ في بلاستك والساخن في ورق — والسيراميك لا يُخصم أصلاً
+      const [cupName, lidName] =
+        input.category === "cold"
+          ? ["كوب بلاستك", "غطاء بلاستك"]
+          : ["كوب ورقي", "غطاء ورقي"];
       await db()`
         insert into recipe_items (recipe_id, material_id, qty, only_takeaway)
         select ${recipeId}, id, 1, true
         from materials
-        where business_id = ${user.bid} and active and name in ('كوب سفري', 'غطاء')
+        where business_id = ${user.bid} and active and name in (${cupName}, ${lidName})
       `;
     }
 

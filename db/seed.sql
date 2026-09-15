@@ -69,8 +69,10 @@ cross join (values
   ('حبوب سيرادو',   'g',   1000, 30),
   ('حبوب كالدي',    'g',   1000, 30),
   ('حليب',          'ml',  3000,  2),
-  ('كوب سفري',      'pcs',   50, 250),
-  ('غطاء',          'pcs',   50, 100)
+  ('كوب ورقي',      'pcs',   50, 250),
+  ('غطاء ورقي',     'pcs',   50, 100),
+  ('كوب بلاستك',    'pcs',   50, 250),
+  ('غطاء بلاستك',   'pcs',   50, 100)
 ) as m(name, unit, low, cost);
 
 -- ── المشروبات ────────────────────────────────────────────────────────
@@ -144,10 +146,15 @@ join recipes  r on r.product_id = d.id and r.active
 join materials m on m.name = 'حليب';
 
 -- الكوب والغطاء لكل مشروب — للسفري فقط -------------------------------
+-- الجلوس يُقدَّم بالسيراميك، وهو لا يُستهلك فلا يُتابَع في المخزون.
+-- السفري يُستهلك: الساخن في ورق والبارد في بلاستك.
 insert into recipe_items (recipe_id, material_id, qty, only_takeaway)
 select r.id, m.id, 1, true
 from recipes r
-join materials m on m.name in ('كوب سفري', 'غطاء')
+join products p on p.id = r.product_id
+join materials m
+  on m.name in (case when p.category = 'cold' then 'كوب بلاستك' else 'كوب ورقي'  end,
+                case when p.category = 'cold' then 'غطاء بلاستك' else 'غطاء ورقي' end)
 where r.active;
 
 -- ── الإعدادات (على مستوى العمل — branch_id = null) ──────────────────
@@ -176,8 +183,10 @@ from (values
   ('حبوب سيرادو',   5000),
   ('حبوب كالدي',    5000),
   ('حليب',         12000),
-  ('كوب سفري',       300),
-  ('غطاء',           300)
+  ('كوب ورقي',       300),
+  ('غطاء ورقي',      300),
+  ('كوب بلاستك',     300),
+  ('غطاء بلاستك',    300)
 ) as v(name, qty)
 join materials m on m.name = v.name
 join branches  br on br.business_id = m.business_id

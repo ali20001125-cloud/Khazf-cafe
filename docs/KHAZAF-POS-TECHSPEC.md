@@ -80,7 +80,7 @@
 | `material_unit` | `g` · `ml` · `pcs` | |
 | `order_status` | `DRAFT` · `PENDING_PAYMENT` · `PAID` · `COMPLETED` · `VOIDED` · `REFUNDED` · `PARTIALLY_REFUNDED` · `CANCELLED` | الثلاثة الأخيرة أضافها 0010 |
 | `order_type` | `SALE` · `LOYALTY_REWARD` · `STAFF_DRINK` · `COMPLIMENTARY` | جديد (0012) |
-| `fulfillment_type` | `takeaway` · `dine_in` | يحكم خصم الكوب والغطاء |
+| `fulfillment_type` | `takeaway` · `dine_in` | يحكم خصم الكوب والغطاء. السفري يخصم كوباً وغطاءً — ورقيّاً للساخن وبلاستك للبارد — والجلوس لا يخصم شيئاً لأنه سيراميك يُغسل ويعود، فلا يُتابَع في المخزون |
 | `payment_method` | `cash` · `card` · `loyalty` | `loyalty` جديد (0010) — مبلغه 0 دائماً |
 | `payment_status` | `PENDING` · `CONFIRMED` · `FAILED` | |
 | `refund_status` | `PENDING` · `APPROVED` · `REJECTED` · `COMPLETED` | جديد (0012) |

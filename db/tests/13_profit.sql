@@ -54,11 +54,11 @@ group by type;
 
 \echo ''
 \echo '=== ٢. تكلفة فاتورة لاتيه سفري، محسوبة من الوصفة والأسعار ==='
--- لاتيه سفري = ١٨غ حبوب + ١٨٠مل حليب + كوب + غطاء، كلٌّ بسعره الفعلي
+-- لاتيه سفري = ١٨غ حبوب + ١٨٠مل حليب + كوب ورقي + غطاء ورقي، كلٌّ بسعره الفعلي
 select (select 18 * current_cost from materials where id = :'crop')
      + (select 180 * current_cost from materials where name='حليب' and business_id=:'biz')
-     + (select current_cost from materials where name='كوب سفري' and business_id=:'biz')
-     + (select current_cost from materials where name='غطاء' and business_id=:'biz')
+     + (select current_cost from materials where name='كوب ورقي' and business_id=:'biz')
+     + (select current_cost from materials where name='غطاء ورقي' and business_id=:'biz')
        as expected \gset
 select :expected as "المحسوب من الوصفة",
        (select c.cogs from v_order_cogs c

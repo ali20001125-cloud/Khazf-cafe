@@ -32,6 +32,7 @@ export default function NewProductDialog({
   const [name, setName] = useState("");
   const [coffeeGrams, setCoffeeGrams] = useState("18");
   const [milkMl, setMilkMl] = useState("0");
+  const [isCold, setIsCold] = useState(false);
   const [takeawayCup, setTakeawayCup] = useState(true);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export default function NewProductDialog({
     start(async () => {
       const r = await createProductAction({
         name: name.trim(),
-        category: "other",
+        category: isCold ? "cold" : "hot",
         coffeeGrams: Number(coffeeGrams) || 0,
         milkMl: Number(milkMl) || 0,
         takeawayCup,
@@ -203,6 +204,27 @@ export default function NewProductDialog({
                 onChange={(e) => setMilkMl(e.target.value)}
               />
             </Row>
+            <Row label="ساخن أم بارد؟">
+              <div className="flex gap-1.5">
+                {[
+                  { cold: false, label: "ساخن" },
+                  { cold: true, label: "بارد" },
+                ].map((o) => (
+                  <button
+                    key={o.label}
+                    type="button"
+                    onClick={() => setIsCold(o.cold)}
+                    className={`tap rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                      isCold === o.cold
+                        ? "bg-accent text-cream"
+                        : "bg-dark/5 text-muted"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </Row>
             <Row label="كوب وغطاء للسفري">
               <button
                 type="button"
@@ -220,7 +242,9 @@ export default function NewProductDialog({
             </Row>
           </div>
           <p className="mt-2 text-[11px] text-muted">
-            الكوب والغطاء يُخصمان للطلب السفري فقط، لا للجلوس.
+            {takeawayCup
+              ? `السفري يُخصم منه ${isCold ? "كوب وغطاء بلاستك" : "كوب وغطاء ورقي"}. الجلوس بالسيراميك، ولا يُخصم منه شيء.`
+              : "لن يُخصم كوب ولا غطاء عند البيع."}
           </p>
         </div>
 

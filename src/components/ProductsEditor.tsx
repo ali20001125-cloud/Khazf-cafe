@@ -328,7 +328,22 @@ function ProductCard({
           <div key={i.material_id} className="mt-2 flex items-center justify-between">
             <span className="text-sm text-ink">
               {i.name}
-              {i.only_takeaway && <span className="mr-1.5 text-[11px] text-muted">(سفري فقط)</span>}
+              {/* الكوب يُستهلك في السفري وحده — أمّا الجلوس فسيراميك يُغسل
+                  ويعود، فلا يُخصم مع كل مشروب. والعلامة تُبدَّل هنا لأن
+                  تخمينها من نوع المادة يُخطئ: قد يكون «حبّة» صنفاً يُستهلك
+                  دائماً، أو سائلاً لا يُقدَّم إلا سفرياً. */}
+              <button
+                onClick={() => {
+                  setRecipe((r) => r.map((x, k) => (k === idx ? { ...x, only_takeaway: !x.only_takeaway } : x)));
+                  setSaved(false);
+                }}
+                className={`mr-1.5 rounded-md px-1.5 py-0.5 text-[11px] ${
+                  i.only_takeaway ? "bg-accent/12 text-accentdeep" : "bg-dark/5 text-muted"
+                }`}
+                title="اضغط للتبديل"
+              >
+                {i.only_takeaway ? "سفري فقط" : "دائماً"}
+              </button>
             </span>
             <div className="flex items-center gap-1">
               <input
