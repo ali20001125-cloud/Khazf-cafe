@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { money, num, stockLabel, baseQtyLabel, unitLabel, drinksLabel } from "./format";
+import { money, num, stockLabel, baseQtyLabel, countAr, unitLabel, drinksLabel } from "./format";
 
 describe("money — أرقام إنجليزية بلا كسور", () => {
   it("يُنسّق بفواصل إنجليزية مع العملة", () => {
@@ -92,5 +92,26 @@ describe("baseQtyLabel — الرقم كما هو، ليُقاس عليه", () =
   it("يختلف عن stockLabel حيث يُقاس عليه", () => {
     expect(stockLabel(49980, "g")).toBe("50 كغ");
     expect(baseQtyLabel(49980, "g")).toBe("49,980 غ");
+  });
+});
+
+describe("countAr — الجمع العربي لا الترجمة الآليّة", () => {
+  it("واحد · اثنان · ٣-١٠ جمع · ١١+ مفرد منصوب", () => {
+    expect(countAr(1, "كوباً", "كوبين", "أكواب")).toBe("كوباً");
+    expect(countAr(2, "كوباً", "كوبين", "أكواب")).toBe("كوبين");
+    expect(countAr(6, "كوباً", "كوبين", "أكواب")).toBe("6 أكواب");
+    expect(countAr(20, "كوباً", "كوبين", "أكواب")).toBe("20 كوباً");
+  });
+
+  it("baseQtyLabel يجمع الحبّات صحيحاً", () => {
+    expect(baseQtyLabel(1, "pcs")).toBe("حبة");
+    expect(baseQtyLabel(3, "pcs")).toBe("3 حبات");
+    expect(baseQtyLabel(297, "pcs")).toBe("297 حبة");
+  });
+
+  it("drinksLabel لم يتغيّر سلوكه", () => {
+    expect(drinksLabel(1)).toBe("مشروب واحد");
+    expect(drinksLabel(5)).toBe("5 مشروبات");
+    expect(drinksLabel(26)).toBe("26 مشروباً");
   });
 });

@@ -51,6 +51,14 @@ export async function ordersForDay(branchId: string, day?: string): Promise<Orde
 
 export type OrderDetail = OrderRow & {
   items: { name: string; crop: string | null; qty: number; unit_price: number; is_free: boolean }[];
+  /**
+   * ما خصمته هذه الفاتورة من المخزون.
+   *
+   * قال المالك: «حتى أعرف شنو شرب وليش صار نقص». والنقص بلا فاتورته
+   * تخمين: مشروب الموظّف بصفر دينار لا يظهر في المبيعات، لكنه يظهر هنا
+   * — فيُفسَّر ما نقص بدل أن يُشَكَّ في أحد.
+   */
+  consumed: { material: string; unit: string; qty: number }[];
   voided: { reason: string; created_at: string; voided_by: string } | null;
   refunds: { amount: number; reason: string; created_at: string; requested_by: string; status: string }[];
 };
@@ -83,6 +91,15 @@ export async function orderDetail(branchId: string, orderId: string): Promise<Or
     order by oi.created_at
   `) as OrderDetail["items"];
 
+  const consumed = (await db()`
+    select m.name as material, m.base_unit::text as unit, sum(-t.qty_delta)::int as qty
+    from inventory_transactions t
+    join materials m on m.id = t.material_id
+    where t.order_id = ${orderId}
+    group by m.name, m.base_unit
+    order by m.base_unit, m.name
+  `) as OrderDetail["consumed"];
+
   const v = (await db()`
     select vo.reason, vo.created_at, u.name as voided_by
     from order_voids vo join users u on u.id = vo.voided_by
@@ -96,7 +113,7 @@ export async function orderDetail(branchId: string, orderId: string): Promise<Or
     order by r.created_at desc
   `) as OrderDetail["refunds"];
 
-  return { ...o, items, voided: v[0] ?? null, refunds };
+  return { ...o, items, consumed, voided: v[0] ?? null, refunds };
 }
 
 // ── لوحة الاستثناءات (§56) ───────────────────────────────────────────

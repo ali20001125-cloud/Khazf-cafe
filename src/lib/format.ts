@@ -51,7 +51,21 @@ export function stockLabel(qty: number, unit: string): string {
 export function baseQtyLabel(qty: number, unit: string): string {
   if (unit === "g") return `${num(qty)} غ`;
   if (unit === "ml") return `${num(qty)} مل`;
-  return `${num(qty)} ${unitLabel(unit)}`;
+  return countAr(qty, "حبة", "حبتان", "حبات");
+}
+
+/**
+ * العدد بجمعه العربي الصحيح.
+ *
+ * العربية تعدّ على أربعة وجوه — واحد · اثنان · ٣‑١٠ جمعٌ · ١١+ مفرد منصوب —
+ * و«6 كوباً» أو «3 حبة» تُقرأ كترجمةٍ آليّة فتُضعف الثقة بالرقم نفسه.
+ */
+export function countAr(n: number, one: string, two: string, few: string): string {
+  const k = Math.round(n);
+  if (k === 1) return one;
+  if (k === 2) return two;
+  if (k >= 3 && k <= 10) return `${num(k)} ${few}`;
+  return `${num(k)} ${one}`;
 }
 
 /**
@@ -64,8 +78,7 @@ export function drinksLabel(doses: number): string {
   if (n <= 0) return "أقلّ من مشروب";
   if (n === 1) return "مشروب واحد";
   if (n === 2) return "مشروبين";
-  if (n <= 10) return `${num(n)} مشروبات`;
-  return `${num(n)} مشروباً`;
+  return countAr(n, "مشروباً", "مشروبين", "مشروبات");
 }
 
 export function categoryLabel(c: string): string {

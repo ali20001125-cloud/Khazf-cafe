@@ -67,6 +67,10 @@ export default async function Overview() {
       href: "/manage/users",
     });
   }
+  // ورديات اليوم المحاسبي وحدها — والمعدودة منها هي التي لها فرقٌ يُقرأ
+  const todayShifts = shiftVars.filter((s) => s.business_day === glance.businessDay);
+  const countedShifts = todayShifts.filter((s) => s.variance != null);
+
   for (const s of shiftVars) {
     // `variance = null` تعني **لم تُعدّ بعد**، لا «طابقت». وبلا هذا الشرط
     // كانت تُقرأ «زيادة 0 د.ع» — وهو بالضبط الخلط الذي يمنعه النظام في
@@ -212,18 +216,71 @@ export default async function Overview() {
       </div>
 
       {/* حالة الدرج */}
-      {(glance.expectedCash > 0 || glance.actualCash > 0) && awaiting.length === 0 && (
+      {todayShifts.length > 0 && awaiting.length === 0 && (
         <section className="card p-5">
-          <h2 className="mb-3 font-display text-sm font-bold text-ink">درج اليوم</h2>
+          <h2 className="mb-1 font-display text-sm font-bold text-ink">درج اليوم</h2>
+          {/*
+            كان هنا «المتوقّع» و«المعدود» مجموعَين على الورديات، فتُحسب
+            الفكّة مرّةً عن كل وردية: ثلاث ورديات بفكّة ٥٠ ألفاً أنتجت
+            متوقّعاً ٢٤٠ ألفاً. والفكّة لا تُجمع — هي نفس الورقة تبقى في
+            الدرج وتنتقل للوردية التالية.
+            أمّا الفرق فيُجمع فعلاً: نقصُ وردية زائدَ نقص أخرى نقصُ اليوم.
+            فبقي الفرق وذهب المجموعان، ومكانهما ما يُجمع حقاً.
+          */}
+          <p className="mb-3 text-xs text-muted">
+            الفكّة تنتقل من وردية إلى وردية فلا تُجمع — والمقارنة تحصل داخل
+            كل وردية على حدة.
+          </p>
           <div className="grid grid-cols-3 gap-3">
-            <Mini label="المتوقّع" value={money(glance.expectedCash, currency)} />
-            <Mini label="المعدود" value={money(glance.actualCash, currency)} />
+            <Mini label="كاش المبيعات" value={money(glance.cash, currency)} />
             <Mini
-              label="الفرق"
-              value={`${glance.cashVariance > 0 ? "+" : ""}${money(glance.cashVariance, currency)}`}
-              tone={glance.cashVariance === 0 ? "good" : "bad"}
+              label="ورديات عُدَّت"
+              value={`${countedShifts.length} / ${todayShifts.length}`}
+            />
+            <Mini
+              label="فرق الدرج"
+              value={
+                countedShifts.length === 0
+                  ? "—"
+                  : `${glance.cashVariance > 0 ? "+" : ""}${money(glance.cashVariance, currency)}`
+              }
+              tone={
+                countedShifts.length === 0
+                  ? undefined
+                  : glance.cashVariance === 0
+                    ? "good"
+                    : "bad"
+              }
             />
           </div>
+          {countedShifts.length > 1 && (
+            <ul className="mt-3 divide-y divide-line border-t border-line pt-1">
+              {countedShifts.map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href={`/manage/shifts/${s.id}`}
+                    className="flex items-center justify-between py-2 text-sm hover:text-accentdeep"
+                  >
+                    {/* الاسم وحده لا يميّز ورديتين لنفس الباريستا في يومٍ واحد */}
+                    <span className="text-muted">
+                      {s.employee_name}
+                      <span className="nums mr-1.5 text-xs text-muted/70">
+                        {timeAr(s.opened_at).slice(-5)}–{timeAr(s.closed_at).slice(-5)}
+                      </span>
+                    </span>
+                    <span
+                      className={`nums font-semibold ${
+                        s.variance === 0 ? "text-emerald-700" : "text-red-600"
+                      }`}
+                    >
+                      {s.variance! > 0 ? "+" : ""}
+                      {money(s.variance!, currency)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 

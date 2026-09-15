@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { money, num, stockLabel, baseQtyLabel } from "@/lib/format";
+import { money, countAr, stockLabel, baseQtyLabel } from "@/lib/format";
 import { inputUnit, costUnit, toBase, costToBase } from "@/lib/labels";
 import { addStockAction, addStockByUnitAction, stockCountAction } from "@/app/manage/actions";
 import type { CountResult, CountSheetRow } from "@/lib/inventory";
@@ -392,7 +392,7 @@ function StockCount({
   return (
     <Modal title="جرد المخزون" onClose={onClose}>
       <p className="mb-4 rounded-xl bg-sand p-3 text-xs text-muted">
-        اعدد الموجود فعلاً واكتبه <span className="font-semibold text-ink">بالغرام</span>
+        اعدد الموجود فعلاً واكتبه <span className="font-semibold text-ink">بالغرام</span>{" "}
         (٥ كيلو = ٥٠٠٠). النظام يقارنه بالمتوقّع ويسجّل الفرق ثم يسوّي الرصيد.
         اترك المادة فارغة إن لم تعدّها.
       </p>
@@ -417,7 +417,7 @@ function StockCount({
                   if (r.sold > 0)
                     parts.push(
                       r.cups > 0
-                        ? `بعتَ ${num(r.cups)} كوباً (${baseQtyLabel(r.sold, m.base_unit)})`
+                        ? `بعتَ ${countAr(r.cups, "كوباً", "كوبين", "أكواب")} (${baseQtyLabel(r.sold, m.base_unit)})`
                         : `بيعاً ${baseQtyLabel(r.sold, m.base_unit)}`
                     );
                   if (r.wasted > 0) parts.push(`هدراً ${baseQtyLabel(r.wasted, m.base_unit)}`);

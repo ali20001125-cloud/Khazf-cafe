@@ -6,6 +6,7 @@ import { requirePermission, AuthError } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import { verifyOwnerPin } from "@/lib/approvals";
+import { orderDetail, type OrderDetail } from "@/lib/orders-admin";
 
 /**
  * الإلغاء والإرجاع (المواصفة §49 · §50).
@@ -157,4 +158,30 @@ export async function refundOrder(input: RefundInput): Promise<ActionResult> {
       return { ok: false, error: "هذا الإرجاع مسجَّل بالفعل" };
     return { ok: false, error: msg.replace(/^.*?:\s*/, "") };
   }
+}
+
+// ── فتح الفاتورة ────────────────────────────────────────────────────
+/**
+ * تفاصيل فاتورة واحدة — للعرض لا للتعديل.
+ *
+ * شاشة الطلبات كانت تعرض الرقم والمبلغ والحالة فقط، فلا يُعرف **ما بيع**.
+ * ومشروب الموظّف أوضح مثال: صفر دينار في المبيعات، لكنه نقصٌ حقيقي في
+ * المخزون. من لا يفتح فاتورته يرى نقصاً بلا سبب، فيشكّ في باريستا أمين.
+ */
+export async function orderDetailAction(
+  orderId: string
+): Promise<{ ok: true; order: OrderDetail } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("orders.view_all");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+  const branch = await getActiveBranch(user.bid);
+  if (!branch) return { ok: false, error: "لا يوجد فرع فعّال" };
+
+  const order = await orderDetail(branch.id, orderId);
+  if (!order) return { ok: false, error: "فاتورة غير موجودة" };
+  return { ok: true, order };
 }

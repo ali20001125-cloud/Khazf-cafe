@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { money, timeAr } from "@/lib/format";
 import type { OrderRow } from "@/lib/orders-admin";
 import OrderActionsDialog, { statusAr } from "@/components/OrderActionsDialog";
+import OrderReceiptDialog from "@/components/OrderReceiptDialog";
 
 const TYPE_AR: Record<string, string> = {
   SALE: "بيع",
@@ -21,6 +22,9 @@ export default function OrdersTable({
   currency: string;
 }) {
   const [selected, setSelected] = useState<OrderRow | null>(null);
+  // فتح الفاتورة متاحٌ لكل صفّ، حتى الملغاة ومشروب الموظّف: السؤال
+  // «ما الذي نقص ولماذا» يخصّها هي قبل غيرها.
+  const [receipt, setReceipt] = useState<OrderRow | null>(null);
   const router = useRouter();
 
   if (orders.length === 0) {
@@ -47,7 +51,14 @@ export default function OrdersTable({
               const dim = ["VOIDED", "CANCELLED"].includes(o.status);
               return (
                 <tr key={o.id} className={`border-b border-line/60 ${dim ? "opacity-50" : ""}`}>
-                  <td className="nums p-3 font-semibold text-ink">{o.order_number}</td>
+                  <td className="p-3">
+                    <button
+                      onClick={() => setReceipt(o)}
+                      className="nums font-semibold text-accentdeep underline underline-offset-2"
+                    >
+                      {o.order_number}
+                    </button>
+                  </td>
                   <td className="nums p-3 text-muted">{timeAr(o.created_at)}</td>
                   <td className="p-3 text-muted">{TYPE_AR[o.order_type] ?? o.order_type}</td>
                   <td className="p-3 text-muted">{o.employee_name}</td>
@@ -71,14 +82,22 @@ export default function OrdersTable({
                     </span>
                   </td>
                   <td className="p-3 text-left">
-                    {o.order_type === "SALE" && !["VOIDED", "CANCELLED"].includes(o.status) && (
+                    <div className="flex justify-end gap-3">
                       <button
-                        onClick={() => setSelected(o)}
-                        className="text-xs font-medium text-accent underline"
+                        onClick={() => setReceipt(o)}
+                        className="text-xs font-medium text-muted underline"
                       >
-                        إجراء
+                        الفاتورة
                       </button>
-                    )}
+                      {o.order_type === "SALE" && !["VOIDED", "CANCELLED"].includes(o.status) && (
+                        <button
+                          onClick={() => setSelected(o)}
+                          className="text-xs font-medium text-accent underline"
+                        >
+                          إجراء
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -86,6 +105,14 @@ export default function OrdersTable({
           </tbody>
         </table>
       </div>
+
+      {receipt && (
+        <OrderReceiptDialog
+          orderId={receipt.id}
+          currency={currency}
+          onClose={() => setReceipt(null)}
+        />
+      )}
 
       {selected && (
         <OrderActionsDialog

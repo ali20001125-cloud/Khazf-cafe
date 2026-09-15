@@ -162,7 +162,7 @@ insert into settings (business_id, key, value, note)
 select bs.id, s.key, s.val::jsonb, s.note
 from businesses bs
 cross join (values
-  ('currency',                '"IQD"',                  'العملة'),
+  ('currency',                '"د.ع"',                   'العملة'),
   ('shop_name',               '"مقهى خزف"',              'اسم المحل على الفاتورة'),
   ('shop_phone',              '""',                      'هاتف المحل على الفاتورة'),
   ('staff_drink_limit',       '1',                       'مشروبات الموظف المجانية باليوم قبل الموافقة'),
