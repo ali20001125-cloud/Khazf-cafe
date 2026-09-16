@@ -39,8 +39,12 @@ export default async function Home() {
         <div className="mx-auto flex max-w-lg items-start justify-between">
           <div>
             <div className="font-display text-2xl font-bold text-cream">خزف</div>
+            {/* «المالك · المالك» حين يكون الاسم هو الدور — تكرارٌ يبدو خللاً */}
             <p className="mt-0.5 text-sm text-cream/60">
-              {user.name} · {isOwner ? "المالك" : "باريستا"}
+              {user.name}
+              {user.name !== (isOwner ? "المالك" : "باريستا") && (
+                <> · {isOwner ? "المالك" : "باريستا"}</>
+              )}
             </p>
           </div>
           <form action={logoutAction}>

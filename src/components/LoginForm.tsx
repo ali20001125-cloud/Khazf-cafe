@@ -4,33 +4,35 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { loginAction } from "@/app/login/actions";
 
-type LoginUser = { id: string; name: string; role: "owner" | "barista" };
-
-export default function LoginForm({ users }: { users: LoginUser[] }) {
+/**
+ * الدخول بالرمز وحده.
+ *
+ * كانت الشاشة تعرض قائمة الأسماء وأدوارها. فمن أمسك الجهاز عرف أنّ ثمّة
+ * حساب مالك وما اسمه — نصف الاقتحام معرفةُ الباب. والباريستا كان يقرأ
+ * كل صباح أنّ فوقه حساباً رمزُه هو نفسه رمز الموافقة على الإلغاء.
+ *
+ * والرموز فريدة، فالرمز وحده يعرّف صاحبه. ولا إرسال تلقائيّ عند الرقم
+ * الرابع: الرموز قد تكون أربعةً أو ستّة، وإرسالٌ يخمّن الطول يُنتج
+ * خطأً كاذباً لمن رمزه أطول — فزرّ «دخول» يحسم.
+ */
+export default function LoginForm() {
   const router = useRouter();
-  const [sel, setSel] = useState<LoginUser | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  function pick(u: LoginUser) {
-    setSel(u);
-    setPin("");
-    setError(null);
-  }
-
-  function submit(finalPin: string) {
-    if (!sel || pending) return;
+  function submit() {
+    if (pending || pin.length < 4) return;
     start(async () => {
-      const res = await loginAction(sel.id, finalPin);
+      const res = await loginAction(pin);
       if (res.ok) {
         router.replace("/");
         router.refresh();
         return;
       }
-      if (res.reason === "locked") setError(`الحساب مقفل مؤقتاً — حاول بعد ${res.minutes} دقيقة`);
+      if (res.reason === "locked") setError(`محاولات كثيرة — انتظر ${res.minutes} دقيقة`);
       else if (res.reason === "bad_pin") setError(`رمز غير صحيح — تبقّى ${res.remaining} محاولة`);
-      else setError("تعذّر الدخول");
+      else setError("رمز غير صحيح");
       setPin("");
     });
   }
@@ -38,46 +40,15 @@ export default function LoginForm({ users }: { users: LoginUser[] }) {
   function press(d: string) {
     if (pending) return;
     setError(null);
-    const next = (pin + d).slice(0, 6);
-    setPin(next);
-    if (next.length === 4) submit(next);
+    setPin((p) => (p + d).slice(0, 6));
   }
 
-  // اختيار المستخدم
-  if (!sel) {
-    return (
-      <div className="space-y-3">
-        {users.map((u) => (
-          <button
-            key={u.id}
-            onClick={() => pick(u)}
-            className="tap flex w-full items-center justify-between rounded-xl2 border border-line bg-sand/60 px-5 py-4 text-right hover:border-accent/40"
-          >
-            <span className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/12 font-display text-lg font-bold text-accent">
-                {u.name.slice(0, 1)}
-              </span>
-              <span className="font-display text-lg font-bold text-ink">{u.name}</span>
-            </span>
-            <span className="chip bg-dark/5 text-muted">{u.role === "owner" ? "المالك" : "باريستا"}</span>
-          </button>
-        ))}
-        {users.length === 0 && <p className="text-center text-sm text-muted">لا يوجد مستخدمون نشطون</p>}
-      </div>
-    );
-  }
-
-  // إدخال الرمز
   const pad = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
   return (
     <div>
-      <button onClick={() => setSel(null)} className="mb-4 text-sm text-muted" disabled={pending}>
-        ← تغيير المستخدم
-      </button>
-
-      <div className="mb-1 text-center font-display text-xl font-bold text-ink">{sel.name}</div>
-
-      <div className="mb-5 mt-4 flex justify-center gap-2.5" dir="ltr">
+      {/* النقاط تنمو مع الرمز ولا تُفشي طوله قبل أن يُكتب */}
+      <div className="mb-5 flex justify-center gap-2.5" dir="ltr">
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <span
             key={i}
@@ -88,24 +59,45 @@ export default function LoginForm({ users }: { users: LoginUser[] }) {
         ))}
       </div>
 
-      <div className={`mb-4 h-5 text-center text-sm ${error ? "text-red-600" : "text-transparent"}`}>
+      <div
+        className={`mb-4 min-h-[1.25rem] text-center text-sm ${error ? "text-red-600" : "text-transparent"}`}
+        role="status"
+        aria-live="polite"
+      >
         {error ?? "."}
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 nums" dir="ltr">
+      <div className="nums grid grid-cols-3 gap-2.5" dir="ltr">
         {pad.map((d) => (
-          <button key={d} onClick={() => press(d)} disabled={pending} className="tap rounded-xl2 border border-line bg-sand/60 py-5 font-display text-2xl font-bold text-ink hover:border-accent/40 disabled:opacity-50">
+          <button
+            key={d}
+            onClick={() => press(d)}
+            disabled={pending}
+            className="tap rounded-xl2 border border-line bg-sand/60 py-5 font-display text-2xl font-bold text-ink hover:border-accent/40 disabled:opacity-50"
+          >
             {d}
           </button>
         ))}
-        <button onClick={() => setPin("")} disabled={pending} className="tap rounded-xl2 bg-transparent py-5 text-sm text-muted disabled:opacity-50">
+        <button
+          onClick={() => { setPin(""); setError(null); }}
+          disabled={pending || pin.length === 0}
+          className="tap rounded-xl2 py-5 text-sm text-muted disabled:opacity-30"
+        >
           مسح
         </button>
-        <button onClick={() => press("0")} disabled={pending} className="tap rounded-xl2 border border-line bg-sand/60 py-5 font-display text-2xl font-bold text-ink hover:border-accent/40 disabled:opacity-50">
+        <button
+          onClick={() => press("0")}
+          disabled={pending}
+          className="tap rounded-xl2 border border-line bg-sand/60 py-5 font-display text-2xl font-bold text-ink hover:border-accent/40 disabled:opacity-50"
+        >
           0
         </button>
-        <button onClick={() => pin.length >= 4 && submit(pin)} disabled={pending || pin.length < 4} className="btn-primary py-5 text-lg">
-          {pending ? "..." : "دخول"}
+        <button
+          onClick={submit}
+          disabled={pending || pin.length < 4}
+          className="btn-primary py-5 text-lg disabled:opacity-40"
+        >
+          {pending ? "…" : "دخول"}
         </button>
       </div>
     </div>
