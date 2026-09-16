@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { money, countAr, stockLabel, baseQtyLabel } from "@/lib/format";
+import { money, num, countAr, stockLabel, baseQtyLabel } from "@/lib/format";
 import { inputUnit, costUnit, toBase, costToBase } from "@/lib/labels";
 import { addStockAction, addStockByUnitAction, stockCountAction } from "@/app/manage/actions";
 import type { CountResult, CountSheetRow } from "@/lib/inventory";
@@ -23,11 +23,14 @@ export default function InventoryActions({
   reasons = [],
   currency,
   sheet = [],
+  hopper = {},
 }: {
   materials: M[];
   currency: string;
   /** سند المتوقّع لكل مادة — ما تحرّك منذ آخر عدّة (هجرة 0037). */
   sheet?: CountSheetRow[];
+  /** العالق في المطحنة لكل مادة — تذكيرٌ عند العدّ (هجرة 0038). */
+  hopper?: Record<string, number>;
   /** وحدات الشراء — الشراء بها بدل الوحدة الأساس (هجرة 0028). */
   units?: { id: string; material_id: string; name: string; base_qty: number; is_default: boolean }[];
   reasons?: { key: string; label: string }[];
@@ -47,7 +50,7 @@ export default function InventoryActions({
         <AddStock materials={materials} currency={currency} units={units} onClose={() => setMode(null)} />
       )}
       {mode === "count" && (
-        <StockCount materials={materials} sheet={sheet} onClose={() => setMode(null)} />
+        <StockCount materials={materials} sheet={sheet} hopper={hopper} onClose={() => setMode(null)} />
       )}
     </div>
   );
@@ -149,8 +152,8 @@ function AddStock({
         ٥ كيلو تعني ٥٠٠٠.
       </p>
 
-      <label className="mb-1.5 block text-sm font-semibold text-ink">المادة</label>
-      <select className="field mb-4" value={id} onChange={(e) => { setId(e.target.value); setError(null); }}>
+      <label htmlFor="add-mat" className="mb-1.5 block text-sm font-semibold text-ink">المادة</label>
+      <select id="add-mat" className="field mb-4" value={id} onChange={(e) => { setId(e.target.value); setError(null); }}>
         <option value="">— اختر —</option>
         {materials.map((x) => (
           <option key={x.id} value={x.id}>
@@ -239,10 +242,12 @@ function AddStock({
 function StockCount({
   materials,
   sheet,
+  hopper,
   onClose,
 }: {
   materials: M[];
   sheet: CountSheetRow[];
+  hopper: Record<string, number>;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -430,6 +435,16 @@ function StockCount({
                     </span>
                   );
                 })()}
+                {/*
+                  تذكيرٌ لا إضافة: الرصيد يشمل العالق في المطحنة — دُفع
+                  ثمنه وهو موجود — فمن يزن ما يُسكب وحده ينقص عدّه بمقداره
+                  كل مرّة. والنظام يذكّر ولا يجمع، فالمالك قال «أجمعه».
+                */}
+                {(hopper[m.id] ?? 0) > 0 && (
+                  <span className="nums block text-[11px] font-medium text-amber-700">
+                    + {num(hopper[m.id])} غ عالقة بالمطحنة — اجمعها على ما تزنه
+                  </span>
+                )}
               </span>
               <input
                 type="number"

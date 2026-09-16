@@ -21,8 +21,19 @@ export default function Modal({
       >
         <div className="mb-5 flex items-center justify-between">
           <h3 className="font-display text-lg font-bold text-ink">{title}</h3>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-dark/5 text-muted">
-            ✕
+          {/*
+            زرّ الإغلاق في كل نافذة في النظام. كان ٣٢ بكسل — وهو المخرج
+            الوحيد لمن فتح نافذةً بالخطأ، فتصغيره يحبس المستخدم فيها.
+            والدائرة الملوّنة تبقى ٣٢ ليبقى الشكل، ومساحة اللمس ٤٤.
+          */}
+          <button
+            onClick={onClose}
+            aria-label="إغلاق"
+            className="tap -m-1.5 flex h-11 w-11 items-center justify-center p-1.5"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dark/5 text-muted">
+              ✕
+            </span>
           </button>
         </div>
         {children}

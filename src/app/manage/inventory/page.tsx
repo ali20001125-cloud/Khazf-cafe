@@ -8,7 +8,7 @@ import {
   materialOverview, materialUnits, wasteReasons, wasteByReason, shoppingList,
   type MaterialOverview,
 } from "@/lib/inventory-overview";
-import { listPurchases, listWasteLog, listCounts, countSheet } from "@/lib/inventory";
+import { listPurchases, listWasteLog, listCounts, countSheet, hopperGrams } from "@/lib/inventory";
 import { money, stockLabel } from "@/lib/format";
 import InventoryActions from "@/components/InventoryActions";
 import InventorySettings from "@/components/InventorySettings";
@@ -34,7 +34,7 @@ export default async function InventoryPage() {
   const branch = await getActiveBranch(user.bid);
   if (!branch) return <p className="card p-8 text-center text-red-600">لا يوجد فرع فعّال.</p>;
 
-  const [items, settings, purchases, waste, counts, units, reasons, byReason, shopping, sheet] =
+  const [items, settings, purchases, waste, counts, units, reasons, byReason, shopping, sheet, hopper] =
     await Promise.all([
       materialOverview(user.bid, 30),
       getSettings(),
@@ -46,6 +46,7 @@ export default async function InventoryPage() {
       wasteByReason(branch.id, 30),
       shoppingList(user.bid, 14),
       countSheet(branch.id),
+      hopperGrams(user.bid),
     ]);
   const currency = strSetting(settings, "currency", "د.ع");
 
@@ -73,7 +74,7 @@ export default async function InventoryPage() {
           <InventoryActions materials={items.map((m) => ({
             id: m.id, name: m.name, base_unit: m.base_unit, stock: m.stock,
           }))} currency={currency} units={units} reasons={reasons.filter((r) => r.active)}
-            sheet={sheet} />
+            sheet={sheet} hopper={hopper} />
         </div>
       </div>
 
@@ -199,6 +200,7 @@ export default async function InventoryPage() {
           id: m.id, name: m.name, base_unit: m.base_unit, stock: m.stock,
           low_threshold: m.low_threshold,
           par_level: shopping.find((r) => r.material_id === m.id)?.par_level ?? 0,
+          hopper_grams: hopper[m.id] ?? 0,
         }))}
         units={units}
         reasons={reasons}

@@ -9,11 +9,17 @@ import {
   addMaterialUnitAction,
   removeMaterialUnitAction,
   setParLevelAction,
+  setHopperGramsAction,
   addWasteReasonAction,
   setWasteReasonActiveAction,
 } from "@/app/manage/actions";
 
-type Mat = { id: string; name: string; base_unit: string; stock: number; low_threshold: number; par_level: number };
+type Mat = {
+  id: string; name: string; base_unit: string; stock: number;
+  low_threshold: number; par_level: number;
+  /** ما يبقى عالقاً في المطحنة ولا يُسكب (هجرة 0038). */
+  hopper_grams: number;
+};
 
 /**
  * إعدادات المخزون: وحدات الشراء · المطلوب بعد الشراء · أسباب الهدر.
@@ -33,6 +39,7 @@ export default function InventorySettings({
   const [open, setOpen] = useState(false);
   const [unitFor, setUnitFor] = useState<Mat | null>(null);
   const [parFor, setParFor] = useState<Mat | null>(null);
+  const [hopperFor, setHopperFor] = useState<Mat | null>(null);
   const [newReason, setNewReason] = useState("");
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -106,6 +113,13 @@ export default function InventorySettings({
                         </span>
                       )}
                     </p>
+                    {/* العالق في المطحنة يخصّ الحبوب وحدها — لا الحليب ولا الأكواب */}
+                    {m.base_unit === "g" && m.hopper_grams > 0 && (
+                      <p className="nums mt-0.5 text-xs text-muted">
+                        عالق في المطحنة:{" "}
+                        <span className="font-semibold text-ink">{num(m.hopper_grams)} غ</span>
+                      </p>
+                    )}
                     <p className="mt-0.5 text-xs text-muted">
                       {us.length > 0 ? "تشتريها بـ:" : (
                         <span className="text-amber-700">
@@ -143,6 +157,11 @@ export default function InventorySettings({
                     <button onClick={() => setParFor(m)} className="btn-ghost whitespace-nowrap px-3 py-2 text-xs">
                       كم يبقى؟
                     </button>
+                    {m.base_unit === "g" && (
+                      <button onClick={() => setHopperFor(m)} className="btn-ghost whitespace-nowrap px-3 py-2 text-xs">
+                        عالق بالمطحنة
+                      </button>
+                    )}
                   </div>
                 </div>
               </li>
@@ -221,6 +240,7 @@ export default function InventorySettings({
 
       {unitFor && <UnitDialog mat={unitFor} onClose={() => setUnitFor(null)} onDone={() => { setUnitFor(null); refresh(); }} />}
       {parFor && <ParDialog mat={parFor} onClose={() => setParFor(null)} onDone={() => { setParFor(null); refresh(); }} />}
+      {hopperFor && <HopperDialog mat={hopperFor} onClose={() => setHopperFor(null)} onDone={() => { setHopperFor(null); refresh(); }} />}
     </div>
   );
 }
@@ -253,8 +273,14 @@ function UnitDialog({ mat, onClose, onDone }: { mat: Mat; onClose: () => void; o
             placeholder="12000" value={qty}
             onChange={(e) => { setQty(e.target.value.replace(/\D/g, "")); setError(null); }} />
         </div>
-        <label className="flex items-center gap-2 text-sm text-ink">
-          <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
+        {/* صندوقٌ افتراضيّ ارتفاعه ١٣ بكسل لا يُلمس — والسطر كلّه يقصده */}
+        <label className="tap flex min-h-[44px] cursor-pointer items-center gap-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={isDefault}
+            onChange={(e) => setIsDefault(e.target.checked)}
+            className="h-5 w-5 shrink-0 accent-[#A66A4C]"
+          />
           الوحدة المعتادة لشراء هذه المادة
         </label>
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
@@ -310,6 +336,64 @@ function ParDialog({ mat, onClose, onDone }: { mat: Mat; onClose: () => void; on
               setError(null);
               start(async () => {
                 const r = await setParLevelAction(mat.id, Number(val || 0));
+                if (!r.ok) return setError(r.error);
+                onDone();
+              });
+            }}
+            disabled={pending}
+            className="btn-primary py-3 disabled:opacity-40"
+          >
+            {pending ? "…" : "حفظ"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * البنّ العالق في المطحنة.
+ *
+ * يُقاس مرّةً — أوّل تعبئة — ويُضاف بعدها لكل عدّة. ولا يضيفه النظام:
+ * المالك قال «أجمعه»، فالجمع بيده والنظام يذكّر. وما يُفترض عن المستخدم
+ * يُحسب مرّتين يوماً ما.
+ */
+function HopperDialog({ mat, onClose, onDone }: { mat: Mat; onClose: () => void; onDone: () => void }) {
+  const [val, setVal] = useState(String(mat.hopper_grams || ""));
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  return (
+    <Modal title={`العالق في مطحنة ${mat.name}`} onClose={onClose}>
+      <div className="space-y-4">
+        <p className="rounded-xl bg-sand p-3 text-xs leading-relaxed text-muted">
+          البنّ الذي يبقى في المطحنة ولا يُسكب. قِسه{" "}
+          <span className="font-semibold text-ink">مرّةً واحدة</span> أوّل ما تعبّئ،
+          واتركه — سيظهر لك في شاشة الجرد لتجمعه على ما تزنه.
+        </p>
+        <div>
+          <label htmlFor="hg" className="mb-1.5 block text-sm font-semibold text-ink">
+            بالغرام
+          </label>
+          <input
+            id="hg"
+            className="field nums text-center text-lg"
+            inputMode="numeric"
+            dir="ltr"
+            placeholder="150"
+            value={val}
+            onChange={(e) => { setVal(e.target.value.replace(/\D/g, "")); setError(null); }}
+          />
+          <p className="mt-1 text-xs text-muted">صفر = لا تذكّرني بشيء.</p>
+        </div>
+        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={onClose} className="btn-ghost py-3">إلغاء</button>
+          <button
+            onClick={() => {
+              setError(null);
+              start(async () => {
+                const r = await setHopperGramsAction(mat.id, Number(val || 0));
                 if (!r.ok) return setError(r.error);
                 onDone();
               });

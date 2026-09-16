@@ -170,6 +170,30 @@ export const setParLevelAction = guard(
   }
 );
 
+/**
+ * البنّ العالق في المطحنة — يُقاس مرّةً ويُذكَّر به عند كل جرد.
+ *
+ * لا يُضاف تلقائياً إلى المعدود: النظام يذكّر ولا يفترض، وما يُفترض عن
+ * المستخدم يُحسب مرّتين يوماً ما.
+ */
+export const setHopperGramsAction = guard(
+  "inventory.adjust",
+  async (u, materialId: string, grams: number) => {
+    if (!Number.isFinite(grams) || grams < 0)
+      return { ok: false as const, error: "رقم غير صالح" };
+    const g = Math.round(grams);
+    const rows = (await db()`
+      update materials set hopper_grams = ${g}
+      where id = ${materialId} and business_id = ${u.bid}
+      returning name
+    `) as { name: string }[];
+    if (rows.length === 0) return { ok: false as const, error: "مادة غير موجودة" };
+    await audit(u.bid, await branchOrNull(u.bid), u.uid, "hopper_grams_set",
+                `${rows[0].name}: عالق في المطحنة ${g} غ`);
+    return { ok: true as const };
+  }
+);
+
 // ── أسباب الهدر ──────────────────────────────────────────────────────
 export const addWasteReasonAction = guard(
   "settings.manage",

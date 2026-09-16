@@ -118,7 +118,7 @@ export default function NewProductDialog({
                   <button
                     type="button"
                     onClick={() => toggleCrop(c.id)}
-                    className="flex w-full items-center gap-3 text-right"
+                    className="tap flex min-h-[44px] w-full items-center gap-3 text-right"
                   >
                     <span
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${
@@ -138,6 +138,7 @@ export default function NewProductDialog({
                         inputMode="numeric"
                         dir="ltr"
                         placeholder="السعر"
+                        aria-label={`سعر ${c.name}`}
                         className="field nums w-32 text-center"
                         value={picked[c.id]}
                         onChange={(e) => {
@@ -158,6 +159,7 @@ export default function NewProductDialog({
               <input
                 className="field flex-1"
                 placeholder="اسم المحصول الجديد"
+                aria-label="اسم المحصول الجديد"
                 value={newCrop}
                 onChange={(e) => setNewCrop(e.target.value)}
               />
@@ -169,7 +171,7 @@ export default function NewProductDialog({
             <button
               type="button"
               onClick={() => setAddingCrop(true)}
-              className="mt-2 text-sm text-accent underline"
+              className="navlink mt-1 text-sm text-accent underline"
             >
               + محصول جديد
             </button>
@@ -184,8 +186,9 @@ export default function NewProductDialog({
           </p>
 
           <div className="space-y-3">
-            <Row label="حبوب القهوة (غرام)">
+            <Row label="حبوب القهوة (غرام)" htmlFor="np-grams">
               <input
+                id="np-grams"
                 type="number"
                 inputMode="numeric"
                 dir="ltr"
@@ -194,8 +197,9 @@ export default function NewProductDialog({
                 onChange={(e) => setCoffeeGrams(e.target.value)}
               />
             </Row>
-            <Row label="الحليب (مل)">
+            <Row label="الحليب (مل)" htmlFor="np-milk">
               <input
+                id="np-milk"
                 type="number"
                 inputMode="numeric"
                 dir="ltr"
@@ -214,7 +218,7 @@ export default function NewProductDialog({
                     key={o.label}
                     type="button"
                     onClick={() => setIsCold(o.cold)}
-                    className={`tap rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                    className={`tap flex min-h-[44px] items-center rounded-xl px-5 text-sm font-semibold ${
                       isCold === o.cold
                         ? "bg-accent text-cream"
                         : "bg-dark/5 text-muted"
@@ -229,13 +233,16 @@ export default function NewProductDialog({
               <button
                 type="button"
                 onClick={() => setTakeawayCup((v) => !v)}
-                className={`tap flex h-8 w-14 items-center rounded-full p-1 transition-colors ${
+                role="switch"
+                aria-checked={takeawayCup}
+                aria-label="كوب وغطاء للسفري"
+                className={`tap flex h-11 w-16 shrink-0 items-center rounded-full p-1.5 transition-colors ${
                   takeawayCup ? "bg-accent" : "bg-dark/15"
                 }`}
               >
                 <span
-                  className={`h-6 w-6 rounded-full bg-cream transition-transform ${
-                    takeawayCup ? "-translate-x-6" : ""
+                  className={`h-8 w-8 rounded-full bg-cream shadow transition-transform ${
+                    takeawayCup ? "-translate-x-5" : ""
                   }`}
                 />
               </button>
@@ -258,10 +265,31 @@ export default function NewProductDialog({
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * سطر «تسمية + حقل».
+ *
+ * `htmlFor` ليست زينة: نصٌّ يجاور خانةً ليس تسميةً لها — لا يقرؤه قارئ
+ * الشاشة معها، ولا يُركّز الخانة عند لمسه. وربطه يفعل الاثنين، ويكبّر
+ * هدف اللمس مجّاناً إذ يصير النصّ نفسه مساحةً تُضغط.
+ */
+function Row({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-ink">{label}</span>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="flex-1 cursor-pointer py-2 text-sm text-ink">
+          {label}
+        </label>
+      ) : (
+        <span className="text-sm text-ink">{label}</span>
+      )}
       {children}
     </div>
   );

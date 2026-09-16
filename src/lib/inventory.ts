@@ -112,6 +112,21 @@ export async function countSheet(branchId: string): Promise<CountSheetRow[]> {
   }));
 }
 
+/**
+ * ما يبقى عالقاً في المطحنة لكل مادة (هجرة 0038).
+ *
+ * استعلامٌ صغير مستقلّ بدل توسيع `material_overview()`: تلك دالّةٌ تُرجع
+ * جدولاً، وتغييرُ شكلها يستلزم إسقاطها وإعادة بنائها على قاعدةٍ حيّة —
+ * ثمنٌ باهظ لحقلٍ واحد.
+ */
+export async function hopperGrams(businessId: string): Promise<Record<string, number>> {
+  const rows = (await db()`
+    select id, hopper_grams from materials
+    where business_id = ${businessId} and active and hopper_grams > 0
+  `) as { id: string; hopper_grams: number }[];
+  return Object.fromEntries(rows.map((r) => [r.id, Number(r.hopper_grams)]));
+}
+
 export type CountItem = { material_id: string; counted: number };
 export type CountResult = {
   count_id: string;
