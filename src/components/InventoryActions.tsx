@@ -261,6 +261,15 @@ function StockCount({
   const rowOf = (id: string) => sheet.find((r) => r.material_id === id);
 
   /**
+   * المعدود النهائي = ما وُزن + ما لا يدخل الميزان أبداً.
+   *
+   * تُستعمل في الإرسال والحارس معاً: حسابان منفصلان للرقم نفسه يفترقان
+   * عند أوّل تعديل، فيقف الحارس على رقمٍ ويُسجَّل رقمٌ آخر.
+   */
+  const finalCount = (m: M) =>
+    toBase(Number(counts[m.id]), m.base_unit) + (hopper[m.id] ?? 0);
+
+  /**
    * ما المعقول أن يفرق؟ **ما تحرّك منذ آخر عدّة** — لا نسبةٌ من الرصيد.
    *
    * مقهًى باع ٣٦٠ غ وأهدر ٤٠ لا يمكن أن يفرق جردُه ٤٬٨٦٠ غ مهما كان
@@ -274,7 +283,7 @@ function StockCount({
     .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
     .map((m) => {
       const r = rowOf(m.id);
-      const counted = toBase(Number(counts[m.id]), m.base_unit);
+      const counted = finalCount(m);
       const moved = r ? r.sold + r.wasted + r.staff : 0;
       return { m, counted, gap: counted - m.stock, moved };
     })
@@ -283,7 +292,7 @@ function StockCount({
   function submit() {
     const items = materials
       .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
-      .map((m) => ({ material_id: m.id, counted: toBase(Number(counts[m.id]), m.base_unit) }));
+      .map((m) => ({ material_id: m.id, counted: finalCount(m) }));
     if (items.length === 0) return setError("أدخل الكمية المعدودة لمادة واحدة على الأقل");
     if (items.some((i) => !Number.isFinite(i.counted) || i.counted < 0))
       return setError("كمية غير صالحة");
@@ -313,7 +322,9 @@ function StockCount({
             <li key={m.id} className="py-2.5 text-sm">
               <span className="font-semibold text-ink">{m.name}</span>
               <span className="nums mt-0.5 block text-xs text-muted">
-                المتوقّع {baseQtyLabel(m.stock, m.base_unit)} · كتبتَ{" "}
+                المتوقّع {baseQtyLabel(m.stock, m.base_unit)} ·{" "}
+                {/* المعروض هو المُسجَّل: «كتبتَ» تكذب حين يُضاف الأنبوب */}
+                {(hopper[m.id] ?? 0) > 0 ? "سيُسجَّل" : "كتبتَ"}{" "}
                 <span className="font-semibold text-amber-700">
                   {baseQtyLabel(counted, m.base_unit)}
                 </span>
@@ -340,10 +351,7 @@ function StockCount({
               start(async () => {
                 const items = materials
                   .filter((m) => counts[m.id] !== undefined && counts[m.id] !== "")
-                  .map((m) => ({
-                    material_id: m.id,
-                    counted: toBase(Number(counts[m.id]), m.base_unit),
-                  }));
+                  .map((m) => ({ material_id: m.id, counted: finalCount(m) }));
                 const r = await stockCountAction(items);
                 if (!("ok" in r) || !r.ok)
                   return setError("error" in r ? r.error : "تعذّر الجرد");
@@ -397,9 +405,9 @@ function StockCount({
   return (
     <Modal title="جرد المخزون" onClose={onClose}>
       <p className="mb-4 rounded-xl bg-sand p-3 text-xs text-muted">
-        اعدد الموجود فعلاً واكتبه <span className="font-semibold text-ink">بالغرام</span>{" "}
-        (٥ كيلو = ٥٠٠٠). النظام يقارنه بالمتوقّع ويسجّل الفرق ثم يسوّي الرصيد.
-        اترك المادة فارغة إن لم تعدّها.
+        اكتب <span className="font-semibold text-ink">ما وزنتَه</span> بالغرام
+        (٥ كيلو = ٥٠٠٠) — وما لا يدخل الميزان يُضاف لك. النظام يقارن المجموع
+        بالمتوقّع ويسجّل الفرق ثم يسوّي الرصيد. اترك المادة فارغة إن لم تعدّها.
       </p>
 
       <div className="max-h-[45vh] space-y-3 overflow-y-auto">
@@ -436,13 +444,17 @@ function StockCount({
                   );
                 })()}
                 {/*
-                  تذكيرٌ لا إضافة: الرصيد يشمل العالق في المطحنة — دُفع
-                  ثمنه وهو موجود — فمن يزن ما يُسكب وحده ينقص عدّه بمقداره
-                  كل مرّة. والنظام يذكّر ولا يجمع، فالمالك قال «أجمعه».
+                  يجمعه النظام، ويُظهر الجمع.
+                  كان تذكيراً يجمعه المالك بنفسه، ونسيانُه مرّةً يُنتج «نقص
+                  ٣٣ غ» بلا سبب — فيُطارَد خطأ لا وجود له. والجمع التلقائي
+                  الصامت أسوأ: رقمٌ يتغيّر بلا أن يُرى لا يُراجَع.
+                  فالحلّ أن يُحسب ويُعرض: لا حساب في الرأس، ولا رقم مخفيّ.
                 */}
                 {(hopper[m.id] ?? 0) > 0 && (
                   <span className="nums block text-[11px] font-medium text-amber-700">
-                    + {num(hopper[m.id])} غ في أنبوب المطحنة — اجمعها على ما تزنه
+                    {counts[m.id]
+                      ? `${num(Number(counts[m.id]) || 0)} + ${num(hopper[m.id])} (أنبوب المطحنة) = ${num((Number(counts[m.id]) || 0) + hopper[m.id])} غ`
+                      : `+ ${num(hopper[m.id])} غ في أنبوب المطحنة — تُضاف تلقائياً`}
                   </span>
                 )}
               </span>
