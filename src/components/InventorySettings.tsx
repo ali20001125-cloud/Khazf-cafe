@@ -367,9 +367,10 @@ function HopperDialog({ mat, onClose, onDone }: { mat: Mat; onClose: () => void;
     <Modal title={`العالق في مطحنة ${mat.name}`} onClose={onClose}>
       <div className="space-y-4">
         <p className="rounded-xl bg-sand p-3 text-xs leading-relaxed text-muted">
-          البنّ الذي يبقى في المطحنة ولا يُسكب. قِسه{" "}
-          <span className="font-semibold text-ink">مرّةً واحدة</span> أوّل ما تعبّئ،
-          واتركه — سيظهر لك في شاشة الجرد لتجمعه على ما تزنه.
+          ما يبقى في <span className="font-semibold text-ink">أنبوب المطحنة</span>{" "}
+          ولا يخرج إلا بقلب المكينة — لا الهوبر، فالهوبر يُفرَّغ ويُوزن.
+          قِسه <span className="font-semibold text-ink">مرّةً واحدة</span> واتركه:
+          سيظهر في شاشة الجرد لتجمعه على ما تزنه.
         </p>
         <div>
           <label htmlFor="hg" className="mb-1.5 block text-sm font-semibold text-ink">

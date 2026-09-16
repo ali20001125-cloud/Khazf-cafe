@@ -442,7 +442,7 @@ function StockCount({
                 */}
                 {(hopper[m.id] ?? 0) > 0 && (
                   <span className="nums block text-[11px] font-medium text-amber-700">
-                    + {num(hopper[m.id])} غ عالقة بالمطحنة — اجمعها على ما تزنه
+                    + {num(hopper[m.id])} غ في أنبوب المطحنة — اجمعها على ما تزنه
                   </span>
                 )}
               </span>
