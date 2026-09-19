@@ -1,6 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
+import { rateLimit } from "@/lib/throttle";
 import { registerWithoutCode, requestOtp, verifyOtp } from "@/lib/loyalty";
 
 /**
@@ -14,6 +16,16 @@ import { registerWithoutCode, requestOtp, verifyOtp } from "@/lib/loyalty";
  * - رمز واحد كل دقيقة لكل رقم.
  * - لا تُعيد أي بيانات عن أرقام غير مُتحقَّقة (لا تعداد للزبائن).
  */
+
+/** مصدر الطلب لحدّ المعدّل. ليس هويّة ولا يُخزَّن. */
+function clientKey(): string {
+  const h = headers();
+  return (
+    h.get("x-forwarded-for")?.split(",")[0].trim() ||
+    h.get("x-real-ip") ||
+    "unknown"
+  );
+}
 
 /** العمل الوحيد الآن؛ خطّاف تعدّد الأعمال لاحقاً. */
 async function resolveBusinessId(): Promise<string | null> {
@@ -47,6 +59,17 @@ export async function registerDirect(
   phone: string,
   name: string
 ): Promise<ConfirmResult> {
+  // مسار الرمز كان محدوداً برمزٍ كل دقيقة لكل رقم. وهذا المسار بلا رمز،
+  // فلو بقي بلا حدٍّ لكتب فيه سكربتٌ آلاف الزبائن في دقيقة — وهو مكشوفٌ
+  // للإنترنت بلا جلسة. الحدّ على الجهاز لا على الرقم: الرقم يُغيَّر في
+  // كل طلب.
+  const gate = rateLimit(`loyalty:${clientKey()}`, 6, 600);
+  if (!gate.ok)
+    return {
+      ok: false,
+      error: `محاولات كثيرة — انتظر ${Math.ceil(gate.retryInSeconds / 60)} دقيقة`,
+    };
+
   const bid = await resolveBusinessId();
   if (!bid) return { ok: false, error: "الخدمة غير متاحة حالياً" };
 

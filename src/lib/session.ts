@@ -19,16 +19,46 @@ export type SessionData = {
   iat: number; // ثوانٍ
 };
 
+/**
+ * سرّ توقيع الجلسة.
+ *
+ * كان يسقط إلى ثابتٍ مكتوبٍ في المستودع ويكتفي بتحذيرٍ في سجلٍّ لا
+ * يقرأه أحد. ومعنى ذلك أنّ من قرأ الكود يستطيع أن يُزوّر جلسة **مالك**
+ * على مقهىً منشورٍ نسي صاحبه ضبط المتغيّر — لا كلمة مرور ولا رمز.
+ *
+ * فالآن: في الإنتاج بلا سرٍّ مضبوط يُولَّد سرٌّ عشوائيّ عند الإقلاع.
+ * لا أحد يعرفه فلا يُزوَّر شيء، وثمنه أن الجلسات تسقط مع كل إعادة نشر
+ * — وهذا ثمنٌ يُدفع مرّةً ويُنبَّه إليه، لا بابٌ مفتوح لا يُرى.
+ * و`sessionSecretMissing()` تجعله ظاهراً على شاشة الدخول.
+ */
 let warned = false;
+let bootSecret: string | null = null;
+
+export function sessionSecretMissing(): boolean {
+  const s = process.env.SESSION_SECRET;
+  return process.env.NODE_ENV === "production" && !(s && s.length >= 16);
+}
+
 function secret(): string {
   const s = process.env.SESSION_SECRET;
   if (s && s.length >= 16) return s;
+
+  if (process.env.NODE_ENV === "production") {
+    if (!bootSecret) {
+      bootSecret = randomBytes(32).toString("base64url");
+      // eslint-disable-next-line no-console
+      console.error(
+        "[auth] SESSION_SECRET غير مضبوط في الإنتاج — سرٌّ عشوائيّ لهذا الإقلاع. " +
+          "كل إعادة نشر تُخرج الجميع. اضبط SESSION_SECRET."
+      );
+    }
+    return bootSecret;
+  }
+
   if (!warned) {
     warned = true;
     // eslint-disable-next-line no-console
-    console.warn(
-      "[auth] SESSION_SECRET غير مضبوط (أو قصير) — يُستخدم سرّ تطوير. اضبطه في الإنتاج."
-    );
+    console.warn("[auth] SESSION_SECRET غير مضبوط — سرّ تطوير.");
   }
   return "khazf-cafe-dev-secret-change-me";
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
+import { sessionSecretMissing } from "@/lib/session";
 import { getSettings, strSetting } from "@/lib/settings";
 import LoginForm from "@/components/LoginForm";
 
@@ -24,6 +25,17 @@ export default async function LoginPage() {
       </div>
 
       <div className="mx-auto -mt-8 w-full max-w-sm px-6 pb-12">
+        {/* عطلٌ أمنيّ لا يجوز أن يبقى في سجلٍّ لا يُقرأ */}
+        {sessionSecretMissing() && (
+          <div className="mb-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm leading-relaxed text-red-800">
+            <p className="font-bold">إعداد ناقص: SESSION_SECRET</p>
+            <p className="mt-1">
+              اضبطه في إعدادات الاستضافة. حتى تضبطه، يُخرَج الجميع مع كل
+              إعادة نشر.
+            </p>
+          </div>
+        )}
+
         <div className="card p-6 shadow-lift">
           <p className="mb-6 text-center text-sm text-muted">أدخل رمزك</p>
           <LoginForm />
