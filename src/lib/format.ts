@@ -81,6 +81,21 @@ export function drinksLabel(doses: number): string {
   return countAr(n, "مشروباً", "مشروبين", "مشروبات");
 }
 
+/**
+ * اسم النوع كما يُقرأ، لا كما يُخزَّن.
+ *
+ * «بن كالدي — للبيع» و«حبوب كالدي» اسمان للشيء نفسه في مكانين: الأوّل
+ * كيسٌ يُباع، والثاني ما يُطحن. اللاحقة والبادئة تفيدان في المخزون حيث
+ * يتجاوران، ويصيران ضجيجاً حيث لا يتجاوران — في المنيو وفي تفصيل
+ * المبيعات، حيث المقروء هو **النوع**: كالدي.
+ */
+export function kindName(name: string): string {
+  return name
+    .replace(/\s*—\s*للبيع\s*$/, "")
+    .replace(/^\s*(?:حبوب|بن)\s+/, "")
+    .trim() || name;
+}
+
 export function categoryLabel(c: string): string {
   if (c === "hot") return "ساخن";
   if (c === "cold") return "بارد";

@@ -37,6 +37,13 @@ update recipes set active = true where version = 1 and not active;
 -- لما زرعه `seed`، وإلا قرأ ما بعده كتالوجاً ناقصاً بلا سبب.
 update product_crops set available = true where not available;
 
+-- 25_menu يُخفي منتجاً من المنيو ويوقف آخر ويكتب سطراً تحته. هذه رايات
+-- عرضٍ على `products` لا يمسّها `truncate`، فتبقى بعد التصفير ويقرأ ما
+-- بعدها كتالوجاً غير الذي زرعه `seed`.
+update products set menu_visible = true where not menu_visible;
+update products set menu_note = null where menu_note is not null;
+update products set paused = false where paused;
+
 -- وحدات الشراء التي ينشئها 17 تتراكم بين التشغيلات فتظهر مكرّرةً في الشاشة
 -- (وهذا ما كشف غياب قيد الاسم الفريد — هجرة 0034).
 delete from material_units;

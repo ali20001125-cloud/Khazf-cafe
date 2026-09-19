@@ -5,7 +5,7 @@ import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getSettings, strSetting } from "@/lib/settings";
-import { money, num, countAr } from "@/lib/format";
+import { money, num, countAr, kindName } from "@/lib/format";
 import {
   dayProfit, netProfit, profitIsComplete, productProfit, profitTrend,
   retailDay, retailProfit, retailVariants,
@@ -385,16 +385,6 @@ export default async function ProfitPage() {
       </section>
     </div>
   );
-}
-
-/**
- * «بن كالدي — للبيع» ← «بن كالدي».
- *
- * اللاحقة تفيد في المخزون حيث يجاور بنُّ البيع بنَّ المحل، فلا تُحذف من
- * الاسم. لكنها هنا تحت عنوان «البضاعة» تكرارٌ يزاحم ما يُقرأ: النوع.
- */
-function kindName(name: string): string {
-  return name.replace(/\s*—\s*للبيع\s*$/, "");
 }
 
 function Card({

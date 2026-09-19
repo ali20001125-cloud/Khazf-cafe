@@ -13,6 +13,7 @@ const NAV = [
   { href: "/manage/inventory", label: "المخزون" },
   { href: "/manage/shopping", label: "قائمة الشراء" },
   { href: "/manage/products", label: "المشروبات والأسعار" },
+  { href: "/manage/menu", label: "المنيو" },
   { href: "/manage/loyalty", label: "الولاء" },
   { href: "/manage/exceptions", label: "الشاذّ" },
   { href: "/manage/users", label: "الموظفون والرموز" },
