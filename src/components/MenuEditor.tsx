@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, num, categoryLabel, kindName } from "@/lib/format";
 import { updateMenuAction } from "@/app/manage/menu-actions";
+import DrinkArt, { artKind } from "./DrinkArt";
 
 export type Row = {
   id: string;
@@ -11,12 +12,24 @@ export type Row = {
   category: string;
   kind: "drink" | "retail";
   paused: boolean;
+  special: boolean;
   menuVisible: boolean;
   note: string | null;
+  imageUrl: string | null;
   minPrice: number;
   maxPrice: number;
   variants: string[];
 };
+
+type St = { visible: boolean; note: string; img: string; special: boolean };
+
+/** الحالة المحرَّرة مقابل الحالة المحفوظة — المقارنة بينهما تكشف ما تغيّر. */
+const stOf = (r: Row): St => ({
+  visible: r.menuVisible,
+  note: r.note ?? "",
+  img: r.imageUrl ?? "",
+  special: r.special,
+});
 
 /**
  * تحرير المنيو.
@@ -39,19 +52,23 @@ export default function MenuEditor({
   qrSvg: string | null;
 }) {
   const router = useRouter();
-  const [state, setState] = useState<Record<string, { visible: boolean; note: string }>>(
-    () =>
-      Object.fromEntries(
-        rows.map((r) => [r.id, { visible: r.menuVisible, note: r.note ?? "" }])
-      )
+  const [state, setState] = useState<Record<string, St>>(() =>
+    Object.fromEntries(rows.map((r) => [r.id, stOf(r)]))
   );
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const changed = rows.filter(
-    (r) => state[r.id].visible !== r.menuVisible || state[r.id].note !== (r.note ?? "")
-  );
+  const changed = rows.filter((r) => {
+    const a = state[r.id];
+    const b = stOf(r);
+    return (
+      a.visible !== b.visible ||
+      a.note !== b.note ||
+      a.img !== b.img ||
+      a.special !== b.special
+    );
+  });
   const shown = rows.filter((r) => state[r.id].visible).length;
 
   function save() {
@@ -64,6 +81,8 @@ export default function MenuEditor({
           id: r.id,
           menu_visible: state[r.id].visible,
           menu_note: state[r.id].note,
+          image_url: state[r.id].img,
+          special: state[r.id].special,
         }))
       );
       if (!res.ok) return setError(res.error);
@@ -124,9 +143,9 @@ export default function MenuEditor({
         </div>
         <p className="mb-4 text-xs leading-relaxed text-muted">
           الأسعار تُقرأ من «المنتجات» ولا تُكتب هنا — سعرٌ في مكانين يتفرّق.
-          و«غير متوفّر اليوم» يأتي من إيقاف المنتج، لا من المخزون: المخزون
-          يتحرّك كل دقيقة، ومنيو تختفي منه الأصناف وتعود بينما الزبون يقرأ
-          ليس منيو.
+          والصورة اختيارية: بلا رابطٍ يُرسم المشروب برسمٍ من ألوان خزف، فلا
+          يبقى مربّعٌ فارغ ولا ينكسر شيء. ألصق أيّ رابط صورة (يبدأ
+          بـ<span className="font-mono">https://</span>) وسترى معاينته فوراً.
         </p>
 
         <div className="space-y-2">
@@ -185,8 +204,8 @@ function Item({
 }: {
   row: Row;
   currency: string;
-  st: { visible: boolean; note: string };
-  set: (v: { visible: boolean; note: string }) => void;
+  st: St;
+  set: (v: St) => void;
 }) {
   const kinds = row.variants.map(kindName).filter((v, i, a) => a.indexOf(v) === i);
   // عملةٌ واحدة في آخر المدى، و`dir="ltr"` عليه: «٢٬٠٠٠ IQD — ٤٬٠٠٠ IQD»
@@ -207,18 +226,14 @@ function Item({
           type="button"
           onClick={() => set({ ...st, visible: !st.visible })}
           aria-pressed={st.visible}
-          className={`tap mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${
-            st.visible ? "bg-accent" : "bg-line"
+          className={`tap mt-0.5 flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+            st.visible ? "justify-start bg-accent" : "justify-end bg-line"
           }`}
         >
-          {/* المفتاح في اتجاه الصفحة: المقبض عند اليمين (البداية) حين يظهر
-              المنتج، وعند اليسار حين يُخفى. و`translate-x` فيزيائيّ لا
-              منطقيّ، فالإزاحة بالسالب في الاتجاهين كي لا يخرج عن حدّه. */}
-          <span
-            className={`block h-5 w-5 rounded-full bg-cream shadow transition-transform ${
-              st.visible ? "-translate-x-0.5" : "-translate-x-[22px]"
-            }`}
-          />
+          {/* الموضع بالمحاذاة لا بـ`translate-x`: المحاذاة تعرف اتجاه
+              الصفحة، والإزاحة لا — فالمقبض يقع عند البداية (اليمين هنا)
+              حين يظهر المنتج، بلا حسابِ بكسلاتٍ يُخطئ في اتجاهٍ آخر. */}
+          <span className="block h-5 w-5 rounded-full bg-cream shadow transition-transform" />
         </button>
 
         <div className="min-w-0 flex-1">
@@ -247,6 +262,45 @@ function Item({
             onChange={(e) => set({ ...st, note: e.target.value })}
             disabled={!st.visible}
           />
+
+          <div className="mt-2 flex items-start gap-2">
+            {/* معاينةٌ صغيرة: الرابط المكسور يُرى هنا لا على طاولة الزبون */}
+            <span className="mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-line bg-sand">
+              {st.img ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={st.img} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <DrinkArt
+                  name={row.name}
+                  kind={artKind(row.category, row.kind)}
+                  className="h-full w-full"
+                />
+              )}
+            </span>
+            <input
+              className="field text-sm"
+              dir="ltr"
+              placeholder="https://… رابط صورة (اختياري)"
+              maxLength={500}
+              value={st.img}
+              onChange={(e) => set({ ...st, img: e.target.value })}
+              disabled={!st.visible}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => set({ ...st, special: !st.special })}
+            aria-pressed={st.special}
+            disabled={!st.visible}
+            className={`tap mt-2 rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
+              st.special
+                ? "bg-dark text-cream"
+                : "border border-line bg-sand text-muted"
+            }`}
+          >
+            {st.special ? "★ مميّز — بطاقة بعرض الشاشة" : "اجعله مميّزاً"}
+          </button>
         </div>
       </div>
     </div>

@@ -1,4 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap");
+/*
+  خطّ العناوين في المنيو وحده. نسخيٌّ عالي التباين يعطي المشروب وقاراً
+  لا يعطيه خطٌّ هندسيّ — والمنيو هو الصفحة الوحيدة التي يراها زبونٌ.
+  ولا يُحمَّل ملفّه إلّا حيث يُستعمَل: المتصفّح لا يجلب خطّاً لا يذكره
+  عنصر، فلا تدفع شاشة الكاشير ثمنه.
+*/
+@import url("https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -68,6 +75,55 @@ h1, h2, h3, .font-display {
   /* شريط علوي داكن دافئ */
   .topbar {
     @apply bg-dark text-cream;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* المنيو — الصفحة الوحيدة التي يراها زبون                           */
+  /* ---------------------------------------------------------------- */
+
+  /* نسخيٌّ للعناوين. الوزن والتباين يفعلان ما لا يفعله حجمٌ أكبر. */
+  .font-serifar {
+    font-family: "Amiri", "IBM Plex Sans Arabic", serif;
+    font-weight: 700;
+  }
+
+  /* شريط الأقسام يُمرَّر أفقياً بلا مسطرةٍ تقطع الحافة */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+    حبيبات الورق. ثابتةٌ ولا تلتقط اللمس: لو عُلّقت على حاويةٍ تُمرَّر
+    لأعاد المتصفّح رسمها مع كل بكسل تمرير، وسقط الإطار على الهاتف.
+  */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* وهجٌ طينيّ خلف اسم المحلّ — يمنع الشريط الداكن أن يبدو حبراً مسطّحاً */
+  .hero-glow {
+    position: absolute;
+    left: 50%;
+    top: -35%;
+    height: 150%;
+    width: 130%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(166, 106, 76, 0.28) 0%,
+      rgba(166, 106, 76, 0.07) 42%,
+      transparent 68%
+    );
   }
 }
 

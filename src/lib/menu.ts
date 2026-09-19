@@ -17,6 +17,8 @@ export type MenuItem = {
   note: string | null;
   imageUrl: string | null;
   paused: boolean;
+  /** «مميّز» — يأخذ بطاقةً بعرض الصفّ. رايةٌ قائمة في الجدول فُتحت للمنيو. */
+  special: boolean;
   kind: "drink" | "retail";
   minPrice: number;
   maxPrice: number;
@@ -31,13 +33,13 @@ export type MenuItem = {
  */
 export async function publicMenu(businessId: string): Promise<MenuItem[]> {
   const rows = (await db()`
-    select product_id, name, category, note, image_url, paused, kind,
+    select product_id, name, category, note, image_url, paused, kind, special,
            min_price, max_price, variants
     from public_menu(${businessId})
   `) as {
     product_id: string; name: string; category: string; note: string | null;
     image_url: string | null; paused: boolean; kind: "drink" | "retail";
-    min_price: number; max_price: number; variants: string[];
+    special: boolean; min_price: number; max_price: number; variants: string[];
   }[];
 
   return rows.map((r) => ({
@@ -47,6 +49,7 @@ export async function publicMenu(businessId: string): Promise<MenuItem[]> {
     note: r.note,
     imageUrl: r.image_url,
     paused: r.paused,
+    special: r.special,
     kind: r.kind,
     minPrice: Number(r.min_price),
     maxPrice: Number(r.max_price),
@@ -68,7 +71,7 @@ export type MenuAdminRow = MenuItem & { menuVisible: boolean; active: boolean };
 export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
   const rows = (await db()`
     select p.id, p.name, p.category, p.menu_note as note, p.image_url,
-           p.paused, p.kind, p.menu_visible, p.active,
+           p.paused, p.kind, p.menu_visible, p.active, p.is_daily_special as special,
            coalesce(min(pc.price), 0)::int as min_price,
            coalesce(max(pc.price), 0)::int as max_price,
            coalesce(array_agg(m.name order by m.name)
@@ -82,7 +85,7 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
   `) as {
     id: string; name: string; category: string; note: string | null;
     image_url: string | null; paused: boolean; kind: "drink" | "retail";
-    menu_visible: boolean; active: boolean;
+    menu_visible: boolean; active: boolean; special: boolean;
     min_price: number; max_price: number; variants: string[];
   }[];
 
@@ -93,6 +96,7 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     note: r.note,
     imageUrl: r.image_url,
     paused: r.paused,
+    special: r.special,
     kind: r.kind,
     menuVisible: r.menu_visible,
     active: r.active,

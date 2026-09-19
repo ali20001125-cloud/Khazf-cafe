@@ -1,7 +1,8 @@
 import type { Viewport } from "next";
-import { publicMenu, soleBusinessId, type MenuItem } from "@/lib/menu";
+import { publicMenu, soleBusinessId } from "@/lib/menu";
 import { getSettings, strSetting } from "@/lib/settings";
 import { money, num, categoryLabel, kindName } from "@/lib/format";
+import MenuBoard, { type BoardGroup, type BoardItem } from "@/components/MenuBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +12,9 @@ export const metadata = {
 };
 
 /**
- * الزبون يقرأ، والكاشير يعمل.
- *
- * التخطيط العام يمنع التكبير — وهذا صوابٌ في كاشير يُلمس بالإبهام وسط
+ * التخطيط العام يمنع التكبير — صوابٌ في كاشير يُلمس بالإبهام وسط
  * الخدمة، وخطأٌ في منيو يقرأه زبونٌ قد يكون ضعيف البصر. فهذه الصفحة
- * تستعيد التكبير لنفسها وحدها.
+ * تستعيده لنفسها وحدها.
  */
 export const viewport: Viewport = {
   width: "device-width",
@@ -34,119 +33,101 @@ export default async function MenuPage() {
   const phone = strSetting(settings, "shop_phone", "");
 
   const items = bid ? await publicMenu(bid) : [];
-  const drinks = items.filter((i) => i.kind === "drink");
-  const goods = items.filter((i) => i.kind === "retail");
 
-  const groups = ORDER.map((c) => ({
+  const toBoard = (i: (typeof items)[number]): BoardItem => ({
+    id: i.id,
+    name: i.name,
+    category: i.category,
+    note: i.note,
+    imageUrl: i.imageUrl,
+    paused: i.paused,
+    special: i.special,
+    kind: i.kind,
+    // العملة مرّةً واحدة في آخر المدى، والرقمان داخل `dir="ltr"`: وسط
+    // نصٍّ عربي يقلب المتصفّح «٢٬٠٠٠ د.ع — ٤٬٠٠٠ د.ع» فتُقرأ معكوسة
+    priceLabel:
+      i.minPrice === i.maxPrice
+        ? money(i.minPrice, currency)
+        : `${num(i.minPrice)} — ${money(i.maxPrice, currency)}`,
+    kinds: i.variants.map(kindName).filter((v, n, a) => a.indexOf(v) === n),
+  });
+
+  // المميّز يتصدّر قسمه. بطاقةٌ بعرض الشاشة في ذيل القسم تُرى بعد أن
+  // يكون القارئ قد اختار — فتُضيَّع، وهي أغلى ما يُباع.
+  const lead = <T extends { special: boolean }>(a: T[]) =>
+    [...a].sort((x, y) => Number(y.special) - Number(x.special));
+
+  const drinks = items.filter((i) => i.kind === "drink");
+  const goods = lead(items.filter((i) => i.kind === "retail"));
+
+  const groups: BoardGroup[] = ORDER.map((c) => ({
     key: c,
     label: categoryLabel(c),
-    items: drinks.filter((d) => d.category === c),
+    items: lead(drinks.filter((d) => d.category === c)).map(toBoard),
   })).filter((g) => g.items.length > 0);
 
   // فئةٌ لم تخطر في `ORDER` تبقى معروضة: منيو يُسقط مشروباً بصمت أسوأ
   // من منيو بترتيبٍ غير مثالي
   const rest = drinks.filter((d) => !ORDER.includes(d.category));
-  if (rest.length > 0) groups.push({ key: "rest", label: "أخرى", items: rest });
+  if (rest.length > 0)
+    groups.push({ key: "rest", label: "أخرى", items: lead(rest).map(toBoard) });
+
+  if (goods.length > 0)
+    groups.push({ key: "home", label: "للبيت", items: goods.map(toBoard) });
 
   return (
-    <main className="min-h-screen pb-16">
-      <header className="topbar px-6 pb-10 pt-12 text-center">
-        <div className="font-display text-5xl font-bold tracking-tight text-cream">خزف</div>
-        <div className="mt-1 text-sm tracking-[0.35em] text-cream/60">C A F É</div>
-        <p className="mt-4 text-xs text-cream/50">المنيو</p>
+    <main className="relative min-h-screen overflow-x-hidden bg-sand">
+      {/* حبيباتٌ ثابتة فوق كل شيء: تعطي الورق ملمساً وتمنع أن تبدو
+          المساحات الدافئة الكبيرة مسطّحةً على شاشةٍ رخيصة */}
+      <div className="grain" aria-hidden="true" />
+
+      <header className="relative overflow-hidden bg-dark px-6 pb-16 pt-14 text-center">
+        <div className="hero-glow" aria-hidden="true" />
+        <div className="relative">
+          <div className="font-serifar text-[3.5rem] leading-[0.95] text-cream">خزف</div>
+          <div className="mt-2 text-[0.7rem] tracking-[0.45em] text-cream/40">C A F É</div>
+          <div className="mx-auto mt-6 h-px w-14 bg-cream/20" />
+          {/* بلا تباعد حروف: العربية متّصلة، و`tracking` يفكّ وصلها
+              فتُقرأ «ا ل م ن ي و». التباعد للاتيني وحده. */}
+          <p className="mt-5 text-[0.72rem] text-cream/45">المنيو</p>
+        </div>
       </header>
 
-      <div className="mx-auto -mt-4 w-full max-w-lg px-5">
-        {items.length === 0 ? (
-          <div className="card p-8 text-center">
-            <p className="text-sm text-muted">المنيو قيد التحضير.</p>
+      <div className="relative mx-auto w-full max-w-4xl px-5 pb-20">
+        {groups.length === 0 ? (
+          <div className="mt-14 rounded-[1.6rem] bg-ink/[0.045] p-1.5 ring-1 ring-ink/[0.06]">
+            <div className="rounded-[1.225rem] bg-cream px-6 py-14 text-center">
+              <p className="font-serifar text-xl text-ink">المنيو قيد التحضير</p>
+              <p className="mt-2 text-sm text-muted">عُد بعد قليل.</p>
+            </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {groups.map((g) => (
-              <section key={g.key} className="card p-5">
-                <h2 className="mb-1 font-display text-lg font-bold text-ink">{g.label}</h2>
-                <div className="divide-y divide-line/60">
-                  {g.items.map((i) => (
-                    <Row key={i.id} item={i} currency={currency} />
-                  ))}
-                </div>
-              </section>
-            ))}
-
-            {goods.length > 0 && (
-              <section className="card p-5">
-                <h2 className="mb-1 font-display text-lg font-bold text-ink">للبيت</h2>
-                <p className="mb-1 text-xs text-muted">
-                  حبّات البنّ نفسها التي تُحضَّر منها مشروباتنا.
-                </p>
-                <div className="divide-y divide-line/60">
-                  {goods.map((i) => (
-                    <Row key={i.id} item={i} currency={currency} />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
+          <MenuBoard groups={groups} />
         )}
 
-        <footer className="mt-8 text-center">
-          <p className="text-sm font-medium text-ink">{shop}</p>
+        <footer className="mt-16 text-center">
+          <div className="mx-auto h-px w-14 bg-ink/10" />
+          <p className="mt-6 font-serifar text-lg text-ink">{shop}</p>
           {phone && (
-            <p className="nums mt-1 text-xs text-muted" dir="ltr">
+            <p className="nums mt-1 text-xs tracking-wide text-muted" dir="ltr">
               {phone}
             </p>
           )}
-          {/* بلا ذكر العتبة: المالك يغيّرها من الإعدادات، ورقمٌ مكتوبٌ هنا
-              يصير كذبةً في اليوم الذي يغيّرها فيه. الصفحة نفسها تقولها. */}
-          <a href="/loyalty" className="btn-ghost mt-4 inline-block px-5 py-2.5 text-sm">
-            انضمّ لنادي خزف ←
+
+          {/* الزرّ داخله زرّ: السهم في دائرته لا عارياً بجانب النصّ */}
+          <a
+            href="/loyalty"
+            className="group mt-7 inline-flex items-center gap-3 rounded-full bg-dark py-2 pl-2 pr-6 text-cream transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
+          >
+            <span className="text-sm font-semibold">انضمّ لنادي خزف</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cream/10 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-x-1 group-hover:scale-105">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M11 18l-6-6 6-6" />
+              </svg>
+            </span>
           </a>
         </footer>
       </div>
     </main>
-  );
-}
-
-function Row({ item, currency }: { item: MenuItem; currency: string }) {
-  // أنواع البنّ ميزةٌ تُقال في مقهى مختصّ. لكن نوعاً واحداً ليس اختياراً
-  // يُعرض على الزبون — هو ببساطة ما يُقدَّم، فلا يُزاحم الاسم.
-  const kinds = item.variants.map(kindName).filter((v, n, a) => a.indexOf(v) === n);
-  // المدى بعملةٍ واحدة في آخره: «٢٬٠٠٠ IQD — ٤٬٠٠٠ IQD» وسط نصٍّ عربي
-  // يقلبه المتصفّح فيُقرأ «IQD — 4,000 IQD 2,000». رقمان وعملةٌ واحدة
-  // داخل `dir="ltr"` يُقرآن كما كُتبا.
-  const price =
-    item.minPrice === item.maxPrice
-      ? money(item.minPrice, currency)
-      : `${num(item.minPrice)} — ${money(item.maxPrice, currency)}`;
-
-  return (
-    <div className={`flex items-start gap-3 py-3 ${item.paused ? "opacity-45" : ""}`}>
-      {item.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={item.imageUrl}
-          alt=""
-          className="h-14 w-14 shrink-0 rounded-xl object-cover"
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="font-medium text-ink">{item.name}</span>
-          {item.paused && (
-            <span className="rounded-full bg-sand px-2 py-0.5 text-[0.65rem] text-muted">
-              غير متوفّر اليوم
-            </span>
-          )}
-        </div>
-        {item.note && <p className="mt-0.5 text-xs leading-relaxed text-muted">{item.note}</p>}
-        {kinds.length > 1 && (
-          <p className="mt-1 text-xs text-accentdeep">{kinds.join(" · ")}</p>
-        )}
-      </div>
-      <span dir="ltr" className="nums shrink-0 pt-0.5 text-sm font-semibold text-ink">
-        {price}
-      </span>
-    </div>
   );
 }

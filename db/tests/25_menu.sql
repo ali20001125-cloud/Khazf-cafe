@@ -75,7 +75,16 @@ select case when (select max_price from public_menu(:'biz') where product_id=:'e
 update product_crops set price = :oldprice, available = true where id = :'cid';
 
 \echo ''
-\echo '=== ٦. لا يخرج من المنيو ما لا يخصّ الزبون ==='
+\echo '=== ٦. المميّز يصل المنيو بلا عمودٍ جديد ==='
+-- `is_daily_special` قائمةٌ في الجدول ولا قارئ لها؛ المنيو فتحها
+update products set is_daily_special = true where id = :'latte';
+select case when (select special from public_menu(:'biz') where product_id=:'latte')
+             and not (select special from public_menu(:'biz') where product_id=:'espid')
+            then '✓ المميّز مميَّز، وغيره لا'
+            else '❌ راية التمييز لا تصل المنيو' end as "النتيجة";
+
+\echo ''
+\echo '=== ٧. لا يخرج من المنيو ما لا يخصّ الزبون ==='
 -- الأعمدة نفسها هي العقد: تكلفةٌ أو رصيدٌ أو معرّف مادة = تسريب. وهذا
 -- اختبارٌ على الشكل لا على القيم، لأن التسريب يدخل بإضافة عمودٍ لا بخطأ.
 select string_agg(n, ' · ') as "ما يخرج للزبون"

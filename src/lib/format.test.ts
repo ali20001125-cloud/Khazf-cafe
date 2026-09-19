@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { money, num, stockLabel, baseQtyLabel, countAr, unitLabel, drinksLabel } from "./format";
+import { money, num, stockLabel, baseQtyLabel, countAr, unitLabel, drinksLabel, kindName } from "./format";
 
 describe("money — أرقام إنجليزية بلا كسور", () => {
   it("يُنسّق بفواصل إنجليزية مع العملة", () => {
@@ -113,5 +113,27 @@ describe("countAr — الجمع العربي لا الترجمة الآليّة
     expect(drinksLabel(1)).toBe("مشروب واحد");
     expect(drinksLabel(5)).toBe("5 مشروبات");
     expect(drinksLabel(26)).toBe("26 مشروباً");
+  });
+});
+
+describe("kindName — النوع كما يُقرأ لا كما يُخزَّن", () => {
+  it("يُسقط لاحقة «للبيع» وبادئة «حبوب/بن»", () => {
+    expect(kindName("بن كالدي — للبيع")).toBe("كالدي");
+    expect(kindName("حبوب سيرادو")).toBe("سيرادو");
+    expect(kindName("بن الدورادو — للبيع")).toBe("الدورادو");
+  });
+
+  it("لا يمسّ ما ليس محصولاً", () => {
+    expect(kindName("كوب سيراميك")).toBe("كوب سيراميك");
+    expect(kindName("حليب شوفان")).toBe("حليب شوفان");
+  });
+
+  // «بن» وحدها اسمٌ كامل: إسقاط البادئة يُفرغ النصّ، والفراغ أسوأ من
+  // الاسم الأصلي — فالاسم يعود كما هو
+  it("لا يُفرغ اسماً من محتواه", () => {
+    expect(kindName("بن")).toBe("بن");
+    expect(kindName("حبوب")).toBe("حبوب");
+    // اللاحقة تسقط والبادئة تبقى: «حبوب» بلا ما بعدها ليست بادئة
+    expect(kindName("حبوب — للبيع")).toBe("حبوب");
   });
 });

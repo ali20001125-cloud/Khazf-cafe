@@ -4,7 +4,36 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
 
-export type MenuPatch = { id: string; menu_visible?: boolean; menu_note?: string };
+export type MenuPatch = {
+  id: string;
+  menu_visible?: boolean;
+  menu_note?: string;
+  image_url?: string;
+  special?: boolean;
+};
+
+/**
+ * رابط صورةٍ صالحٌ للعرض، أو لا شيء.
+ *
+ * هذا رابطٌ يُلصَق في صفحةٍ يفتحها العموم، فالتحقّق ليس تجميلاً:
+ * `javascript:` في `src` سطرٌ ينفّذه متصفّح الزبون. و`http` عادي على
+ * صفحةٍ آمنة يمنعه المتصفّح صامتاً فيرى المالك صورةً ناقصة ولا يعرف
+ * لِمَ — فالرفض هنا أوضح من السماح.
+ */
+function cleanImageUrl(raw: string): { ok: true; url: string | null } | { ok: false; why: string } {
+  const v = raw.trim();
+  if (v.length === 0) return { ok: true, url: null };
+  if (v.length > 500) return { ok: false, why: "الرابط طويل جداً" };
+  let u: URL;
+  try {
+    u = new URL(v);
+  } catch {
+    return { ok: false, why: "رابط الصورة غير صالح" };
+  }
+  if (u.protocol !== "https:")
+    return { ok: false, why: "الرابط يجب أن يبدأ بـ https://" };
+  return { ok: true, url: u.toString() };
+}
 
 /**
  * ما يُعرض على الزبون وما يُقال تحته.
@@ -39,6 +68,20 @@ export async function updateMenuAction(
         const note = p.menu_note.trim().slice(0, 160);
         await db()`
           update products set menu_note = ${note.length > 0 ? note : null}
+          where id = ${p.id} and business_id = ${user.bid}
+        `;
+      }
+      if (typeof p.image_url === "string") {
+        const img = cleanImageUrl(p.image_url);
+        if (!img.ok) return { ok: false, error: img.why };
+        await db()`
+          update products set image_url = ${img.url}
+          where id = ${p.id} and business_id = ${user.bid}
+        `;
+      }
+      if (typeof p.special === "boolean") {
+        await db()`
+          update products set is_daily_special = ${p.special}
           where id = ${p.id} and business_id = ${user.bid}
         `;
       }
