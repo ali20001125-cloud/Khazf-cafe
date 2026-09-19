@@ -117,6 +117,27 @@ h1, h2, h3, .font-display {
     background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
+  /* الورقة تصعد، والخلفية تُعتم. حركةُ `transform` و`opacity` وحدهما
+     — لا ارتفاعٌ ولا موضع، فلا يُعيد المتصفّح حساب التخطيط كل إطار. */
+  @keyframes sheetup {
+    from {
+      transform: translateY(14%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes fadein {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   /* وهجٌ طينيّ خلف اسم المحلّ — يمنع الشريط الداكن أن يبدو حبراً مسطّحاً */
   .hero-glow {
     position: absolute;

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import DrinkArt, { artKind } from "./DrinkArt";
+import MenuSheet, { type SheetDetail } from "./MenuSheet";
 
 export type BoardItem = {
   id: string;
@@ -27,8 +28,15 @@ export type BoardGroup = { key: string; label: string; items: BoardItem[] };
  * كل ساخن؛ والمميّز بعرض الشاشة — لأن ما يُباع بضعف الثمن يجب أن
  * يُرى أوّلاً.
  */
-export default function MenuBoard({ groups }: { groups: BoardGroup[] }) {
+export default function MenuBoard({
+  groups,
+  details,
+}: {
+  groups: BoardGroup[];
+  details: Record<string, SheetDetail>;
+}) {
   const [active, setActive] = useState(groups[0]?.key ?? "");
+  const [open, setOpen] = useState<BoardItem | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
 
   // القسم الفعّال يُشتقّ من موضع القراءة، لا من آخر ضغطة: من يمرّر
@@ -94,15 +102,19 @@ export default function MenuBoard({ groups }: { groups: BoardGroup[] }) {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {g.items.map((it, i) =>
                 it.special ? (
-                  <Hero key={it.id} item={it} index={i} />
+                  <Hero key={it.id} item={it} index={i} onOpen={() => setOpen(it)} />
                 ) : (
-                  <Tile key={it.id} item={it} index={i} />
+                  <Tile key={it.id} item={it} index={i} onOpen={() => setOpen(it)} />
                 )
               )}
             </div>
           </section>
         ))}
       </div>
+
+      {open && (
+        <MenuSheet item={open} detail={details[open.id]} onClose={() => setOpen(null)} />
+      )}
     </>
   );
 }
@@ -167,13 +179,24 @@ function Art({ item, className }: { item: BoardItem; className: string }) {
 }
 
 /** بطاقةٌ داخل صدفة: إطارٌ خارجيّ رفيع وقلبٌ كريميّ، كصفيحةٍ في درج. */
-function Tile({ item, index }: { item: BoardItem; index: number }) {
-  const { ref, on } = useReveal<HTMLDivElement>(Math.min(index, 6) * 55);
+function Tile({
+  item,
+  index,
+  onOpen,
+}: {
+  item: BoardItem;
+  index: number;
+  onOpen: () => void;
+}) {
+  const { ref, on } = useReveal<HTMLButtonElement>(Math.min(index, 6) * 55);
 
   return (
-    <div
+    <button
       ref={ref}
-      className={`${REVEAL} rounded-[1.6rem] bg-ink/[0.045] p-1.5 ring-1 ring-ink/[0.06] ${
+      type="button"
+      onClick={onOpen}
+      aria-label={`${item.name} — التفاصيل`}
+      className={`${REVEAL} tap block w-full text-right rounded-[1.6rem] bg-ink/[0.045] p-1.5 ring-1 ring-ink/[0.06] ${
         on ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
       }`}
     >
@@ -220,18 +243,29 @@ function Tile({ item, index }: { item: BoardItem; index: number }) {
           </p>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
 /** المميّز: بعرض الصفّ، صورةٌ إلى جانب النصّ لا فوقه. */
-function Hero({ item, index }: { item: BoardItem; index: number }) {
-  const { ref, on } = useReveal<HTMLDivElement>(Math.min(index, 6) * 55);
+function Hero({
+  item,
+  index,
+  onOpen,
+}: {
+  item: BoardItem;
+  index: number;
+  onOpen: () => void;
+}) {
+  const { ref, on } = useReveal<HTMLButtonElement>(Math.min(index, 6) * 55);
 
   return (
-    <div
+    <button
       ref={ref}
-      className={`${REVEAL} col-span-2 rounded-[1.6rem] bg-dark p-1.5 ring-1 ring-ink/10 sm:col-span-3 lg:col-span-4 ${
+      type="button"
+      onClick={onOpen}
+      aria-label={`${item.name} — التفاصيل`}
+      className={`${REVEAL} tap col-span-2 block w-full text-right rounded-[1.6rem] bg-dark p-1.5 ring-1 ring-ink/10 sm:col-span-3 lg:col-span-4 ${
         on ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
       }`}
     >
@@ -269,6 +303,6 @@ function Hero({ item, index }: { item: BoardItem; index: number }) {
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

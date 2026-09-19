@@ -102,3 +102,41 @@ select case when not exists (
             )
             then '✓ لا تكلفة ولا رصيد ولا معرّف مادة في مخرجات المنيو'
             else '❌ عمودٌ داخليّ يخرج للعلن' end as "النتيجة";
+
+\echo ''
+\echo '=== ٨. القيم تُحسب من الوصفة، لا من جدولٍ يُكتب بيد ==='
+select id as milk from materials where name='حليب' limit 1 \gset
+select material_id as lcrop from product_crops where product_id=:'latte' and available limit 1 \gset
+
+-- ١٨٠ مل حليب × ٠٫٦٤ = ١١٥ سعرة · ١٨ غ بنّ × ٨ = ١٤٤ ملغ كافيين
+select (product_detail(:'latte', :'lcrop')->>'kcal')::int     as "سعرات",
+       (product_detail(:'latte', :'lcrop')->>'caffeine')::int as "كافيين";
+
+select case when (product_detail(:'latte',:'lcrop')->>'kcal')::int > 0
+             and (product_detail(:'latte',:'lcrop')->>'caffeine')::int > 0
+            then '✓ اللاتيه له سعرات وكافيين محسوبان'
+            else '❌ لا قيم للاتيه' end as "النتيجة";
+
+\echo ''
+\echo '=== ٩. تغيير الوصفة يغيّر القيم في اللحظة نفسها ==='
+-- هذا هو سبب الحساب بدل الكتابة: جدولٌ يدويّ كان سيبقى على القديم
+select (product_detail(:'latte',:'lcrop')->>'kcal')::int as kbefore \gset
+update recipe_items ri set qty = qty * 2
+from recipes r where ri.recipe_id = r.id and r.product_id = :'latte'
+  and r.active and ri.material_id = :'milk';
+
+select case when (product_detail(:'latte',:'lcrop')->>'kcal')::int > :kbefore
+            then '✓ ضاعفنا الحليب فتضاعفت السعرات — لا تقادم'
+            else '❌ القيم لم تتبع الوصفة' end as "النتيجة";
+
+update recipe_items ri set qty = qty / 2
+from recipes r where ri.recipe_id = r.id and r.active
+  and r.product_id = :'latte' and ri.material_id = :'milk';
+
+\echo ''
+\echo '=== ١٠. الكوب والغطاء لا يُشربان ==='
+select case when not exists (
+              select 1 from jsonb_array_elements(product_detail(:'latte',:'lcrop')->'parts') e
+              where e->>'unit' = 'pcs')
+            then '✓ لا أكواب ولا أغطية في مكوّنات الزبون'
+            else '❌ الكوب معروضٌ كمكوّن يُشرب' end as "النتيجة";

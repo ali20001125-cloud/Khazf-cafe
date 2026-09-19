@@ -57,6 +57,64 @@ export async function publicMenu(businessId: string): Promise<MenuItem[]> {
   }));
 }
 
+export type MenuPart = { name: string; note: string | null; qty: number; unit: string };
+export type MenuDetail = {
+  parts: MenuPart[];
+  kcal: number;
+  caffeine: number;
+  known: boolean;
+  /** حكاية كل نوع بنّ — ما يُقرأ في مقهىً مختصّ. */
+  kinds: { name: string; note: string | null }[];
+};
+
+/**
+ * تفاصيل كل مشروب، محسوبةً من وصفته الفعّالة.
+ *
+ * تُجلب كلّها مع الصفحة لا عند الضغط: أحد عشر مشروباً ببضعة أرقام
+ * حمولةٌ لا تُذكر، والبديل طلبٌ على الشبكة ودوّارة انتظار في اللحظة
+ * التي فتح فيها الزبون البطاقة — وهو واقفٌ عند الكاونتر.
+ */
+export async function menuDetails(businessId: string): Promise<Record<string, MenuDetail>> {
+  const rows = (await db()`
+    with firstcrop as (
+      select distinct on (pc.product_id) pc.product_id, pc.material_id
+      from product_crops pc
+      join materials m on m.id = pc.material_id
+      where pc.available
+      order by pc.product_id, m.name
+    )
+    select p.id,
+           product_detail(p.id, fc.material_id) as detail,
+           coalesce((
+             select jsonb_agg(jsonb_build_object('name', m2.name, 'note', m2.menu_note)
+                              order by m2.name)
+             from product_crops pc2
+             join materials m2 on m2.id = pc2.material_id
+             where pc2.product_id = p.id and pc2.available
+           ), '[]'::jsonb) as kinds
+    from products p
+    join firstcrop fc on fc.product_id = p.id
+    where p.business_id = ${businessId} and p.active and p.menu_visible
+  `) as {
+    id: string;
+    detail: { parts: MenuPart[]; kcal: number; caffeine: number; known: boolean };
+    kinds: { name: string; note: string | null }[];
+  }[];
+
+  return Object.fromEntries(
+    rows.map((r) => [
+      r.id,
+      {
+        parts: r.detail?.parts ?? [],
+        kcal: Number(r.detail?.kcal ?? 0),
+        caffeine: Number(r.detail?.caffeine ?? 0),
+        known: Boolean(r.detail?.known),
+        kinds: r.kinds ?? [],
+      },
+    ])
+  );
+}
+
 /** العمل الوحيد — المنيو صفحةٌ عامّة بلا جلسة تقول لأيّ عملٍ تنتمي. */
 export async function soleBusinessId(): Promise<string | null> {
   const rows = (await db()`

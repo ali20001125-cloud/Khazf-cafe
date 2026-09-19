@@ -1,5 +1,5 @@
 import type { Viewport } from "next";
-import { publicMenu, soleBusinessId } from "@/lib/menu";
+import { menuDetails, publicMenu, soleBusinessId } from "@/lib/menu";
 import { getSettings, strSetting } from "@/lib/settings";
 import { money, num, categoryLabel, kindName } from "@/lib/format";
 import MenuBoard, { type BoardGroup, type BoardItem } from "@/components/MenuBoard";
@@ -32,7 +32,9 @@ export default async function MenuPage() {
   const currency = strSetting(settings, "currency", "د.ع");
   const phone = strSetting(settings, "shop_phone", "");
 
-  const items = bid ? await publicMenu(bid) : [];
+  const [items, details] = bid
+    ? await Promise.all([publicMenu(bid), menuDetails(bid)])
+    : [[], {}];
 
   const toBoard = (i: (typeof items)[number]): BoardItem => ({
     id: i.id,
@@ -108,7 +110,7 @@ export default async function MenuPage() {
             </div>
           </div>
         ) : (
-          <MenuBoard groups={groups} />
+          <MenuBoard groups={groups} details={details} />
         )}
 
         <footer className="mt-16 text-center">

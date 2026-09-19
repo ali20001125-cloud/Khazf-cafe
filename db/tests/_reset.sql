@@ -45,6 +45,7 @@ update products set menu_note = null where menu_note is not null;
 update products set paused = false where paused;
 update products set image_url = null where image_url is not null;
 update products set is_daily_special = false where is_daily_special;
+update materials set menu_note = null where menu_note is not null;
 
 -- وحدات الشراء التي ينشئها 17 تتراكم بين التشغيلات فتظهر مكرّرةً في الشاشة
 -- (وهذا ما كشف غياب قيد الاسم الفريد — هجرة 0034).
