@@ -53,12 +53,22 @@ export async function listPurchases(businessId: string): Promise<TxnRow[]> {
   `) as TxnRow[];
 }
 
+/**
+ * سجلّ الهدر — بالسبب كما كتبه المالك لا بمفتاحه.
+ *
+ * يُخزَّن المفتاح (`dial_in`) لأنه لا يتغيّر بتغيّر النصّ، فتبقى الحركات
+ * القديمة مرتبطةً بسببها. لكن عرضه كما هو يُعيد للمالك ما هرب منه:
+ * «اجعلها بكلامك — معايرة لا dial_in».
+ */
 export async function listWasteLog(businessId: string): Promise<TxnRow[]> {
   return (await db()`
-    select t.created_at, m.name as material_name, t.qty_delta as qty, t.unit_cost, t.reason, u.name as user_name
+    select t.created_at, m.name as material_name, t.qty_delta as qty, t.unit_cost,
+           coalesce(wr.label, t.reason) as reason, u.name as user_name
     from inventory_transactions t
     join materials m on m.id = t.material_id
     left join users u on u.id = t.user_id
+    left join waste_reasons wr
+      on wr.business_id = t.business_id and wr.key = t.reason
     where t.business_id = ${businessId} and t.type in ('WASTE','STAFF')
     order by t.created_at desc limit 40
   `) as TxnRow[];
