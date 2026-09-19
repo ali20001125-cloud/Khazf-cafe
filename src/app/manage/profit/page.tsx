@@ -4,8 +4,11 @@ import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getActiveBranch } from "@/lib/branch";
 import { getSettings, strSetting } from "@/lib/settings";
-import { money, num } from "@/lib/format";
-import { dayProfit, netProfit, profitIsComplete, productProfit, profitTrend } from "@/lib/profit";
+import { money, num, countAr } from "@/lib/format";
+import {
+  dayProfit, netProfit, profitIsComplete, productProfit, profitTrend,
+  retailDay, retailProfit,
+} from "@/lib/profit";
 
 /**
  * الأرباح (§37).
@@ -27,10 +30,12 @@ export default async function ProfitPage() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [today, byProduct, trend] = await Promise.all([
+  const [today, byProduct, trend, retail, byRetail] = await Promise.all([
     dayProfit(branch.id),
     productProfit(user.bid, 30),
     profitTrend(branch.id, 14),
+    retailDay(branch.id),
+    retailProfit(user.bid, 30),
   ]);
 
   const net = netProfit(today);
@@ -166,6 +171,80 @@ export default async function ProfitPage() {
           <span className="nums">{trend[trend.length - 1]?.day ?? ""}</span>
         </div>
       </section>
+
+      {/*
+        البضاعة في قسمٍ مستقلّ.
+        ربح الكيس وربح اللاتيه رقمان مختلفان تماماً — هذا يبيع بـ٢٥ ألفاً
+        ويكلّف ٧٬٥٠٠، وذاك يبيع بخمسة ويكلّف أقلّ من ألف. جمعُهما يُنتج
+        «هامشاً» لا يصف أيّاً منهما، فلا يُبنى عليه قرار.
+      */}
+      {(retail.orders > 0 || byRetail.length > 0) && (
+        <section className="card p-5">
+          <div className="mb-1 flex items-baseline justify-between">
+            <h2 className="font-display text-sm font-bold text-ink">البضاعة — اليوم</h2>
+            <span className="nums text-xs text-muted">
+              {retail.orders > 0
+                ? `${countAr(retail.orders, "طلباً", "طلبين", "طلبات")} · ${countAr(retail.units, "قطعة", "قطعتين", "قطع")}`
+                : "لا بيع اليوم"}
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-muted">
+            أكياس البنّ والأدوات — معزولةٌ عن المشروبات لأن هامشهما مختلف،
+            وجمعُهما يُخفي أيّهما يكسب.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Card label="إيراد البضاعة" value={money(retail.revenue, currency)} />
+            <Card label="تكلفة ما بيع" value={money(retail.cogs, currency)} />
+            <Card
+              label="تغليف الطلبات"
+              value={money(retail.packagingCost, currency)}
+              hint={`${money(retail.packagingEach, currency)} للطلب الواحد`}
+            />
+            <Card
+              label="ربح البضاعة"
+              value={money(retail.profit, currency)}
+              tone={retail.profit >= 0 ? "good" : "bad"}
+            />
+          </div>
+
+          {byRetail.length > 0 && (
+            <>
+              <h3 className="mb-2 mt-5 text-xs font-semibold text-muted">
+                كل صنف — ٣٠ يوماً (بلا التغليف، فهو للطلب لا للصنف)
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-right text-xs text-muted">
+                      <th className="p-2 font-medium">الصنف</th>
+                      <th className="p-2 font-medium">بيع</th>
+                      <th className="p-2 font-medium">الإيراد</th>
+                      <th className="p-2 font-medium">الربح</th>
+                      <th className="p-2 font-medium">الهامش</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {byRetail.map((r) => (
+                      <tr key={r.product_id} className="border-b border-line/60">
+                        <td className="p-2 text-ink">{r.name}</td>
+                        <td className="nums p-2 text-muted">{num(r.units)}</td>
+                        <td className="nums p-2 text-muted">{money(r.revenue, currency)}</td>
+                        <td className="nums p-2 font-semibold text-ink">
+                          {money(r.profit, currency)}
+                        </td>
+                        <td className="nums p-2 text-muted">
+                          {r.margin_pct == null ? "—" : `${r.margin_pct}٪`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {/* ربح كل مشروب */}
       <section className="card p-5">

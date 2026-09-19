@@ -113,3 +113,71 @@ export async function profitTrend(
     from d order by d.day
   `) as { day: string; revenue: number; profit: number }[];
 }
+
+// ── البضاعة: أكياس البنّ والأدوات (هجرة 0039) ────────────────────────
+/**
+ * ملخّص بيع البضاعة ليومٍ محاسبي.
+ *
+ * معزولٌ عن المشروبات عمداً: ربح الكيس وربح اللاتيه رقمان مختلفان
+ * تماماً — الكيس يبيع بـ٢٥ ألفاً ويكلّف ٧٬٥٠٠، واللاتيه يبيع بخمسة
+ * ويكلّف أقلّ من ألف. جمعُهما يُنتج «هامشاً» لا يصف أيّاً منهما،
+ * فلا يُبنى عليه قرار.
+ */
+export type RetailDay = {
+  businessDay: string;
+  orders: number;
+  units: number;
+  revenue: number;
+  cogs: number;
+  /** كلفة تغليف الطلب — مرّةً لكل طلب مهما كثرت أصنافه. */
+  packagingCost: number;
+  packagingEach: number;
+  profit: number;
+  ordersCosted: number;
+};
+
+export async function retailDay(branchId: string, day?: string): Promise<RetailDay> {
+  const rows = (await db()`
+    select retail_day(${branchId},
+      coalesce(${day ?? null}::date, current_business_day(${branchId}))) as r
+  `) as { r: Record<string, unknown> }[];
+  const r = rows[0].r;
+  return {
+    businessDay: String(r.business_day),
+    orders: Number(r.orders),
+    units: Number(r.units),
+    revenue: Number(r.revenue),
+    cogs: Number(r.cogs),
+    packagingCost: Number(r.packaging_cost),
+    packagingEach: Number(r.packaging_each),
+    profit: Number(r.profit),
+    ordersCosted: Number(r.orders_costed),
+  };
+}
+
+export type RetailProduct = {
+  product_id: string;
+  name: string;
+  units: number;
+  revenue: number;
+  cogs: number;
+  profit: number;
+  margin_pct: number | null;
+};
+
+/** ربح كل صنف بضاعة — بلا كلفة التغليف، فتلك للطلب لا للصنف. */
+export async function retailProfit(businessId: string, days = 30): Promise<RetailProduct[]> {
+  const rows = (await db()`
+    select product_id, name, units::int as units, revenue::int as revenue,
+           cogs::int as cogs, profit::int as profit, margin_pct
+    from retail_profit(${businessId}, ${days})
+  `) as RetailProduct[];
+  return rows.map((r) => ({
+    ...r,
+    units: Number(r.units),
+    revenue: Number(r.revenue),
+    cogs: Number(r.cogs),
+    profit: Number(r.profit),
+    margin_pct: r.margin_pct == null ? null : Number(r.margin_pct),
+  }));
+}
