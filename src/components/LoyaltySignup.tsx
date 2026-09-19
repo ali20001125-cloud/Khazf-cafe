@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { sendCode, confirmCode } from "@/app/loyalty/actions";
+import { sendCode, confirmCode, registerDirect } from "@/app/loyalty/actions";
 
 /**
  * تسجيل الزبون بنفسه (المواصفة §37).
- * ثلاث خطوات: الرقم ← الرمز ← تمّ. بلا حساب، بلا كلمة مرور، بلا موظف.
+ *
+ * الرقم ← الرمز ← تمّ. بلا حساب، بلا كلمة مرور، بلا موظف.
+ *
+ * وخطوة الرمز تُعرض **فقط إن كان النظام يستطيع إرساله** (`needsCode`).
+ * بلا مزوّدٍ مضبوط كانت الشاشة تنتقل إلى «أدخل الرمز» ثم ينتظر الزبون
+ * رسالةً لن تصل أبداً — طريقٌ مسدود على صفحةٍ مكشوفة للإنترنت. فالآن
+ * خطوةٌ واحدة، وتعود الثانية يوم يُضبط المزوّد بلا تغييرٍ هنا.
  */
 
 type Step = "phone" | "code" | "done";
@@ -13,9 +19,11 @@ type Step = "phone" | "code" | "done";
 export default function LoyaltySignup({
   shopName,
   stampsPerReward,
+  needsCode,
 }: {
   shopName: string;
   stampsPerReward: number;
+  needsCode: boolean;
 }) {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
@@ -30,6 +38,16 @@ export default function LoyaltySignup({
     e.preventDefault();
     setBusy(true);
     setError(null);
+
+    if (!needsCode) {
+      const d = await registerDirect(phone, name);
+      setBusy(false);
+      if (!d.ok) return setError(d.error);
+      setResult({ stamps: d.stamps, rewards: d.rewards, isNew: d.isNew });
+      setStep("done");
+      return;
+    }
+
     const r = await sendCode(phone);
     setBusy(false);
     if (!r.ok) return setError(r.error);
@@ -86,7 +104,11 @@ export default function LoyaltySignup({
               onChange={(e) => setPhone(e.target.value)}
               required
             />
-            <p className="mt-1.5 text-xs text-muted">نرسل لك رمز تحقّق على واتساب.</p>
+            <p className="mt-1.5 text-xs text-muted">
+              {needsCode
+                ? "نرسل لك رمز تحقّق على واتساب."
+                : "برقمك وحده نعرف أختامك في كل زيارة."}
+            </p>
           </div>
 
           <div>
@@ -106,7 +128,7 @@ export default function LoyaltySignup({
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
           <button type="submit" className="btn-primary w-full" disabled={busy || !phone}>
-            {busy ? "…" : "أرسل الرمز"}
+            {busy ? "…" : needsCode ? "أرسل الرمز" : "سجّلني"}
           </button>
         </form>
       )}

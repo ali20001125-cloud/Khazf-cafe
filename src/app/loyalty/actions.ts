@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { requestOtp, verifyOtp } from "@/lib/loyalty";
+import { registerWithoutCode, requestOtp, verifyOtp } from "@/lib/loyalty";
 
 /**
  * تسجيل الولاء الذاتي (المواصفة §37) — **صفحة عامة بلا جلسة موظف**.
@@ -34,6 +34,25 @@ export async function sendCode(phone: string): Promise<SendCodeResult> {
   const r = await requestOtp(bid, phone);
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, devCode: r.devCode };
+}
+
+/**
+ * تسجيلٌ بخطوةٍ واحدة حين لا مزوّد.
+ *
+ * الصفحة تعرف من الخادم إن كان الرمز مُفعَّلاً (خاصيّة تُمرَّر عند
+ * العرض)، فتعرض خطوةً أو خطوتين. فلو ضُبط المزوّد غداً عادت خطوة الرمز
+ * وحدها بلا تغيير سطرٍ في الواجهة.
+ */
+export async function registerDirect(
+  phone: string,
+  name: string
+): Promise<ConfirmResult> {
+  const bid = await resolveBusinessId();
+  if (!bid) return { ok: false, error: "الخدمة غير متاحة حالياً" };
+
+  const r = await registerWithoutCode(bid, phone, name.trim().slice(0, 60));
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, stamps: r.stamps, rewards: r.rewards, isNew: r.isNew };
 }
 
 export type ConfirmResult =

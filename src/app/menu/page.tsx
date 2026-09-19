@@ -75,8 +75,14 @@ export default async function MenuPage() {
   if (goods.length > 0)
     groups.push({ key: "home", label: "للبيت", items: goods.map(toBoard) });
 
+  // ملاحظة على `<main>` أدناه: بلا `overflow-x-hidden`.
+  // `overflow-x: hidden` يجعل `overflow-y` يُحسب `auto`، فيصير العنصر
+  // حاوية تمرير ارتفاعها ارتفاع محتواها — حاويةٌ لا شيء فيها ليُمرَّر.
+  // فالإصبع على الهاتف يمسك بها ولا يصل التمرير إلى الصفحة خلفها: تعمل
+  // عجلة الفأرة ولا يعمل اللمس. والوهج خلف الاسم يقصّه الترويس نفسه،
+  // فلا فائض أفقيّ أصلاً ليُخفى.
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-sand">
+    <main className="relative min-h-screen bg-sand">
       {/* حبيباتٌ ثابتة فوق كل شيء: تعطي الورق ملمساً وتمنع أن تبدو
           المساحات الدافئة الكبيرة مسطّحةً على شاشةٍ رخيصة */}
       <div className="grain" aria-hidden="true" />

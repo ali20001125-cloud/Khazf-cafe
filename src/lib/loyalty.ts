@@ -20,6 +20,17 @@ const OTP_TTL_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
 const OTP_RESEND_SECONDS = 60;
 
+/**
+ * هل ثمّة مزوّدٌ يستطيع إرسال الرمز فعلاً؟
+ *
+ * تُقرأ من البيئة لا من إعدادٍ في القاعدة: من يضبط المزوّد هو من يملك
+ * الخادم، وإعدادٌ في الشاشة يسمح بتشغيل تحقّقٍ لا مفاتيح له — فتنكسر
+ * صفحةٌ عامة بضغطة زرّ.
+ */
+export function otpEnabled(): boolean {
+  return (process.env.WHATSAPP_PROVIDER ?? "").trim().length > 0;
+}
+
 export type OtpRequest =
   | { ok: true; expiresInMinutes: number; devCode?: string }
   | { ok: false; error: string };
@@ -29,6 +40,9 @@ export type OtpRequest =
  * رمز نشط واحد لكل رقم (فهرس فريد جزئي في القاعدة يفرضه).
  */
 export async function requestOtp(businessId: string, rawPhone: string): Promise<OtpRequest> {
+  // بلا مزوّد لا يُنشأ رمز: إنشاؤه يعني أن يُسأل الزبون عن شيءٍ لن يصله
+  if (!otpEnabled()) return { ok: false, error: "التحقّق بالرمز غير مُفعَّل" };
+
   const phone = normalizePhone(rawPhone);
   if (!phone) return { ok: false, error: "رقم الهاتف غير صحيح" };
 
@@ -124,6 +138,23 @@ export async function verifyOtp(
 
   await db()`update otp_codes set consumed_at = now() where id = ${otp.id}`;
 
+  return openAccount(businessId, phone, name, true);
+}
+
+/**
+ * فتح حساب الولاء (أو إيجاده).
+ *
+ * `verified` هو الفرق الوحيد بين المسارين: من أثبت رقمه برمز يُختم
+ * `phone_verified_at`، ومن سجّل بلا رمز لا يُختم — فيبقى في القاعدة
+ * فرقٌ بين «رقمٌ مُثبَت» و«رقمٌ مكتوب». ويوم يُشغَّل الإرسال، يُعرف من
+ * يُطلب منه الإثبات بلا تخمين.
+ */
+async function openAccount(
+  businessId: string,
+  phone: string,
+  name: string | undefined,
+  verified: boolean
+): Promise<OtpVerify> {
   const existing = (await db()`
     select id from customers where business_id = ${businessId} and phone = ${phone}
   `) as { id: string }[];
@@ -134,18 +165,22 @@ export async function verifyOtp(
     customerId = existing[0].id;
     await db()`
       update customers
-         set phone_verified_at = now(),
+         set phone_verified_at = case when ${verified} then now() else phone_verified_at end,
              name = coalesce(nullif(${name ?? ""}, ''), name)
        where id = ${customerId}
     `;
   } else {
     const created = (await db()`
       insert into customers (business_id, phone, name, phone_verified_at, source)
-      values (${businessId}, ${phone}, ${name || null}, now(), 'self_signup')
+      values (${businessId}, ${phone}, ${name || null},
+              ${verified ? null : null}::timestamptz, 'self_signup')
       returning id
     `) as { id: string }[];
     customerId = created[0].id;
     isNew = true;
+    if (verified) {
+      await db()`update customers set phone_verified_at = now() where id = ${customerId}`;
+    }
   }
 
   await db()`
@@ -162,6 +197,37 @@ export async function verifyOtp(
     rewards: acc?.rewards_available ?? 0,
     isNew,
   };
+}
+
+/**
+ * تسجيلٌ بلا رمز — حين لا يكون ثمّة مزوّد إرسال.
+ *
+ * النظام لا يطلب رمزاً لا يستطيع إرساله. وكان يطلبه: `sendOtp` تكتب في
+ * السجلّ ولا ترسل شيئاً، فتنتقل الشاشة إلى «أدخل الرمز» وينتظر الزبون
+ * رسالةً لن تصل — طريقٌ مسدود على صفحةٍ عامة.
+ *
+ * والتحقّق هنا لا يحمي مالاً: الختم لا يُضاف إلا بطلبٍ يسجّله الباريستا،
+ * فمن زوّر رقماً عليه أن يأتي المحلّ خمس مرّات ويشتري خمسة مشروبات
+ * ليربح واحداً. ما يحميه التحقّق هو صحّة الرقم لا صدق صاحبه.
+ */
+export async function registerWithoutCode(
+  businessId: string,
+  rawPhone: string,
+  name?: string
+): Promise<OtpVerify> {
+  if (otpEnabled())
+    return { ok: false, error: "التحقّق بالرمز مُفعَّل — اطلب رمزاً" };
+
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return { ok: false, error: "رقم الهاتف غير صحيح" };
+
+  const blocked = (await db()`
+    select 1 from customers
+    where business_id = ${businessId} and phone = ${phone} and blocked
+  `) as unknown[];
+  if (blocked.length) return { ok: false, error: "هذا الرقم غير مؤهّل للتسجيل" };
+
+  return openAccount(businessId, phone, name, false);
 }
 
 // ── ما يراه الباريستا ────────────────────────────────────────────────

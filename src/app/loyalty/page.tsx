@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getSettings, strSetting } from "@/lib/settings";
+import { otpEnabled } from "@/lib/loyalty";
 import LoyaltySignup from "@/components/LoyaltySignup";
 
 /**
@@ -29,5 +30,11 @@ export default async function LoyaltyPage() {
     // العتبة الافتراضية تكفي لو تعذّرت القراءة
   }
 
-  return <LoyaltySignup shopName={shop} stampsPerReward={stampsPerReward} />;
+  return (
+    <LoyaltySignup
+      shopName={shop}
+      stampsPerReward={stampsPerReward}
+      needsCode={otpEnabled()}
+    />
+  );
 }
