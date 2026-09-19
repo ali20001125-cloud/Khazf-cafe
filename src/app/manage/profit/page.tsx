@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
@@ -7,7 +8,7 @@ import { getSettings, strSetting } from "@/lib/settings";
 import { money, num, countAr } from "@/lib/format";
 import {
   dayProfit, netProfit, profitIsComplete, productProfit, profitTrend,
-  retailDay, retailProfit,
+  retailDay, retailProfit, retailVariants,
 } from "@/lib/profit";
 
 /**
@@ -30,12 +31,13 @@ export default async function ProfitPage() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [today, byProduct, trend, retail, byRetail] = await Promise.all([
+  const [today, byProduct, trend, retail, byRetail, byVariant] = await Promise.all([
     dayProfit(branch.id),
     productProfit(user.bid, 30),
     profitTrend(branch.id, 14),
     retailDay(branch.id),
     retailProfit(user.bid, 30),
+    retailVariants(user.bid, 30),
   ]);
 
   const net = netProfit(today);
@@ -210,14 +212,18 @@ export default async function ProfitPage() {
 
           {byRetail.length > 0 && (
             <>
-              <h3 className="mb-2 mt-5 text-xs font-semibold text-muted">
-                كل صنف — ٣٠ يوماً (بلا التغليف، فهو للطلب لا للصنف)
+              <h3 className="mb-1 mt-5 text-xs font-semibold text-muted">
+                كل صنف ونوع — ٣٠ يوماً (بلا التغليف، فهو للطلب لا للصنف)
               </h3>
+              <p className="mb-2 text-xs text-muted/80">
+                الأنواع مفصولة لا مجموعة: «٣ أكياس» لا تقول أيّ بنٍّ تطلب في
+                الشحنة القادمة، و«كالدي ٢ · سيرادو ١» تقول.
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[420px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-line text-right text-xs text-muted">
-                      <th className="p-2 font-medium">الصنف</th>
+                      <th className="p-2 font-medium">الصنف والنوع</th>
                       <th className="p-2 font-medium">بيع</th>
                       <th className="p-2 font-medium">الإيراد</th>
                       <th className="p-2 font-medium">الربح</th>
@@ -225,19 +231,46 @@ export default async function ProfitPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {byRetail.map((r) => (
-                      <tr key={r.product_id} className="border-b border-line/60">
-                        <td className="p-2 text-ink">{r.name}</td>
-                        <td className="nums p-2 text-muted">{num(r.units)}</td>
-                        <td className="nums p-2 text-muted">{money(r.revenue, currency)}</td>
-                        <td className="nums p-2 font-semibold text-ink">
-                          {money(r.profit, currency)}
-                        </td>
-                        <td className="nums p-2 text-muted">
-                          {r.margin_pct == null ? "—" : `${r.margin_pct}٪`}
-                        </td>
-                      </tr>
-                    ))}
+                    {byRetail.map((r) => {
+                      const kinds = byVariant.filter((v) => v.product_id === r.product_id);
+                      return (
+                        <Fragment key={r.product_id}>
+                          <tr className="border-b border-line/60 bg-sand/40">
+                            <td className="p-2 font-semibold text-ink">{r.name}</td>
+                            <td className="nums p-2 text-muted">{num(r.units)}</td>
+                            <td className="nums p-2 text-muted">{money(r.revenue, currency)}</td>
+                            <td className="nums p-2 font-semibold text-ink">
+                              {money(r.profit, currency)}
+                            </td>
+                            <td className="nums p-2 text-muted">
+                              {r.margin_pct == null ? "—" : `${r.margin_pct}٪`}
+                            </td>
+                          </tr>
+                          {/* نوعٌ واحد لا يُفصَل عن نفسه — السطر فوقه هو هو */}
+                          {kinds.length > 1 &&
+                            kinds.map((v) => (
+                              <tr
+                                key={`${r.product_id}-${v.variant_id ?? "none"}`}
+                                className="border-b border-line/40"
+                              >
+                                <td className="py-1.5 pr-6 text-muted">
+                                  {kindName(v.variant_name)}
+                                </td>
+                                <td className="nums py-1.5 pr-2 text-ink">{num(v.units)}</td>
+                                <td className="nums py-1.5 pr-2 text-muted">
+                                  {money(v.revenue, currency)}
+                                </td>
+                                <td className="nums py-1.5 pr-2 text-muted">
+                                  {money(v.profit, currency)}
+                                </td>
+                                <td className="nums py-1.5 pr-2 text-muted">
+                                  {v.margin_pct == null ? "—" : `${v.margin_pct}٪`}
+                                </td>
+                              </tr>
+                            ))}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -352,6 +385,16 @@ export default async function ProfitPage() {
       </section>
     </div>
   );
+}
+
+/**
+ * «بن كالدي — للبيع» ← «بن كالدي».
+ *
+ * اللاحقة تفيد في المخزون حيث يجاور بنُّ البيع بنَّ المحل، فلا تُحذف من
+ * الاسم. لكنها هنا تحت عنوان «البضاعة» تكرارٌ يزاحم ما يُقرأ: النوع.
+ */
+function kindName(name: string): string {
+  return name.replace(/\s*—\s*للبيع\s*$/, "");
 }
 
 function Card({

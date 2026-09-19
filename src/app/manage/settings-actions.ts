@@ -11,6 +11,9 @@ const ALLOWED = new Set([
   "shop_name", "shop_phone", "staff_drink_limit", "session_timeout_minutes",
   // كانت تُزرع «IQD» وتظهر في كل سعرٍ وفاتورة بلا سبيلٍ لتغييرها
   "currency",
+  // كلفة تغليف طلب البضاعة — قال المالك إنها تتغيّر كل فترة، فمكانها
+  // لوحته لا هجرةٌ في القاعدة
+  "retail_packaging_cost",
 ]);
 
 export async function updateSettingsAction(

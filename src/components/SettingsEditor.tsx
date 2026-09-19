@@ -22,6 +22,7 @@ type Shop = {
   shop_phone: string;
   staff_drink_limit: number;
   session_timeout_minutes: number;
+  retail_packaging_cost: number;
 };
 
 type Branch = {
@@ -61,6 +62,7 @@ export default function SettingsEditor({
         shop_phone: s.shop_phone,
         staff_drink_limit: Math.round(Number(s.staff_drink_limit) || 0),
         session_timeout_minutes: Math.round(Number(s.session_timeout_minutes) || 0),
+        retail_packaging_cost: Math.max(0, Math.round(Number(s.retail_packaging_cost) || 0)),
       });
       if (!r1.ok) return setError(r1.error);
 
@@ -113,6 +115,42 @@ export default function SettingsEditor({
         </Field>
         <Field label="هاتف المحل" hint="يظهر أسفل الفاتورة.">
           <input className="field nums" dir="ltr" value={s.shop_phone} onChange={(e) => { setS({ ...s, shop_phone: e.target.value }); setSaved(false); }} />
+        </Field>
+      </section>
+
+      {/* البضاعة */}
+      <section className="card space-y-4 p-5">
+        <h2 className="font-display font-bold text-ink">بيع البضاعة</h2>
+        <Field
+          label="كلفة تغليف الطلب الواحد"
+          hint="الكيس الذي تُعطى فيه البضاعة والملصق عليه. تُحسب مرّةً للطلب سواء اشترى الزبون كيساً أو عشرة — فالعشرة تخرج في كيسٍ واحد. أمّا طباعة كيس البنّ نفسه وملصقه فمحسوبةٌ أصلاً في كلفته، فلا تُعاد هنا."
+        >
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            dir="ltr"
+            className="field nums text-lg"
+            value={s.retail_packaging_cost}
+            onChange={(e) => { setS({ ...s, retail_packaging_cost: Number(e.target.value) }); setSaved(false); }}
+          />
+          <p className="nums mt-1 text-xs text-accentdeep">
+            {money(Math.max(0, Math.round(Number(s.retail_packaging_cost) || 0)), currency)}
+          </p>
+          <p className="mt-1.5 rounded-lg bg-sand px-3 py-2 text-xs leading-relaxed text-muted">
+            <span className="font-semibold text-ink">لا يدفعها الزبون ولا تظهر في فاتورته</span> —
+            تنقص من ربحك وحده. فكيسٌ كلّف <span className="nums">٧٬٥٠٠</span> وبِيع
+            بـ<span className="nums">٢٥٬٠٠٠</span> ربحه{" "}
+            <span className="nums font-semibold text-ink">
+              {money(Math.max(0, 17500 - (Math.round(Number(s.retail_packaging_cost) || 0))), currency)}
+            </span>{" "}
+            لا <span className="nums">١٧٬٥٠٠</span>.
+          </p>
+          <p className="mt-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            المبلغ يُقرأ وقت العرض لا وقت البيع: لو غيّرته، حُسبت به أيامٌ
+            ماضية أيضاً. أخبرني إن أردت تثبيته على كل طلبٍ ساعة بيعه فلا يتغيّر
+            الماضي.
+          </p>
         </Field>
       </section>
 

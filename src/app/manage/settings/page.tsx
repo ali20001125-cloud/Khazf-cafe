@@ -46,6 +46,7 @@ export default async function SettingsPage() {
         shop_phone: strSetting(s, "shop_phone", ""),
         staff_drink_limit: numSetting(s, "staff_drink_limit", 1),
         session_timeout_minutes: numSetting(s, "session_timeout_minutes", 10),
+        retail_packaging_cost: numSetting(s, "retail_packaging_cost", 0),
       }}
       branch={{
         standard_float: branch.standard_float,

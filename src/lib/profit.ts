@@ -181,3 +181,38 @@ export async function retailProfit(businessId: string, days = 30): Promise<Retai
     margin_pct: r.margin_pct == null ? null : Number(r.margin_pct),
   }));
 }
+
+export type RetailVariant = {
+  product_id: string;
+  product_name: string;
+  variant_id: string | null;
+  variant_name: string;
+  units: number;
+  revenue: number;
+  cogs: number;
+  profit: number;
+  margin_pct: number | null;
+};
+
+/**
+ * مبيعات كل **نوع**: كالدي كم باع، وسيرادو كم باع.
+ *
+ * `retailProfit` تجمع الأنواع تحت صنفها، وذاك يخفي ما يُشترى التقرير من
+ * أجله: من يرى «٣ أكياس» لا يعرف أيّ بنٍّ يطلب في شحنته القادمة.
+ */
+export async function retailVariants(businessId: string, days = 30): Promise<RetailVariant[]> {
+  const rows = (await db()`
+    select product_id, product_name, variant_id, variant_name,
+           units::int as units, revenue::int as revenue,
+           cogs::int as cogs, profit::int as profit, margin_pct
+    from retail_variants(${businessId}, ${days})
+  `) as RetailVariant[];
+  return rows.map((r) => ({
+    ...r,
+    units: Number(r.units),
+    revenue: Number(r.revenue),
+    cogs: Number(r.cogs),
+    profit: Number(r.profit),
+    margin_pct: r.margin_pct == null ? null : Number(r.margin_pct),
+  }));
+}
