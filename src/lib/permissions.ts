@@ -71,7 +71,7 @@ export async function can(user: SessionData, perm: Permission): Promise<boolean>
 }
 
 export class AuthError extends Error {
-  constructor(public code: "unauthenticated" | "forbidden", message: string) {
+  constructor(public code: "unauthenticated" | "forbidden" | "locked", message: string) {
     super(message);
     this.name = "AuthError";
   }
@@ -87,6 +87,17 @@ export function requireUser(): SessionData {
 /** يتحقّق من الصلاحية أو يرمي — يُستدعى في بداية كل عملية حسّاسة. */
 export async function requirePermission(perm: Permission): Promise<SessionData> {
   const u = requireUser();
+
+  /*
+    الشاشة المقفلة تُرفض هنا، عند نقطة الاختناق التي تمرّ بها كل الأفعال
+    الخادمية. ولو كان الرفض في الواجهة وحدها لكان القفل رسماً: من يعرف
+    كيف يُرسل طلباً مباشراً يتجاوز أي ستارة. والقفل يُوسم في الكوكي
+    الموقّع، فلا يُزال من المتصفّح.
+  */
+  if (u.lk) {
+    throw new AuthError("locked", "الشاشة مقفلة — أدخل رمزك للمتابعة");
+  }
+
   if (!(await can(u, perm))) {
     throw new AuthError("forbidden", "لا تملك صلاحية هذه العملية");
   }

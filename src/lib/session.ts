@@ -17,6 +17,15 @@ export type SessionData = {
   role: UserRole;
   name: string;
   iat: number; // ثوانٍ
+  /**
+   * الشاشة مقفلة.
+   *
+   * القفل لا يمحو الجلسة بل يوسمها. لو مُحيت لأعادت الصفحة توجيهها إلى
+   * `/login` وضاعت السلّة المفتوحة — ولذلك يبقى صاحبها معروفاً وتُرفض
+   * أفعاله حتى يُعيد رمزه. والوسم داخل الكوكي الموقّع، فلا يُزال بزرّ
+   * التحديث ولا بتحرير التخزين في المتصفّح.
+   */
+  lk?: 1;
 };
 
 /**
@@ -109,6 +118,25 @@ export function setSession(data: Omit<SessionData, "iat">): void {
 export function readSession(): SessionData | null {
   const v = cookies().get(SESSION_COOKIE)?.value;
   return v ? decode(v) : null;
+}
+
+/** يوسم الجلسة مقفلةً بنفس مدّتها — لا تمديد ولا تقصير. */
+export function lockSession(): boolean {
+  const cur = readSession();
+  if (!cur || cur.lk) return false;
+  const token = encode({ ...cur, lk: 1 });
+  cookies().set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    // تبقى المدّة محسوبةً من `iat` الأصلي: القفل لا يُطيل عمر الجلسة
+    maxAge: Math.max(
+      0,
+      MAX_AGE_SECONDS - Math.floor(Date.now() / 1000 - cur.iat)
+    ),
+  });
+  return true;
 }
 
 export function clearSession(): void {

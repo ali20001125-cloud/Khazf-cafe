@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { getCatalog, topSellerRank } from "@/lib/catalog";
-import { getSettings, strSetting } from "@/lib/settings";
+import { getSettings, strSetting, numSetting } from "@/lib/settings";
 import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import PosScreen from "@/components/PosScreen";
+import IdleLock from "@/components/IdleLock";
 import OpenShiftPanel from "@/components/OpenShiftPanel";
 import { myPinIsDefault } from "@/lib/users";
 import { pendingHandoverForMe } from "@/app/pos/shift-actions";
@@ -33,6 +34,8 @@ export default async function PosPage() {
     topSellerRank(user.bid),
   ]);
   const currency = strSetting(settings, "currency", "د.ع");
+  // «قفل الشاشة بعد خمول» — كان إعداداً لا يقرأه أحد
+  const idleMinutes = numSetting(settings, "session_timeout_minutes", 10);
 
   if (branch?.pos_locked) {
     return (
@@ -70,7 +73,9 @@ export default async function PosPage() {
   ]);
 
   return (
-    <PosScreen
+    <>
+      <IdleLock minutes={idleMinutes} userName={user.name} />
+      <PosScreen
       catalog={catalog}
       sellRank={Object.fromEntries(sellRank)}
       currency={currency}
@@ -82,6 +87,7 @@ export default async function PosPage() {
       canHandover={canHandover}
       canManage={canManage}
       pendingHandover={pendingHandover}
-    />
+      />
+    </>
   );
 }

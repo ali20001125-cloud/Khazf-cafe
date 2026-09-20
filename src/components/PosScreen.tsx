@@ -451,6 +451,18 @@ function MoreSheet({
               لوحة الإدارة
             </Link>
           )}
+          {/*
+            «خلصت الطلب، اقفل» — بلا انتظار مهلة الخمول. والقفل يُنهي
+            الجلسة فعلاً (لا ستارة تزول بالتحديث)، والسلّة تبقى في
+            الشاشة فتعود كما هي بعد الفتح.
+          */}
+          <button
+            onClick={() => window.dispatchEvent(new Event("khazf:lock"))}
+            className="btn-ghost flex w-full items-center justify-between py-4 text-right"
+          >
+            <span>اقفل الشاشة</span>
+            <span aria-hidden="true">🔒</span>
+          </button>
         </div>
 
         <div className="mt-3 border-t border-line pt-3">
