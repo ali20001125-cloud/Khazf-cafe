@@ -34,6 +34,8 @@ export type CatalogProduct = {
   id: string;
   name: string;
   category: string;
+  /** 'drink' يُحضَّر · 'retail' بضاعة تُباع كما هي. البضاعة لا تُشرب. */
+  kind: "drink" | "retail";
   paused: boolean;
   crops: CatalogCrop[];
   groups: CatalogGroup[];
@@ -41,7 +43,7 @@ export type CatalogProduct = {
 
 export async function getCatalog(businessId: string): Promise<CatalogProduct[]> {
   const rows = (await db()`
-    select p.id, p.name, p.category, p.paused,
+    select p.id, p.name, p.category, p.kind, p.paused,
            pc.material_id, m.name as crop_name, pc.price, pc.available,
            coalesce(sl.servings_dine_in, 0)  as servings_dine_in,
            coalesce(sl.servings_takeaway, 0) as servings_takeaway,
@@ -54,7 +56,7 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
     where p.active and p.business_id = ${businessId}
     order by p.sort, p.name, m.name
   `) as {
-    id: string; name: string; category: string; paused: boolean;
+    id: string; name: string; category: string; kind: "drink" | "retail"; paused: boolean;
     material_id: string; crop_name: string; price: number; available: boolean;
     servings_dine_in: number; servings_takeaway: number;
     blocker_dine_in: string | null; blocker_takeaway: string | null;
@@ -78,7 +80,7 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
   for (const r of rows) {
     let prod = map.get(r.id);
     if (!prod) {
-      prod = { id: r.id, name: r.name, category: r.category, paused: r.paused, crops: [], groups: [] };
+      prod = { id: r.id, name: r.name, category: r.category, kind: r.kind, paused: r.paused, crops: [], groups: [] };
       map.set(r.id, prod);
     }
     prod.crops.push({

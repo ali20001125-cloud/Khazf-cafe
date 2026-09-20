@@ -362,7 +362,13 @@ export default function PosScreen({
           onClose={() => setMoreOpen(false)}
         />
       )}
-      {staffOpen && <StaffDrinkDialog catalog={catalog} onClose={() => setStaffOpen(false)} />}
+      {staffOpen && (
+        <StaffDrinkDialog
+          /* البضاعة ليست مشروباً — والخادم يرفضها أيضاً */
+          catalog={catalog.filter((p) => p.kind !== "retail")}
+          onClose={() => setStaffOpen(false)}
+        />
+      )}
       {customerOpen && (
         <CustomerPanel
           catalog={catalog}

@@ -33,6 +33,20 @@ export async function recordStaffDrinkAction(
     const shift = await getOpenShift(branch.id);
     if (!shift) return { ok: false, error: "افتح الوردية أولاً" };
 
+    /*
+      «مشروب موظف» مشروب. والبضاعة تُباع كما هي — كيس بنٍّ بخمسة
+      وعشرين ألفاً ليس كوباً يُشرب، وأخذه مجّاناً ليس ضيافةً بل خسارة.
+      والحارس هنا لا في الشاشة: إخفاء الصنف من القائمة لا يمنع طلباً
+      يُرسل بمعرّفه مباشرةً.
+    */
+    const kindRows = (await db()`
+      select kind from products
+      where id = ${productId} and business_id = ${user.bid} and active
+    `) as { kind: string }[];
+    if (!kindRows[0]) return { ok: false, error: "منتج غير موجود" };
+    if (kindRows[0].kind !== "drink")
+      return { ok: false, error: "مشروبات الموظفين للمشروبات وحدها — لا للبضاعة" };
+
     const settings = await getSettings();
     const limit = numSetting(settings, "staff_drink_limit", 1);
 
