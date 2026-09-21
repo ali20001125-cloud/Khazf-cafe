@@ -1,6 +1,7 @@
 import type { Viewport } from "next";
 import { menuDetails, publicMenu, soleBusinessId } from "@/lib/menu";
 import { getSettings, strSetting } from "@/lib/settings";
+import { bannerLive, readBanner } from "@/lib/banner";
 import { money, num, categoryLabel } from "@/lib/format";
 import MenuBoard, { type BoardGroup, type BoardItem } from "@/components/MenuBoard";
 
@@ -31,6 +32,11 @@ export default async function MenuPage() {
   const shop = strSetting(settings, "shop_name", "مقهى خزف");
   const currency = strSetting(settings, "currency", "د.ع");
   const phone = strSetting(settings, "shop_phone", "");
+
+  // الشريط ينتهي وحده: لا مهمّة مجدولة تُسكته، بل القراءة نفسها لا
+  // تُظهره بعد يومه. (انظر `lib/banner.ts`)
+  const raw = readBanner(settings as Record<string, unknown>);
+  const banner = bannerLive(raw, new Date()) ? raw : null;
 
   const [items, details] = bid
     ? await Promise.all([publicMenu(bid), menuDetails(bid)])
@@ -102,6 +108,20 @@ export default async function MenuPage() {
           <p className="mt-5 text-[0.72rem] text-cream/45">المنيو</p>
         </div>
       </header>
+
+      {banner && (
+        <div className="relative mx-auto -mt-9 w-full max-w-4xl px-5">
+          <div
+            className={`rounded-2xl px-5 py-3 text-center text-sm font-medium shadow-soft ${
+              banner.tone === "warn"
+                ? "bg-amber-100 text-amber-900"
+                : "bg-cream text-ink ring-1 ring-ink/10"
+            }`}
+          >
+            {banner.text}
+          </div>
+        </div>
+      )}
 
       <div className="relative mx-auto w-full max-w-4xl px-5 pb-20">
         {groups.length === 0 ? (

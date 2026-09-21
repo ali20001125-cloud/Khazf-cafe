@@ -134,6 +134,58 @@ export async function uploadProductImageAction(
 }
 
 /**
+ * شريط أعلى المنيو.
+ *
+ * يُحفظ في الإعدادات لا في جدولٍ خاصّ: سطرٌ واحد لا يستحقّ جدولاً،
+ * وثلاثة مفاتيح تكفيه.
+ *
+ * والتاريخ يُتحقَّق من شكله هنا لا في الشاشة وحدها: `<input type=date>`
+ * يمنع الشكل الغلط في المتصفّح، ومن أرسل الطلب بيده لا يمرّ به.
+ */
+export async function updateBannerAction(b: {
+  text: string;
+  tone: string;
+  until: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("products.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  const text = b.text.trim().slice(0, 120);
+  const tone = b.tone === "warn" ? "warn" : "news";
+  const until = b.until && /^\d{4}-\d{2}-\d{2}$/.test(b.until) ? b.until : null;
+
+  try {
+    for (const [key, value] of [
+      ["menu_banner_text", text],
+      ["menu_banner_tone", tone],
+      ["menu_banner_until", until],
+    ] as const) {
+      await db()`
+        insert into settings (business_id, branch_id, key, value)
+        values (${user.bid}, ${null}, ${key}, ${JSON.stringify(value)}::jsonb)
+        on conflict (business_id, key) where branch_id is null
+        do update set value = excluded.value
+      `;
+    }
+    await db()`
+      insert into audit_log (business_id, user_id, action, entity_type, reason)
+      values (${user.bid}, ${user.uid}, 'menu_banner', 'settings',
+              ${text.length > 0 ? `شريط المنيو: ${text}` : "أُزيل شريط المنيو"})
+    `;
+    revalidatePath("/menu");
+    revalidatePath("/manage/menu");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "تعذّر الحفظ" };
+  }
+}
+
+/**
  * اسم البنّ على الطاولة.
  *
  * حقلٌ مستقلّ لا إعادة تسمية: «حبوب كالدي» يبقى في المخزون والجرد

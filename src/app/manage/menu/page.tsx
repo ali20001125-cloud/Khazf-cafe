@@ -8,6 +8,8 @@ import { beanLabels, menuAdmin } from "@/lib/menu";
 import { getSettings, strSetting } from "@/lib/settings";
 import MenuEditor from "@/components/MenuEditor";
 import BeanLabels from "@/components/BeanLabels";
+import BannerEditor from "@/components/BannerEditor";
+import { readBanner } from "@/lib/banner";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,8 @@ export default async function ManageMenuPage() {
     beanLabels(user.bid),
     getSettings(),
   ]);
+
+  const banner = readBanner(settings as Record<string, unknown>);
 
   // الرابط من المضيف الذي يزوره المالك الآن — لا ثابتاً في الكود، فينكسر
   // بأوّل تغيير نطاق
@@ -56,6 +60,12 @@ export default async function ManageMenuPage() {
         currency={strSetting(settings, "currency", "د.ع")}
         menuUrl={menuUrl}
         qrSvg={qr}
+      />
+
+      <BannerEditor
+        text={banner?.text ?? ""}
+        tone={banner?.tone ?? "news"}
+        until={banner?.until ?? null}
       />
 
       <BeanLabels beans={beans} />
