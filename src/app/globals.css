@@ -138,6 +138,17 @@ h1, h2, h3, .font-display {
     }
   }
 
+  /* القائمة الجانبية تنزلق من حافّة البداية — واللوحة عربيّةٌ كلّها،
+     فالبداية هي اليمين، و`translateX` الموجب يذهب يميناً في الاتجاهين. */
+  @keyframes slidein {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
   /* وهجٌ طينيّ خلف اسم المحلّ — يمنع الشريط الداكن أن يبدو حبراً مسطّحاً */
   .hero-glow {
     position: absolute;

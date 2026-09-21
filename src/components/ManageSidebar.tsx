@@ -77,8 +77,17 @@ export default function ManageSidebar({ userName }: { userName: string }) {
 
       {/* درج الموبايل */}
       {open && (
-        <div className="fixed inset-0 z-50 bg-dark/60 lg:hidden" onClick={() => setOpen(false)}>
-          <aside className="topbar h-full w-64 p-4" onClick={(e) => e.stopPropagation()} dir="rtl">
+        <div
+          className="fixed inset-0 z-50 overflow-hidden bg-dark/60 motion-safe:animate-[fadein_.2s_ease] lg:hidden"
+          onClick={() => setOpen(false)}
+        >
+          {/* `overflow-hidden` على الغطاء: القائمة تبدأ خارج الشاشة،
+              وبدونه يظهر شريطُ تمريرٍ أفقيّ لجزءٍ من ثانية. */}
+          <aside
+            className="topbar h-full w-64 p-4 motion-safe:animate-[slidein_.26s_cubic-bezier(0.22,0.68,0,1)]"
+            onClick={(e) => e.stopPropagation()}
+            dir="rtl"
+          >
             <div className="mb-6 flex items-center justify-between">
               <span className="font-display text-xl font-bold text-cream">خزف</span>
               <button onClick={() => setOpen(false)} className="text-cream/60">✕</button>

@@ -87,8 +87,9 @@ export default function ModifierSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-dark/50 backdrop-blur-sm sm:items-center" onClick={onClose}>
-      <div className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-sand p-6 shadow-lift sm:rounded-3xl" dir="rtl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-dark/50 backdrop-blur-sm motion-safe:animate-[fadein_.25s_ease]" />
+      <div className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-sand p-6 shadow-lift sm:rounded-3xl motion-safe:animate-[sheetup_.32s_cubic-bezier(0.22,0.68,0,1)]" dir="rtl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-start justify-between">
           <div>
             <h3 className="font-display text-xl font-bold text-ink">{product.name}</h3>
