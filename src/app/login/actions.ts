@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { loginByPin, logout, type LoginResult } from "@/lib/auth";
+import { loginByName, logout, type LoginResult } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 /**
@@ -19,8 +19,8 @@ function deviceKey(): string {
   );
 }
 
-export async function loginAction(pin: string): Promise<LoginResult> {
-  return loginByPin(pin, deviceKey());
+export async function loginAction(name: string, code: string): Promise<LoginResult> {
+  return loginByName(name, code, deviceKey());
 }
 
 export async function logoutAction(): Promise<void> {

@@ -40,7 +40,7 @@ export default function MyPinDialog({
           اجعله معروفاً لك وحدك — ولا تكتبه على ورقة قرب الكاشير.
         </p>
         <Pin label="رمزي الحالي" value={cur} onChange={setCur} />
-        <Pin label="الرمز الجديد" value={next} onChange={setNext} hint="٤ إلى ٨ أرقام" />
+        <Pin label="الرمز الجديد" value={next} onChange={setNext} hint="٤ خانات فأكثر — أرقام أو حروف إنجليزية" />
         <Pin label="أعِد الرمز الجديد" value={again} onChange={setAgain} />
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <div className="grid grid-cols-2 gap-2">
@@ -77,15 +77,22 @@ function Pin({
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-ink">
         {label}
       </label>
+      {/*
+        كان يمسح كل ما ليس رقماً، فحرفٌ يُكتب يختفي بلا سبب يُفهم.
+        والرموز صارت تقبل الحروف (رمز المالك `alikhazf20001125`)،
+        فلوحةُ أرقامٍ ونصٌّ متباعد الحروف لم يعودا يناسبانها.
+      */}
       <input
         id={id}
-        className="field nums text-center text-xl tracking-[0.3em]"
+        className="field text-center text-lg"
         type="password"
-        inputMode="numeric"
         autoComplete="off"
-        maxLength={8}
+        autoCapitalize="off"
+        spellCheck={false}
+        dir="ltr"
+        maxLength={64}
         value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+        onChange={(e) => onChange(e.target.value.replace(/[^A-Za-z0-9._@-]/g, ""))}
       />
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>

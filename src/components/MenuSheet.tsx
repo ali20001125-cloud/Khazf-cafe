@@ -145,21 +145,26 @@ export default function MenuSheet({
             </div>
           )}
 
-          {/* حكاية البنّ — ما يُقرأ في مقهىً مختصّ */}
-          {detail && detail.kinds.length > 0 && (
+          {/*
+            **لا خيارات في منيو الزبون.** قال المالك: المشروبات
+            الكلاسيكية نختارها ونخصّصها في الخلف، والخيارات تأتي لاحقاً
+            في المشروبات المخصّصة وحدها. وعرض ثلاثة أنواع بنٍّ يُفهم
+            دعوةً للاختيار ولو لم تُكتب كلمة «اختر» — فالزبون يطلب ما
+            رآه معروضاً.
+
+            فالبنّ يُذكر حين يكون واحداً: حينها هو **ما يُقدَّم** لا
+            قائمةٌ تُنتقى. وحكايته تبقى، فهي ما يُقرأ في مقهىً مختصّ.
+          */}
+          {detail && detail.kinds.length === 1 && (
             <div className="mt-5">
-              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">
-                {detail.kinds.length > 1 ? "البنّ — تختار عند الطلب" : "البنّ"}
-              </h3>
-              <div className="space-y-1.5">
-                {detail.kinds.map((k) => (
-                  <div key={k.name} className="rounded-xl bg-sand/60 px-3 py-2">
-                    <p className="text-sm font-medium text-ink">{kindName(k.name)}</p>
-                    {k.note && (
-                      <p className="mt-0.5 text-xs leading-relaxed text-muted">{k.note}</p>
-                    )}
-                  </div>
-                ))}
+              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">البنّ</h3>
+              <div className="rounded-xl bg-sand/60 px-3 py-2">
+                <p className="text-sm font-medium text-ink">{kindName(detail.kinds[0].name)}</p>
+                {detail.kinds[0].note && (
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted">
+                    {detail.kinds[0].note}
+                  </p>
+                )}
               </div>
             </div>
           )}

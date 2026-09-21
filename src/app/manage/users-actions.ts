@@ -24,7 +24,7 @@ import { normalizePhone } from "@/lib/phone";
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 const MIN_PIN = 4;
-const MAX_PIN = 8;
+const MAX_PIN = 64;
 
 /** رموز يحفظها كل من رأى كاشيراً — لا تُقبل ولو كان صاحبها مصمّماً عليها. */
 const BANNED_PINS = new Set([
@@ -33,12 +33,25 @@ const BANNED_PINS = new Set([
   "12345", "123456", "654321", "111111", "000000",
 ]);
 
+/**
+ * الرمز يقبل الحروف الآن.
+ *
+ * كان أرقاماً فقط لأن الدخول كان بلوحة أرقام. وصار الدخول بالاسم ثمّ
+ * حقل نصّ، فطلب المالك رمزاً كـ`alikhazf20001125` لنفسه وستّة أرقام
+ * للباريستا. و`bcrypt` لا يبالي — نصٌّ كأيّ نصّ.
+ *
+ * وتبقى الرموز المكشوفة مرفوضة: من رأى كاشيراً يجرّب `1234` أوّلاً.
+ * لكنها تُفحص على الأرقام القصيرة وحدها — `password1` ليس في قائمةٍ
+ * لأربعة أرقام، وطولُه هو حمايته.
+ */
 function validatePin(pin: string): string | null {
-  if (!/^\d+$/.test(pin)) return "الرمز أرقام فقط";
+  if (!/^[A-Za-z0-9._@-]+$/.test(pin))
+    return "الرمز حروف إنجليزية وأرقام (ويقبل . _ - @)";
   if (pin.length < MIN_PIN || pin.length > MAX_PIN)
-    return `الرمز بين ${MIN_PIN} و${MAX_PIN} أرقام`;
+    return `الرمز بين ${MIN_PIN} و${MAX_PIN} خانة`;
   if (BANNED_PINS.has(pin))
     return "رمز مكشوف — هذا من أول ما يُجرَّب. اختر غيره";
+  // رقمٌ واحد مكرّر ضعيفٌ مهما طال: ١١١١١١ ليس أقوى من ١١١١
   if (/^(\d)\1+$/.test(pin)) return "رقم واحد مكرّر — اختر غيره";
   return null;
 }

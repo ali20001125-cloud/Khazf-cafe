@@ -230,9 +230,11 @@ function Tile({
               {item.note}
             </p>
           )}
-          {item.kinds.length > 1 && (
+          {/* نوعٌ واحد = ما يُقدَّم. وعدّة أنواعٍ تُخفى: سردُها في المنيو
+              يُقرأ خياراً، والاختيار يقع في الخلف لا عند الزبون. */}
+          {item.kinds.length === 1 && (
             <p className="mt-1.5 text-[0.68rem] leading-relaxed text-accentdeep">
-              {item.kinds.join(" · ")}
+              {item.kinds[0]}
             </p>
           )}
           <p
@@ -288,8 +290,8 @@ function Hero({
           {item.note && (
             <p className="line-clamp-2 text-[0.78rem] leading-relaxed text-cream/60">{item.note}</p>
           )}
-          {item.kinds.length > 1 && (
-            <p className="text-[0.7rem] text-accent/80">{item.kinds.join(" · ")}</p>
+          {item.kinds.length === 1 && (
+            <p className="text-[0.7rem] text-accent/80">{item.kinds[0]}</p>
           )}
           <div className="mt-1 flex items-center gap-2">
             <span dir="ltr" className="nums text-base font-bold tracking-tight text-cream">

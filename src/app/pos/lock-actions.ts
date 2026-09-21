@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/auth";
 import { lockSession } from "@/lib/session";
-import { loginByPin, type LoginResult } from "@/lib/auth";
+import { loginByName, type LoginResult } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 /**
@@ -52,6 +52,6 @@ function deviceKey(): string {
  * صاحب الجلسة — ولو كان غير من أقفلها. ولها حدّ المحاولات نفسه، فلا
  * تصير باباً خلفياً أضعف من الباب الأمامي.
  */
-export async function unlockScreenAction(pin: string): Promise<LoginResult> {
-  return loginByPin(pin, deviceKey());
+export async function unlockScreenAction(name: string, code: string): Promise<LoginResult> {
+  return loginByName(name, code, deviceKey());
 }
