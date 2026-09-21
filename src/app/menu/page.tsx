@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 import { menuDetails, publicMenu, soleBusinessId } from "@/lib/menu";
 import { getSettings, strSetting } from "@/lib/settings";
-import { money, num, categoryLabel, kindName } from "@/lib/format";
+import { money, num, categoryLabel } from "@/lib/format";
 import MenuBoard, { type BoardGroup, type BoardItem } from "@/components/MenuBoard";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +51,9 @@ export default async function MenuPage() {
       i.minPrice === i.maxPrice
         ? money(i.minPrice, currency)
         : `${num(i.minPrice)} — ${money(i.maxPrice, currency)}`,
-    kinds: i.variants.map(kindName).filter((v, n, a) => a.indexOf(v) === n),
+    // بلا `kindName`: ما يأتي من `public_menu` هو الاسم المعروض الذي
+    // كتبه المالك، لا اسم المخزن — فلا «حبوب» تُقتطع ولا «— للبيع».
+    kinds: i.variants.filter((v, n, a) => a.indexOf(v) === n),
   });
 
   // المميّز يتصدّر قسمه. بطاقةٌ بعرض الشاشة في ذيل القسم تُرى بعد أن

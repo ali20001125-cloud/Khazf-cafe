@@ -133,6 +133,46 @@ export async function uploadProductImageAction(
   return { ok: true, url: put.url };
 }
 
+/**
+ * اسم البنّ على الطاولة.
+ *
+ * حقلٌ مستقلّ لا إعادة تسمية: «حبوب كالدي» يبقى في المخزون والجرد
+ * والتكاليف — لأنك تشتريه وتعدّه بهذا الاسم — و`menu_label` وحده هو
+ * ما يُقرأ عند الزبون.
+ *
+ * والفراغ يعود إلى الصمت لا إلى اسم المخزن: من مسح الحقل قصد أن
+ * يُخفي المحصول، لا أن يكشفه.
+ */
+export async function updateBeanLabelsAction(
+  rows: { id: string; label: string }[]
+): Promise<{ ok: true; saved: number } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("products.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  const clean = rows.filter((r) => r.id);
+  if (clean.length === 0) return { ok: false, error: "لا تغييرات" };
+
+  try {
+    for (const r of clean) {
+      const label = r.label.trim().slice(0, 60);
+      await db()`
+        update materials set menu_label = ${label.length > 0 ? label : null}
+        where id = ${r.id} and business_id = ${user.bid}
+      `;
+    }
+    revalidatePath("/menu");
+    revalidatePath("/manage/menu");
+    return { ok: true, saved: clean.length };
+  } catch {
+    return { ok: false, error: "تعذّر الحفظ" };
+  }
+}
+
 /** إزالة الصورة — يعود الرسم مكانها، فلا يبقى مربّعٌ فارغ. */
 export async function removeProductImageAction(
   productId: string

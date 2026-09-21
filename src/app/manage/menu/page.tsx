@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { menuAdmin } from "@/lib/menu";
+import { beanLabels, menuAdmin } from "@/lib/menu";
 import { getSettings, strSetting } from "@/lib/settings";
 import MenuEditor from "@/components/MenuEditor";
+import BeanLabels from "@/components/BeanLabels";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,11 @@ export default async function ManageMenuPage() {
   if (!user) redirect("/login");
   if (!(await can(user, "products.manage"))) redirect("/");
 
-  const [rows, settings] = await Promise.all([menuAdmin(user.bid), getSettings()]);
+  const [rows, beans, settings] = await Promise.all([
+    menuAdmin(user.bid),
+    beanLabels(user.bid),
+    getSettings(),
+  ]);
 
   // الرابط من المضيف الذي يزوره المالك الآن — لا ثابتاً في الكود، فينكسر
   // بأوّل تغيير نطاق
@@ -52,6 +57,8 @@ export default async function ManageMenuPage() {
         menuUrl={menuUrl}
         qrSvg={qr}
       />
+
+      <BeanLabels beans={beans} />
     </div>
   );
 }

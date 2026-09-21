@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import DrinkArt, { artKind } from "./DrinkArt";
-import { kindName } from "@/lib/format";
 import type { BoardItem } from "./MenuBoard";
 
 export type SheetDetail = {
@@ -159,7 +158,9 @@ export default function MenuSheet({
             <div className="mt-5">
               <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">البنّ</h3>
               <div className="rounded-xl bg-sand/60 px-3 py-2">
-                <p className="text-sm font-medium text-ink">{kindName(detail.kinds[0].name)}</p>
+                {/* بلا `kindName`: ما يصل هنا هو الاسم المعروض الذي
+                    كتبه المالك، لا اسم المخزن — فلا شيء يُقتطع منه. */}
+                <p className="text-sm font-medium text-ink">{detail.kinds[0].name}</p>
                 {detail.kinds[0].note && (
                   <p className="mt-0.5 text-xs leading-relaxed text-muted">
                     {detail.kinds[0].note}

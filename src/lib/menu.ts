@@ -86,8 +86,14 @@ export async function menuDetails(businessId: string): Promise<Record<string, Me
     select p.id,
            product_detail(p.id, fc.material_id) as detail,
            coalesce((
-             select jsonb_agg(jsonb_build_object('name', m2.name, 'note', m2.menu_note)
-                              order by m2.name)
+             -- الاسم المعروض لا اسم المخزن: المحصول قرارٌ في الخلف،
+             -- واسمه على الطاولة وعدٌ لا نملكه. و distinct لأن ثلاثة
+             -- محاصيل صار اسمها المعروض واحداً.
+             select jsonb_agg(distinct jsonb_build_object(
+                      'name', case when p.kind = 'drink'
+                                then coalesce(m2.menu_label, 'حبوب قهوة مختصّة')
+                                else coalesce(m2.menu_label, m2.name) end,
+                      'note', m2.menu_note))
              from product_crops pc2
              join materials m2 on m2.id = pc2.material_id
              where pc2.product_id = p.id and pc2.available
@@ -121,6 +127,26 @@ export async function soleBusinessId(): Promise<string | null> {
     select id from businesses order by created_at limit 1
   `) as { id: string }[];
   return rows[0]?.id ?? null;
+}
+
+/**
+ * المحاصيل التي تُصنع منها المشروبات، باسميها: اسم المخزن واسم الطاولة.
+ *
+ * وهي المواد التي يشير إليها `product_crops` — أي البنّ وحده. الحليب
+ * والسيروب لا يُسمَّيان مرّتين.
+ */
+export async function beanLabels(
+  businessId: string
+): Promise<{ id: string; name: string; label: string; note: string | null }[]> {
+  const rows = (await db()`
+    select distinct m.id, m.name, coalesce(m.menu_label, '') as label, m.menu_note as note
+    from materials m
+    join product_crops pc on pc.material_id = m.id
+    join products p on p.id = pc.product_id and p.kind = 'drink'
+    where m.business_id = ${businessId} and m.active
+    order by m.name
+  `) as { id: string; name: string; label: string; note: string | null }[];
+  return rows;
 }
 
 export type MenuAdminRow = MenuItem & { menuVisible: boolean; active: boolean };
