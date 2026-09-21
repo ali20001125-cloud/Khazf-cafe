@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { checkPromoAction } from "@/app/manage/promo-actions";
 import { money } from "@/lib/format";
 import Modal from "@/components/Modal";
 import type { CartLine } from "@/components/PosScreen";
@@ -32,7 +33,15 @@ export default function PaymentDialog({
   onPaid: () => void;
 }) {
   const [method, setMethod] = useState<Method>("cash");
+  const [promo, setPromo] = useState("");
+  const [promoOk, setPromoOk] = useState<{ code: string; discount: number } | null>(null);
+  const [promoErr, setPromoErr] = useState<string | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
   const [tendered, setTendered] = useState<string>("");
+
+  // ما يُدفع فعلاً. والفكّة تُحسب عليه لا على الأصل — وإلّا رُدّ للزبون
+  // فرقٌ لم يدفعه.
+  const due = Math.max(0, total - (promoOk?.discount ?? 0));
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptInfo | null>(null);
   const [pending, start] = useTransition();
@@ -43,18 +52,39 @@ export default function PaymentDialog({
   const tenderedNum = tendered === "" ? null : Number(tendered);
   const change = useMemo(() => {
     if (method !== "cash" || tenderedNum == null) return null;
-    return tenderedNum - total;
-  }, [method, tenderedNum, total]);
+    return tenderedNum - due;
+  }, [method, tenderedNum, due]);
 
   const quick = useMemo(() => {
-    const set = new Set<number>([total]);
-    for (const step of [1000, 5000, 10000, 25000, 50000]) set.add(Math.ceil(total / step) * step);
-    return [...set].filter((n) => n >= total).sort((a, b) => a - b).slice(0, 4);
-  }, [total]);
+    const set = new Set<number>([due]);
+    for (const step of [1000, 5000, 10000, 25000, 50000]) set.add(Math.ceil(due / step) * step);
+    return [...set].filter((n) => n >= due).sort((a, b) => a - b).slice(0, 4);
+  }, [due]);
+
+  async function applyPromo() {
+    if (promoBusy) return;
+    setPromoErr(null);
+    // **الكود يحتاج شبكة.** سقفه يُحجَز في القاعدة لحظة البيع، وبيعٌ
+    // بلا إنترنت يُرفع غداً قد يكون الكود نفد بينهما. فالرفض هنا
+    // أوضح من خصمٍ يُعد ثم يُسحب.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setPromoErr("الكود يحتاج إنترنت");
+      return;
+    }
+    setPromoBusy(true);
+    const res = await checkPromoAction(promo, total);
+    setPromoBusy(false);
+    if (!res.ok) {
+      setPromoOk(null);
+      return setPromoErr(res.error);
+    }
+    setPromoOk({ code: res.code, discount: res.discount });
+    setPromo(res.code);
+  }
 
   function confirm() {
     if (pending) return;
-    if (method === "cash" && (tenderedNum == null || tenderedNum < total)) {
+    if (method === "cash" && (tenderedNum == null || tenderedNum < due)) {
       setError("المبلغ المدفوع أقل من الإجمالي");
       return;
     }
@@ -90,7 +120,7 @@ export default function PaymentDialog({
         return;
       }
       setReceipt({
-        orderNumber: row.localRef, total, change: method === "cash" && tenderedNum != null ? tenderedNum - total : null,
+        orderNumber: row.localRef, total: due, change: method === "cash" && tenderedNum != null ? tenderedNum - due : null,
         method, fulfillment, currency, shopName: "مقهى خزف", shopPhone: "", lines, at,
         pendingUpload: true, pendingReason: reason,
       });
@@ -111,6 +141,7 @@ export default function PaymentDialog({
           tendered: method === "cash" ? tenderedNum : null,
           idempotencyKey: idemKey,
           customerId: customerId ?? null,
+          promoCode: promoOk?.code ?? null,
           // **لا نُمرّر `occurredAt` ونحن متّصلون.** لحظة البيع هي الآن،
           // والخادم يعرفها. وتمريرها هنا كان يختم `synced_at` على كل
           // فاتورة، فتقرأ الإدارة «٥ فواتير بيعت بلا إنترنت» في يومٍ لم
@@ -173,9 +204,67 @@ export default function PaymentDialog({
 
   return (
     <Modal title="الدفع" onClose={onClose}>
-      <div className="mb-5 flex items-baseline justify-between rounded-2xl bg-dark/5 px-4 py-4">
-        <span className="text-sm text-muted">المطلوب</span>
-        <span className="nums font-display text-3xl font-bold text-ink">{money(total, currency)}</span>
+      <div className="mb-3 rounded-2xl bg-dark/5 px-4 py-4">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-muted">المطلوب</span>
+          <span className="nums font-display text-3xl font-bold text-ink">
+            {money(due, currency)}
+          </span>
+        </div>
+        {/* الأصل والخصم مذكوران: الباريستا يقول للزبون كم حُسم */}
+        {promoOk && (
+          <div className="mt-2 flex items-baseline justify-between border-t border-line/60 pt-2 text-xs">
+            <span className="text-muted">
+              قبل الخصم <span dir="ltr" className="nums line-through">{money(total, currency)}</span>
+            </span>
+            <span className="nums font-semibold text-emerald-700">
+              −{money(promoOk.discount, currency)} · {promoOk.code}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* كود الخصم */}
+      <div className="mb-5">
+        {promoOk ? (
+          <button
+            onClick={() => {
+              setPromoOk(null);
+              setPromo("");
+              setPromoErr(null);
+            }}
+            className="tap w-full rounded-xl border border-line bg-sand px-3 py-2 text-xs text-muted"
+          >
+            أزل الكود
+          </button>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <input
+                dir="ltr"
+                className="field flex-1 text-center font-mono text-sm tracking-widest"
+                placeholder="كود خصم (اختياري)"
+                maxLength={20}
+                value={promo}
+                onChange={(e) => {
+                  setPromo(e.target.value.toUpperCase());
+                  setPromoErr(null);
+                }}
+              />
+              <button
+                type="button"
+                onClick={applyPromo}
+                disabled={promoBusy || promo.trim().length === 0}
+                className="btn-ghost shrink-0 px-4 py-3 text-sm disabled:opacity-40"
+              >
+                {promoBusy ? "..." : "طبّق"}
+              </button>
+            </div>
+            {promoErr && (
+              <p className="mt-1.5 text-center text-xs font-medium text-red-600">{promoErr}</p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-dark/5 p-1">

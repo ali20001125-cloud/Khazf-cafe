@@ -16,6 +16,7 @@ const NAV = [
   { href: "/manage/prices", label: "الأسعار" },
   { href: "/manage/menu", label: "المنيو" },
   { href: "/manage/loyalty", label: "الولاء" },
+  { href: "/manage/promos", label: "أكواد الخصم" },
   { href: "/manage/feedback", label: "آراء الزبائن" },
   { href: "/manage/exceptions", label: "الشاذّ" },
   { href: "/manage/users", label: "الموظفون والرموز" },
