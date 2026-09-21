@@ -3,37 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
+import { deleteImage, imageKey, putImage, sniffImage, storageConfigured } from "@/lib/storage";
 
+/**
+ * لا `image_url` هنا: الصورة تُرفع من الهاتف بفعلٍ مستقلّ (أسفل)، ولا
+ * تُكتب بإلصاق رابط. وإبقاء الحقل مقبولاً هنا يعني بابَ كتابةٍ على
+ * `image_url` لم تعد تستعمله الشاشة — وبابٌ لا يمرّ به أحد لا يُحرَس.
+ */
 export type MenuPatch = {
   id: string;
   menu_visible?: boolean;
   menu_note?: string;
-  image_url?: string;
   special?: boolean;
 };
-
-/**
- * رابط صورةٍ صالحٌ للعرض، أو لا شيء.
- *
- * هذا رابطٌ يُلصَق في صفحةٍ يفتحها العموم، فالتحقّق ليس تجميلاً:
- * `javascript:` في `src` سطرٌ ينفّذه متصفّح الزبون. و`http` عادي على
- * صفحةٍ آمنة يمنعه المتصفّح صامتاً فيرى المالك صورةً ناقصة ولا يعرف
- * لِمَ — فالرفض هنا أوضح من السماح.
- */
-function cleanImageUrl(raw: string): { ok: true; url: string | null } | { ok: false; why: string } {
-  const v = raw.trim();
-  if (v.length === 0) return { ok: true, url: null };
-  if (v.length > 500) return { ok: false, why: "الرابط طويل جداً" };
-  let u: URL;
-  try {
-    u = new URL(v);
-  } catch {
-    return { ok: false, why: "رابط الصورة غير صالح" };
-  }
-  if (u.protocol !== "https:")
-    return { ok: false, why: "الرابط يجب أن يبدأ بـ https://" };
-  return { ok: true, url: u.toString() };
-}
 
 /**
  * ما يُعرض على الزبون وما يُقال تحته.
@@ -71,14 +53,6 @@ export async function updateMenuAction(
           where id = ${p.id} and business_id = ${user.bid}
         `;
       }
-      if (typeof p.image_url === "string") {
-        const img = cleanImageUrl(p.image_url);
-        if (!img.ok) return { ok: false, error: img.why };
-        await db()`
-          update products set image_url = ${img.url}
-          where id = ${p.id} and business_id = ${user.bid}
-        `;
-      }
       if (typeof p.special === "boolean") {
         await db()`
           update products set is_daily_special = ${p.special}
@@ -97,4 +71,91 @@ export async function updateMenuAction(
   } catch {
     return { ok: false, error: "تعذّر الحفظ" };
   }
+}
+
+/**
+ * رفع صورة منتج من الهاتف.
+ *
+ * قال المالك: «خليها تُضاف أو تُرفع من الهاتف، وليس أضف رابط الصورة».
+ * والرابط كان خطأً من أصله: صورةٌ على موقع غيرك تُحذف أو تُحجب فيرى
+ * الزبون مربّعاً مكسوراً على الطاولة، ولا تعرف أنت متى وقع ذلك.
+ *
+ * والصورة تُصغَّر في الهاتف قبل أن تُرسل (انظر `ImageField`) — حمولةُ
+ * الزبون أثمن من دقّةٍ لا تُرى في مربّعٍ صغير.
+ */
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+export async function uploadProductImageAction(
+  productId: string,
+  form: FormData
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("products.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+
+  if (!storageConfigured())
+    return { ok: false, error: "التخزين غير مضبوط — راجع إعدادات الاستضافة" };
+
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: "لم تُختَر صورة" };
+  if (file.size > MAX_UPLOAD_BYTES)
+    return { ok: false, error: "الصورة كبيرة — اختر أصغر" };
+
+  const owns = (await db()`
+    select image_url from products where id = ${productId} and business_id = ${user.bid}
+  `) as { image_url: string | null }[];
+  if (!owns[0]) return { ok: false, error: "منتج غير موجود" };
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const kind = sniffImage(bytes);
+  if (!kind.ok) return { ok: false, error: "الملفّ ليس صورة (JPG · PNG · WebP)" };
+
+  const put = await putImage(imageKey(productId, kind.ext), bytes, kind.type);
+  if (!put.ok) return { ok: false, error: put.error };
+
+  await db()`
+    update products set image_url = ${put.url}
+    where id = ${productId} and business_id = ${user.bid}
+  `;
+
+  // القديمة تُحذف **بعد** أن تُحفظ الجديدة: لو انعكس الترتيب وفشل الرفع
+  // لبقي المنتج بلا صورة وقد كانت له واحدة
+  const old = owns[0].image_url;
+  if (old && old !== put.url) await deleteImage(old);
+
+  revalidatePath("/menu");
+  revalidatePath("/manage/menu");
+  return { ok: true, url: put.url };
+}
+
+/** إزالة الصورة — يعود الرسم مكانها، فلا يبقى مربّعٌ فارغ. */
+export async function removeProductImageAction(
+  productId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  let user;
+  try {
+    user = await requirePermission("products.manage");
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+  const rows = (await db()`
+    select image_url from products where id = ${productId} and business_id = ${user.bid}
+  `) as { image_url: string | null }[];
+  if (!rows[0]) return { ok: false, error: "منتج غير موجود" };
+
+  await db()`
+    update products set image_url = null
+    where id = ${productId} and business_id = ${user.bid}
+  `;
+  if (rows[0].image_url) await deleteImage(rows[0].image_url);
+
+  revalidatePath("/menu");
+  revalidatePath("/manage/menu");
+  return { ok: true };
 }

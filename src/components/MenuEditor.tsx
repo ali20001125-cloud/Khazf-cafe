@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money, num, categoryLabel, kindName } from "@/lib/format";
 import { updateMenuAction } from "@/app/manage/menu-actions";
-import DrinkArt, { artKind } from "./DrinkArt";
+import ImageField from "./ImageField";
 
 export type Row = {
   id: string;
@@ -21,13 +21,12 @@ export type Row = {
   variants: string[];
 };
 
-type St = { visible: boolean; note: string; img: string; special: boolean };
+type St = { visible: boolean; note: string; special: boolean };
 
 /** الحالة المحرَّرة مقابل الحالة المحفوظة — المقارنة بينهما تكشف ما تغيّر. */
 const stOf = (r: Row): St => ({
   visible: r.menuVisible,
   note: r.note ?? "",
-  img: r.imageUrl ?? "",
   special: r.special,
 });
 
@@ -65,7 +64,6 @@ export default function MenuEditor({
     return (
       a.visible !== b.visible ||
       a.note !== b.note ||
-      a.img !== b.img ||
       a.special !== b.special
     );
   });
@@ -81,7 +79,6 @@ export default function MenuEditor({
           id: r.id,
           menu_visible: state[r.id].visible,
           menu_note: state[r.id].note,
-          image_url: state[r.id].img,
           special: state[r.id].special,
         }))
       );
@@ -143,9 +140,9 @@ export default function MenuEditor({
         </div>
         <p className="mb-4 text-xs leading-relaxed text-muted">
           الأسعار تُقرأ من «المنتجات» ولا تُكتب هنا — سعرٌ في مكانين يتفرّق.
-          والصورة اختيارية: بلا رابطٍ يُرسم المشروب برسمٍ من ألوان خزف، فلا
-          يبقى مربّعٌ فارغ ولا ينكسر شيء. ألصق أيّ رابط صورة (يبدأ
-          بـ<span className="font-mono">https://</span>) وسترى معاينته فوراً.
+          والصورة اختيارية: بلا صورةٍ يُرسم المشروب برسمٍ من ألوان خزف، فلا
+          يبقى مربّعٌ فارغ ولا ينكسر شيء. وحين تريدها: «أضف صورة» يفتح كاميرا
+          هاتفك أو استوديوه، وتُصغَّر عندك ثمّ تُرفع وحدها — بلا زرّ حفظ.
         </p>
 
         <div className="space-y-2">
@@ -263,30 +260,21 @@ function Item({
             disabled={!st.visible}
           />
 
-          <div className="mt-2 flex items-start gap-2">
-            {/* معاينةٌ صغيرة: الرابط المكسور يُرى هنا لا على طاولة الزبون */}
-            <span className="mt-0.5 h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-line bg-sand">
-              {st.img ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={st.img} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <DrinkArt
-                  name={row.name}
-                  kind={artKind(row.category, row.kind)}
-                  className="h-full w-full"
-                />
-              )}
-            </span>
-            <input
-              className="field text-sm"
-              dir="ltr"
-              placeholder="https://… رابط صورة (اختياري)"
-              maxLength={500}
-              value={st.img}
-              onChange={(e) => set({ ...st, img: e.target.value })}
-              disabled={!st.visible}
-            />
-          </div>
+          {/*
+            الصورة تُرفع من الهاتف ولا يُلصق رابطها.
+            الرابط كان خطأً من أصله: صورةٌ على موقع غيرك تُحذف أو تُحجب
+            فيرى الزبون مربّعاً مكسوراً، ولا تعرف أنت متى وقع ذلك.
+            ولذلك ترفع نفسها فور اختيارها — لا تنتظر زرّ «حفظ» الذي
+            يحفظ النصوص، فالملفّ لا يُحمَل في حالة الشاشة.
+          */}
+          <ImageField
+            productId={row.id}
+            productName={row.name}
+            category={row.category}
+            kind={row.kind}
+            imageUrl={row.imageUrl}
+            disabled={!st.visible}
+          />
 
           <button
             type="button"
