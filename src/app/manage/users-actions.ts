@@ -151,6 +151,31 @@ export async function changeMyPinAction(
 }
 
 // ── المالك يعيّن رمزاً جديداً لموظف نسي رمزه ──────────────────────────
+/**
+ * موافقة المالك على عملٍ يخصّ الموظّفين.
+ *
+ * كانت تُطلب دائماً — حتى والمالك نفسه هو الفاعل، وقد أثبت هويّته لتوّه
+ * بالدخول. فكان يكتب رمزه مرّةً ثانية بلا أن يضيف ذلك شيئاً: من يملك
+ * الجلسة يملك الشاشة كلّها أصلاً. وازداد الأمر ثِقلاً حين صار رمزه
+ * ستّ عشرة خانة بحروف.
+ *
+ * وما كان يحرسه فعلاً — جهازٌ تُرك مفتوحاً — يحرسه الآن قفل الشاشة:
+ * الجلسة تُوسم مقفلةً بعد الخمول، و`requirePermission` ترفض كل فعل.
+ *
+ * فتبقى الموافقة مطلوبةً ممّن ليس مالكاً وإن ملك `users.manage` — وهذا
+ * بابٌ لم يُفتح بعد (لا دور «مدير» اليوم)، لكنه يوم يُفتح لا يُفتح
+ * معه هذا.
+ */
+async function approverFor(
+  user: { bid: string; uid: string; role: string },
+  ownerPin: string
+): Promise<{ ok: true; by: string } | { ok: false; error: string }> {
+  if (user.role === "owner") return { ok: true, by: user.uid };
+  const by = await verifyOwnerPin(user.bid, ownerPin);
+  if (!by) return { ok: false, error: "رمز المالك غير صحيح" };
+  return { ok: true, by };
+}
+
 export async function resetUserPinAction(
   targetUserId: string,
   newPin: string,
@@ -167,8 +192,9 @@ export async function resetUserPinAction(
   const bad = validatePin(newPin);
   if (bad) return { ok: false, error: bad };
 
-  const approvedBy = await verifyOwnerPin(user.bid, ownerPin);
-  if (!approvedBy) return { ok: false, error: "رمز المالك غير صحيح" };
+  const appr = await approverFor(user, ownerPin);
+  if (!appr.ok) return { ok: false, error: appr.error };
+  const approvedBy = appr.by;
 
   try {
     const rows = (await db()`
@@ -224,8 +250,9 @@ export async function createUserAction(input: {
   const bad = validatePin(input.pin);
   if (bad) return { ok: false, error: bad };
 
-  const approvedBy = await verifyOwnerPin(user.bid, input.ownerPin);
-  if (!approvedBy) return { ok: false, error: "رمز المالك غير صحيح" };
+  const apprNew = await approverFor(user, input.ownerPin);
+  if (!apprNew.ok) return { ok: false, error: apprNew.error };
+  const approvedBy = apprNew.by;
 
   try {
     const clash = await pinTakenBy(user.bid, input.pin, null);
@@ -281,8 +308,9 @@ export async function setUserActiveAction(
   if (targetUserId === user.uid)
     return { ok: false, error: "لا تعطّل نفسك — لن تستطيع الدخول بعدها" };
 
-  const approvedBy = await verifyOwnerPin(user.bid, ownerPin);
-  if (!approvedBy) return { ok: false, error: "رمز المالك غير صحيح" };
+  const apprOff = await approverFor(user, ownerPin);
+  if (!apprOff.ok) return { ok: false, error: apprOff.error };
+  const approvedBy = apprOff.by;
 
   try {
     const rows = (await db()`

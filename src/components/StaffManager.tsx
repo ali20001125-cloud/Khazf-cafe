@@ -32,10 +32,19 @@ export default function StaffManager({
   staff,
   meId,
   canManage,
+  iAmOwner,
 }: {
   staff: StaffRow[];
   meId: string;
   canManage: boolean;
+  /**
+   * المالك لا يوافق على نفسه.
+   *
+   * كان كل حوارٍ هنا يطلب «رمز المالك للموافقة» ولو كان المالك هو من
+   * يملأه — وقد أثبت هويّته بالدخول قبل قليل، ومن يملك الجلسة يملك
+   * الشاشة كلّها أصلاً. فالحقل يُخفى عنه، والخادم يتجاوزه له.
+   */
+  iAmOwner: boolean;
 }) {
   const [dialog, setDialog] = useState<Dialog>(null);
   const router = useRouter();
@@ -143,11 +152,11 @@ export default function StaffManager({
 
       {dialog?.kind === "my_pin" && <MyPinDialog onClose={() => setDialog(null)} onDone={done} />}
       {dialog?.kind === "reset" && (
-        <ResetPinDialog user={dialog.user} onClose={() => setDialog(null)} onDone={done} />
+        <ResetPinDialog user={dialog.user} iAmOwner={iAmOwner} onClose={() => setDialog(null)} onDone={done} />
       )}
-      {dialog?.kind === "add" && <AddUserDialog onClose={() => setDialog(null)} onDone={done} />}
+      {dialog?.kind === "add" && <AddUserDialog iAmOwner={iAmOwner} onClose={() => setDialog(null)} onDone={done} />}
       {dialog?.kind === "toggle" && (
-        <ToggleDialog user={dialog.user} onClose={() => setDialog(null)} onDone={done} />
+        <ToggleDialog user={dialog.user} iAmOwner={iAmOwner} onClose={() => setDialog(null)} onDone={done} />
       )}
     </div>
   );
@@ -157,10 +166,12 @@ export default function StaffManager({
 
 function ResetPinDialog({
   user,
+  iAmOwner,
   onClose,
   onDone,
 }: {
   user: StaffRow;
+  iAmOwner: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -177,11 +188,13 @@ function ResetPinDialog({
           تعيّن واحداً جديداً وتخبره به. بعدها يكدر يغيّره بنفسه من «غيّر رمزي».
         </p>
         <Pin label="الرمز الجديد" value={next} onChange={setNext} hint="٤ خانات فأكثر — أرقام أو حروف إنجليزية" />
-        <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
+        {!iAmOwner && (
+          <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
+        )}
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <Actions
           pending={pending}
-          disabled={!next || !ownerPin}
+          disabled={!next || (!iAmOwner && !ownerPin)}
           onCancel={onClose}
           label="تعيين"
           onSubmit={() => {
@@ -198,7 +211,15 @@ function ResetPinDialog({
   );
 }
 
-function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function AddUserDialog({
+  iAmOwner,
+  onClose,
+  onDone,
+}: {
+  iAmOwner: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"owner" | "barista">("barista");
@@ -266,11 +287,13 @@ function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
           onChange={setPin}
           hint="٤ خانات فأكثر — أرقام أو حروف إنجليزية. أنت تضعه وتخبره به، ولا يستطيع تغييره بنفسه."
         />
-        <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
+        {!iAmOwner && (
+          <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
+        )}
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <Actions
           pending={pending}
-          disabled={!name.trim() || !pin || !ownerPin}
+          disabled={!name.trim() || !pin || (!iAmOwner && !ownerPin)}
           onCancel={onClose}
           label="إضافة"
           onSubmit={() => {
@@ -289,10 +312,12 @@ function AddUserDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
 
 function ToggleDialog({
   user,
+  iAmOwner,
   onClose,
   onDone,
 }: {
   user: StaffRow;
+  iAmOwner: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -322,11 +347,13 @@ function ToggleDialog({
             placeholder={turningOff ? "ترك العمل؟ إجازة طويلة؟" : "عاد للعمل؟"}
           />
         </div>
-        <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
+        {!iAmOwner && (
+          <Pin label="رمز المالك (للموافقة)" value={ownerPin} onChange={setOwnerPin} />
+        )}
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <Actions
           pending={pending}
-          disabled={!reason.trim() || !ownerPin}
+          disabled={!reason.trim() || (!iAmOwner && !ownerPin)}
           onCancel={onClose}
           label={turningOff ? "تعطيل" : "تفعيل"}
           onSubmit={() => {

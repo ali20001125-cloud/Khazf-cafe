@@ -33,7 +33,8 @@ export default async function UsersPage() {
         </p>
       </header>
 
-      <StaffManager staff={staff} meId={user.uid} canManage={canManage} />
+      <StaffManager staff={staff} meId={user.uid} iAmOwner={user.role === "owner"}
+      canManage={canManage} />
 
       {canManage && perms.length > 0 && (
         <>

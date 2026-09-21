@@ -9,7 +9,6 @@ import { offlineStatus } from "@/lib/hours";
 import StuckShiftCard from "@/components/StuckShiftCard";
 import { money, timeAr, drinksLabel } from "@/lib/format";
 import { eventMeta } from "@/lib/events";
-import { defaultPinCount } from "@/lib/users";
 import { dayProfit, netProfit } from "@/lib/profit";
 import {
   todayGlance, recentShiftVariances, recentStockVariances, recentExceptions,
@@ -18,6 +17,8 @@ import {
 import DayCloseButton from "@/components/DayCloseButton";
 import LockToggle from "@/components/LockToggle";
 import AwaitingCountList from "@/components/AwaitingCountList";
+import TaskList from "@/components/TaskList";
+import { ownerTasks, type OwnerTask } from "@/lib/tasks";
 
 /**
  * لوحة المالك.
@@ -38,7 +39,7 @@ export default async function Overview() {
   const settings = await getSettings();
   const currency = strSetting(settings, "currency", "د.ع");
 
-  const [glance, series, top, shiftVars, stockVars, events, shift, defaultPins, profit, awaiting, offline] =
+  const [glance, series, top, shiftVars, stockVars, events, shift, profit, awaiting, offline] =
     await Promise.all([
       todayGlance(branch.id),
       salesLast7Days(branch.id),
@@ -47,26 +48,17 @@ export default async function Overview() {
       recentStockVariances(branch.id, 6),
       recentExceptions(user.bid, 40),
       getOpenShift(branch.id),
-      defaultPinCount(user.bid),
       dayProfit(branch.id),
       shiftsAwaitingCount(branch.id),
       offlineStatus(user.bid, 7),
     ]);
 
+  // ما ينبغي أن يُفعل — لا ما جرى. تُجلب مع البقيّة لا بعدها.
+  const standing = await ownerTasks(user.bid);
+
   // ما يحتاج نظر المالك فعلاً — كل عنصر بوجهة يشرحه
   const attention: { text: string; href: string }[] = [];
 
-  // الأمن قبل المال: رمز المالك هو نفسه رمز الموافقة على الإلغاء والإرجاع،
-  // فبقاؤه افتراضياً يعني أن باب الصندوق مفتوح لمن يجرّب 1111.
-  if (defaultPins > 0) {
-    attention.push({
-      text:
-        defaultPins === 1
-          ? "رمز دخول ما زال افتراضياً — ورمز المالك هو رمز الموافقة على الإلغاء"
-          : `${defaultPins} رموز دخول ما زالت افتراضية (1111 · 0000)`,
-      href: "/manage/users",
-    });
-  }
   // ورديات اليوم المحاسبي وحدها — والمعدودة منها هي التي لها فرقٌ يُقرأ
   const todayShifts = shiftVars.filter((s) => s.business_day === glance.businessDay);
   const countedShifts = todayShifts.filter((s) => s.variance != null);
@@ -98,6 +90,21 @@ export default async function Overview() {
       href: "/manage/orders",
     });
   }
+
+  /*
+    أمور اليوم تُصاغ بشكل المهامّ نفسه.
+    قائمتان للتنبيهات في شاشةٍ واحدة تجعل المالك يقرأ مرّتين ليعرف أيّهما
+    يعنيه — وهذا هو الازدحام الذي شكا منه. فواحدة.
+  */
+  const dayTasks: OwnerTask[] = attention.map((a, i) => ({
+    key: `day-${i}`,
+    tone: "info" as const,
+    title: a.text,
+    why: "من حركة اليوم — افتحه لترى تفصيله.",
+    href: a.href,
+    cta: "افتح",
+  }));
+  const tasks = [...standing, ...dayTasks];
 
   const max = Math.max(1, ...series.map((s) => s.total));
   const week = series.reduce((a, s) => a + s.total, 0);
@@ -166,34 +173,7 @@ export default async function Overview() {
         </div>
       )}
 
-      {/* ما يحتاج نظرك — كل سطر رابط */}
-      {attention.length === 0 ? (
-        <div className="card border-emerald-200 bg-emerald-50/40 p-4">
-          <p className="font-display font-bold text-emerald-800">اليوم تمام ✅</p>
-          <p className="mt-0.5 text-sm text-emerald-900/70">
-            لا فروقات في الدرج ولا في المخزون، ولا إلغاءات ولا إرجاعات.
-          </p>
-        </div>
-      ) : (
-        <div className="card border-amber-200 bg-amber-50/50 p-4">
-          <p className="font-display font-bold text-amber-900">
-            <span className="nums">{attention.length}</span> أمر يحتاج نظرك
-          </p>
-          <ul className="mt-2 space-y-1.5">
-            {attention.map((a, i) => (
-              <li key={i}>
-                <Link
-                  href={a.href}
-                  className="flex items-center justify-between rounded-lg bg-cream/70 px-3 py-2 text-sm text-ink hover:bg-cream"
-                >
-                  <span>{a.text}</span>
-                  <span className="text-xs text-accent">افتح ←</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <TaskList tasks={tasks} />
 
       {/* أرقام اليوم */}
       <div>
