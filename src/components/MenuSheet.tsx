@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { Strings } from "@/lib/menu-strings";
 import DrinkArt, { artKind } from "./DrinkArt";
 import type { BoardItem } from "./MenuBoard";
 
@@ -12,7 +13,7 @@ export type SheetDetail = {
   kinds: { name: string; note: string | null }[];
 };
 
-const UNIT: Record<string, string> = { g: "غ", ml: "مل", pcs: "حبة" };
+
 
 /**
  * بطاقة المشروب.
@@ -25,10 +26,13 @@ const UNIT: Record<string, string> = { g: "غ", ml: "مل", pcs: "حبة" };
 export default function MenuSheet({
   item,
   detail,
+  s,
   onClose,
 }: {
   item: BoardItem;
   detail: SheetDetail | undefined;
+  /** كلمات الصفحة بلغتها — تُمرَّر ولا تُقرأ من سياق: الصفحة خادمية. */
+  s: Strings;
   onClose: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
@@ -111,7 +115,7 @@ export default function MenuSheet({
 
           {item.paused && (
             <span className="mt-2 inline-block rounded-full bg-dark px-2.5 py-1 text-[0.65rem] text-cream">
-              غير متوفّر اليوم
+              {s.unavailable}
             </span>
           )}
 
@@ -122,21 +126,21 @@ export default function MenuSheet({
           {/* القيم — رقمان لا جدول */}
           {(kcalKnown || cafKnown) && (
             <div className="mt-5 grid grid-cols-2 gap-2.5">
-              {kcalKnown && <Stat value={detail!.kcal} unit="سعرة" label="الطاقة" />}
-              {cafKnown && <Stat value={detail!.caffeine} unit="ملغ" label="كافيين" />}
+              {kcalKnown && <Stat value={detail!.kcal} unit={s.kcalUnit} label={s.energy} />}
+              {cafKnown && <Stat value={detail!.caffeine} unit={s.mgUnit} label={s.caffeine} />}
             </div>
           )}
 
           {/* المكوّنات كما في الوصفة */}
           {detail && detail.parts.length > 0 && (
             <div className="mt-5">
-              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">المكوّنات</h3>
+              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">{s.ingredients}</h3>
               <ul className="divide-y divide-line/60 rounded-xl border border-line bg-sand/40">
                 {detail.parts.map((p) => (
                   <li key={p.name} className="flex items-baseline justify-between gap-3 px-3 py-2">
                     <span className="text-sm text-ink">{p.name}</span>
                     <span dir="ltr" className="nums shrink-0 text-xs text-muted">
-                      {p.qty} {UNIT[p.unit] ?? p.unit}
+                      {p.qty} {s.units[p.unit] ?? p.unit}
                     </span>
                   </li>
                 ))}
@@ -156,7 +160,7 @@ export default function MenuSheet({
           */}
           {detail && detail.kinds.length === 1 && (
             <div className="mt-5">
-              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">البنّ</h3>
+              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">{s.bean}</h3>
               <div className="rounded-xl bg-sand/60 px-3 py-2">
                 {/* بلا `kindName`: ما يصل هنا هو الاسم المعروض الذي
                     كتبه المالك، لا اسم المخزن — فلا شيء يُقتطع منه. */}
@@ -172,8 +176,7 @@ export default function MenuSheet({
 
           {(kcalKnown || cafKnown) && (
             <p className="mt-4 text-[0.7rem] leading-relaxed text-muted/80">
-              الأرقام تقريبية، محسوبة من وصفتنا نفسها — تتغيّر بتغيّر الحجم
-              ونوع الحليب والإضافات.
+              {s.approx}
             </p>
           )}
         </div>
@@ -188,7 +191,7 @@ function Stat({ value, unit, label }: { value: number; unit: string; label: stri
       <p className="nums text-lg font-bold leading-none text-ink">
         <span className="text-[0.7rem] font-normal text-muted">≈ </span>
         {value}
-        <span className="mr-1 text-[0.7rem] font-normal text-muted">{unit}</span>
+        <span className="ms-1 text-[0.7rem] font-normal text-muted">{unit}</span>
       </p>
       <p className="mt-1 text-[0.68rem] text-muted">{label}</p>
     </div>

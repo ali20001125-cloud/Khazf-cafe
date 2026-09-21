@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import DrinkArt, { artKind } from "./DrinkArt";
 import MenuSheet, { type SheetDetail } from "./MenuSheet";
+import type { Strings } from "@/lib/menu-strings";
 
 export type BoardItem = {
   id: string;
@@ -31,9 +32,12 @@ export type BoardGroup = { key: string; label: string; items: BoardItem[] };
 export default function MenuBoard({
   groups,
   details,
+  s,
 }: {
   groups: BoardGroup[];
   details: Record<string, SheetDetail>;
+  /** كلمات الصفحة بلغتها. تُمرَّر من الخادم فتعمل اللغتان بلا حالة عميل. */
+  s: Strings;
 }) {
   const [active, setActive] = useState(groups[0]?.key ?? "");
   const [open, setOpen] = useState<BoardItem | null>(null);
@@ -102,9 +106,9 @@ export default function MenuBoard({
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {g.items.map((it, i) =>
                 it.special ? (
-                  <Hero key={it.id} item={it} index={i} onOpen={() => setOpen(it)} />
+                  <Hero key={it.id} item={it} index={i} s={s} onOpen={() => setOpen(it)} />
                 ) : (
-                  <Tile key={it.id} item={it} index={i} onOpen={() => setOpen(it)} />
+                  <Tile key={it.id} item={it} index={i} s={s} onOpen={() => setOpen(it)} />
                 )
               )}
             </div>
@@ -113,7 +117,7 @@ export default function MenuBoard({
       </div>
 
       {open && (
-        <MenuSheet item={open} detail={details[open.id]} onClose={() => setOpen(null)} />
+        <MenuSheet item={open} detail={details[open.id]} s={s} onClose={() => setOpen(null)} />
       )}
     </>
   );
@@ -182,10 +186,12 @@ function Art({ item, className }: { item: BoardItem; className: string }) {
 function Tile({
   item,
   index,
+  s,
   onOpen,
 }: {
   item: BoardItem;
   index: number;
+  s: Strings;
   onOpen: () => void;
 }) {
   const { ref, on } = useReveal<HTMLButtonElement>(Math.min(index, 6) * 55);
@@ -196,7 +202,7 @@ function Tile({
       type="button"
       onClick={onOpen}
       aria-label={`${item.name} — التفاصيل`}
-      className={`${REVEAL} tap block w-full text-right rounded-[1.6rem] bg-ink/[0.045] p-1.5 ring-1 ring-ink/[0.06] ${
+      className={`${REVEAL} tap block w-full text-start rounded-[1.6rem] bg-ink/[0.045] p-1.5 ring-1 ring-ink/[0.06] ${
         on ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
       }`}
     >
@@ -216,7 +222,7 @@ function Tile({
           />
           {item.paused && (
             <span className="absolute bottom-2 right-2 rounded-full bg-dark px-2.5 py-1 text-[0.62rem] font-medium text-cream">
-              غير متوفّر اليوم
+              {s.unavailable}
             </span>
           )}
         </div>
@@ -239,7 +245,7 @@ function Tile({
           )}
           <p
             dir="ltr"
-            className="nums mt-auto pt-2.5 text-right text-[0.82rem] font-bold tracking-tight text-accentdeep"
+            className="nums mt-auto pt-2.5 text-end text-[0.82rem] font-bold tracking-tight text-accentdeep"
           >
             {item.priceLabel}
           </p>
@@ -253,10 +259,12 @@ function Tile({
 function Hero({
   item,
   index,
+  s,
   onOpen,
 }: {
   item: BoardItem;
   index: number;
+  s: Strings;
   onOpen: () => void;
 }) {
   const { ref, on } = useReveal<HTMLButtonElement>(Math.min(index, 6) * 55);
@@ -267,7 +275,7 @@ function Hero({
       type="button"
       onClick={onOpen}
       aria-label={`${item.name} — التفاصيل`}
-      className={`${REVEAL} tap col-span-2 block w-full text-right rounded-[1.6rem] bg-dark p-1.5 ring-1 ring-ink/10 sm:col-span-3 lg:col-span-4 ${
+      className={`${REVEAL} tap col-span-2 block w-full text-start rounded-[1.6rem] bg-dark p-1.5 ring-1 ring-ink/10 sm:col-span-3 lg:col-span-4 ${
         on ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
       }`}
     >
@@ -284,7 +292,7 @@ function Hero({
         />
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-4 py-4 sm:px-6">
           <span className="w-fit rounded-full bg-accent/20 px-2.5 py-0.5 text-[0.62rem] font-semibold text-accent">
-            مميّز
+            {s.special}
           </span>
           <h3 className="font-serifar text-xl leading-tight text-cream sm:text-2xl">{item.name}</h3>
           {item.note && (
@@ -299,7 +307,7 @@ function Hero({
             </span>
             {item.paused && (
               <span className="rounded-full bg-cream/10 px-2 py-0.5 text-[0.6rem] text-cream/70">
-                غير متوفّر اليوم
+                {s.unavailable}
               </span>
             )}
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { sendFeedbackAction } from "@/app/feedback-actions";
+import type { Strings } from "@/lib/menu-strings";
 
 /**
  * «قل لنا رأيك» في ذيل المنيو.
@@ -16,8 +17,12 @@ import { sendFeedbackAction } from "@/app/feedback-actions";
  */
 export default function FeedbackSheet({
   items,
+  s,
+  lang,
 }: {
   items: { id: string; name: string }[];
+  s: Strings;
+  lang: "ar" | "en";
 }) {
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
@@ -81,7 +86,7 @@ export default function FeedbackSheet({
         onClick={() => setOpen(true)}
         className="mt-4 text-xs text-muted underline underline-offset-4"
       >
-        قل لنا رأيك
+        {s.feedback}
       </button>
     );
 
@@ -90,7 +95,7 @@ export default function FeedbackSheet({
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
       role="dialog"
       aria-modal="true"
-      aria-label="رأيك"
+      aria-label={s.fb.title}
     >
       <button
         aria-label="إغلاق"
@@ -100,36 +105,36 @@ export default function FeedbackSheet({
       <div
         ref={panel}
         tabIndex={-1}
-        dir="rtl"
-        className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-cream p-6 text-right outline-none sm:rounded-[1.75rem] motion-safe:animate-[sheetup_.36s_cubic-bezier(0.22,0.68,0,1)]"
+        dir={lang === "en" ? "ltr" : "rtl"}
+        className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-cream p-6 text-start outline-none sm:rounded-[1.75rem] motion-safe:animate-[sheetup_.36s_cubic-bezier(0.22,0.68,0,1)]"
       >
         {done ? (
           <div className="py-8 text-center">
-            <p className="font-serifar text-2xl text-ink">وصلَنا. شكراً لك.</p>
+            <p className="font-serifar text-2xl text-ink">{s.fb.thanks}</p>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              يقرؤه صاحب المحلّ بنفسه.
+              {s.fb.thanksNote}
             </p>
             <button onClick={close} className="btn-primary mt-6 w-full">
-              أغلق
+              {s.fb.close}
             </button>
           </div>
         ) : (
           <>
-            <h2 className="font-serifar text-2xl text-ink">رأيك</h2>
+            <h2 className="font-serifar text-2xl text-ink">{s.fb.title}</h2>
             {/* الوعد صريحٌ لأنه يُغيّر ما يُكتب */}
             <p className="mt-1.5 text-sm leading-relaxed text-muted">
-              يصل صاحب المحلّ وحده — لا يُنشر على المنيو ولا يراه أحد غيره.
+              {s.fb.promise}
             </p>
 
             <div className="mt-5">
-              <p className="mb-2 text-xs text-muted">كيف كانت زيارتك؟</p>
+              <p className="mb-2 text-xs text-muted">{s.fb.howWas}</p>
               <div className="flex justify-between gap-1.5" dir="ltr">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setRating(rating === n ? null : n)}
-                    aria-label={`${n} من ٥`}
+                    aria-label={`${n} ${s.fb.ofFive}`}
                     aria-pressed={rating === n}
                     className={`tap flex h-12 flex-1 items-center justify-center rounded-xl text-xl transition-colors ${
                       rating !== null && n <= rating
@@ -145,14 +150,14 @@ export default function FeedbackSheet({
 
             <div className="mt-4">
               <label className="mb-1.5 block text-xs text-muted">
-                عن مشروبٍ بعينه؟ (اختياري)
+                {s.fb.aboutItem}
               </label>
               <select
                 className="field text-sm"
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
               >
-                <option value="">عن الزيارة كلّها</option>
+                <option value="">{s.fb.wholeVisit}</option>
                 {items.map((i) => (
                   <option key={i.id} value={i.id}>
                     {i.name}
@@ -163,12 +168,12 @@ export default function FeedbackSheet({
 
             <div className="mt-4">
               <label className="mb-1.5 block text-xs text-muted">
-                ماذا تقول لنا؟
+                {s.fb.say}
               </label>
               <textarea
                 className="field min-h-[6rem] text-sm"
                 maxLength={500}
-                placeholder="ما أعجبك، وما لم يعجبك — كلاهما ينفعنا."
+                placeholder={s.fb.sayHint}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
@@ -176,7 +181,7 @@ export default function FeedbackSheet({
 
             <div className="mt-4">
               <label className="mb-1.5 block text-xs text-muted">
-                هاتفك إن أردت ردّاً (اختياري)
+                {s.fb.phone}
               </label>
               <input
                 type="tel"
@@ -195,14 +200,14 @@ export default function FeedbackSheet({
 
             <div className="mt-5 flex gap-2">
               <button onClick={close} className="btn-ghost flex-1 py-3 text-sm">
-                ليس الآن
+                {s.fb.notNow}
               </button>
               <button
                 onClick={send}
                 disabled={pending}
                 className="btn-primary flex-[2] disabled:opacity-40"
               >
-                {pending ? "..." : "أرسل"}
+                {pending ? "..." : s.fb.send}
               </button>
             </div>
           </>

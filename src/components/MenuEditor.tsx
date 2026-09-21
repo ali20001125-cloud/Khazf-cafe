@@ -18,6 +18,8 @@ export type Row = {
   imageUrl: string | null;
   menuFrom: number | null;
   menuTo: number | null;
+  nameEn: string;
+  noteEn: string;
   minPrice: number;
   maxPrice: number;
   variants: string[];
@@ -29,6 +31,8 @@ type St = {
   special: boolean;
   from: number | null;
   to: number | null;
+  nameEn: string;
+  noteEn: string;
 };
 
 /** الحالة المحرَّرة مقابل الحالة المحفوظة — المقارنة بينهما تكشف ما تغيّر. */
@@ -38,6 +42,8 @@ const stOf = (r: Row): St => ({
   special: r.special,
   from: r.menuFrom,
   to: r.menuTo,
+  nameEn: r.nameEn,
+  noteEn: r.noteEn,
 });
 
 /**
@@ -76,7 +82,9 @@ export default function MenuEditor({
       a.note !== b.note ||
       a.special !== b.special ||
       a.from !== b.from ||
-      a.to !== b.to
+      a.to !== b.to ||
+      a.nameEn !== b.nameEn ||
+      a.noteEn !== b.noteEn
     );
   });
   const shown = rows.filter((r) => state[r.id].visible).length;
@@ -94,6 +102,8 @@ export default function MenuEditor({
           special: state[r.id].special,
           menu_from: state[r.id].from,
           menu_to: state[r.id].to,
+          name_en: state[r.id].nameEn,
+          note_en: state[r.id].noteEn,
         }))
       );
       if (!res.ok) return setError(res.error);
@@ -290,6 +300,13 @@ function Item({
             disabled={!st.visible}
           />
 
+          {/*
+            الإنجليزي اختياريّ ومطويّ: الغالب ألّا يُملأ، وحقلان فارغان
+            تحت كل صنفٍ يُغرقان الشاشة. والفارغ يعني «اعرض العربي» —
+            فمنيو نصفه مترجمٌ أفضل من منيو نصفه خطأ.
+          */}
+          <English st={st} set={set} />
+
           <Hours st={st} set={set} />
 
           <button
@@ -386,5 +403,51 @@ function Pick({
         ))}
       </select>
     </label>
+  );
+}
+
+/** الاسم والسطر بالإنجليزية — مطويّان حتى يُطلبا. */
+function English({ st, set }: { st: St; set: (v: St) => void }) {
+  const has = st.nameEn.length > 0 || st.noteEn.length > 0;
+  const [open, setOpen] = useState(has);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        disabled={!st.visible}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`tap rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
+          has ? "bg-dark text-cream" : "border border-line bg-sand text-muted"
+        }`}
+      >
+        EN {has ? `· ${st.nameEn || "—"}` : "· أضف الإنجليزية"}
+      </button>
+
+      {open && st.visible && (
+        <div className="mt-2 space-y-2">
+          <input
+            dir="ltr"
+            className="field text-sm"
+            placeholder="Latte"
+            maxLength={80}
+            value={st.nameEn}
+            onChange={(e) => set({ ...st, nameEn: e.target.value })}
+          />
+          <input
+            dir="ltr"
+            className="field text-sm"
+            placeholder="Double espresso and steamed milk"
+            maxLength={160}
+            value={st.noteEn}
+            onChange={(e) => set({ ...st, noteEn: e.target.value })}
+          />
+          <p className="text-[0.7rem] text-muted">
+            فارغٌ يعني: يُعرض العربي كما هو للجميع.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

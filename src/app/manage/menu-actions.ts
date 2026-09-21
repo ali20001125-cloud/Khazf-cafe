@@ -18,6 +18,8 @@ export type MenuPatch = {
   /** ساعتا الظهور — `null` صريحةٌ تعني «طوال الوقت»، والغياب يعني «لا تمسّها». */
   menu_from?: number | null;
   menu_to?: number | null;
+  name_en?: string;
+  note_en?: string;
 };
 
 /** ساعةٌ صالحة أو لا شيء. القاعدة تحرسها أيضاً — وهذا الحارس الأوّل. */
@@ -69,6 +71,18 @@ export async function updateMenuAction(
         await db()`
           update products set menu_from = ${hour(p.menu_from)}, menu_to = ${hour(p.menu_to)}
           where id = ${p.id} and business_id = ${user.bid}
+        `;
+      }
+      // الإنجليزي: الفارغ يعود `null` لا سلسلةً فارغة، فالاحتياط في
+      // القاعدة «اعرض العربي» لا «اعرض لا شيء»
+      if (typeof p.name_en === "string" || typeof p.note_en === "string") {
+        const n = (p.name_en ?? "").trim().slice(0, 80);
+        const t = (p.note_en ?? "").trim().slice(0, 160);
+        await db()`
+          update products
+             set name_en = ${n.length > 0 ? n : null},
+                 menu_note_en = ${t.length > 0 ? t : null}
+           where id = ${p.id} and business_id = ${user.bid}
         `;
       }
       if (typeof p.special === "boolean") {

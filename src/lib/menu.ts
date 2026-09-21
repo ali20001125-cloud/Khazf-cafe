@@ -31,12 +31,25 @@ export type MenuItem = {
  * لا تكلفة ولا رصيد ولا معرّف مادة — الاسم والسعر والأنواع فقط. وكل عمودٍ
  * زائد هنا تسريبٌ لا يلاحظه أحد حتى يقرأه منافس.
  */
-export async function publicMenu(businessId: string): Promise<MenuItem[]> {
-  const rows = (await db()`
-    select product_id, name, category, note, image_url, paused, kind, special,
-           min_price, max_price, variants
-    from public_menu(${businessId})
-  `) as {
+export type Lang = "ar" | "en";
+
+export async function publicMenu(
+  businessId: string,
+  lang: Lang = "ar"
+): Promise<MenuItem[]> {
+  // دالّتان لا شرطٌ داخل واحدة: الفرق بينهما أعمدةٌ لا منطق، والقراءة
+  // أوضح حين يكون لكل لغةٍ استعلامها.
+  const rows = (await (lang === "en"
+    ? db()`
+        select product_id, name, category, note, image_url, paused, kind, special,
+               min_price, max_price, variants
+        from public_menu_en(${businessId})
+      `
+    : db()`
+        select product_id, name, category, note, image_url, paused, kind, special,
+               min_price, max_price, variants
+        from public_menu(${businessId})
+      `)) as {
     product_id: string; name: string; category: string; note: string | null;
     image_url: string | null; paused: boolean; kind: "drink" | "retail";
     special: boolean; min_price: number; max_price: number; variants: string[];
@@ -74,7 +87,11 @@ export type MenuDetail = {
  * حمولةٌ لا تُذكر، والبديل طلبٌ على الشبكة ودوّارة انتظار في اللحظة
  * التي فتح فيها الزبون البطاقة — وهو واقفٌ عند الكاونتر.
  */
-export async function menuDetails(businessId: string): Promise<Record<string, MenuDetail>> {
+export async function menuDetails(
+  businessId: string,
+  lang: Lang = "ar"
+): Promise<Record<string, MenuDetail>> {
+  const en = lang === "en";
   const rows = (await db()`
     with firstcrop as (
       select distinct on (pc.product_id) pc.product_id, pc.material_id
@@ -84,15 +101,20 @@ export async function menuDetails(businessId: string): Promise<Record<string, Me
       order by pc.product_id, m.name
     )
     select p.id,
-           product_detail(p.id, fc.material_id) as detail,
+           case when ${en} then product_detail_en(p.id, fc.material_id)
+                else product_detail(p.id, fc.material_id) end as detail,
            coalesce((
              -- الاسم المعروض لا اسم المخزن: المحصول قرارٌ في الخلف،
              -- واسمه على الطاولة وعدٌ لا نملكه. و distinct لأن ثلاثة
              -- محاصيل صار اسمها المعروض واحداً.
              select jsonb_agg(distinct jsonb_build_object(
-                      'name', case when p.kind = 'drink'
-                                then coalesce(m2.menu_label, 'حبوب قهوة مختصّة')
-                                else coalesce(m2.menu_label, m2.name) end,
+                      'name', case
+                        when ${en} and p.kind = 'drink' then
+                          coalesce(nullif(btrim(m2.menu_label_en), ''), 'Specialty Coffee Beans')
+                        when ${en} then
+                          coalesce(nullif(btrim(m2.menu_label_en), ''), m2.menu_label, m2.name)
+                        when p.kind = 'drink' then coalesce(m2.menu_label, 'حبوب قهوة مختصّة')
+                        else coalesce(m2.menu_label, m2.name) end,
                       'note', m2.menu_note))
              from product_crops pc2
              join materials m2 on m2.id = pc2.material_id
@@ -155,6 +177,9 @@ export type MenuAdminRow = MenuItem & {
   /** ساعة أوّل ظهور وآخره — `null` يعني طوال الوقت. */
   menuFrom: number | null;
   menuTo: number | null;
+  /** ما يقرؤه الأجنبي. فارغٌ يعني: اعرض العربي. */
+  nameEn: string;
+  noteEn: string;
 };
 
 /** صفوف المالك: كل المنتجات، حتى المخفيّة عن المنيو — فهو من يُظهرها. */
@@ -163,6 +188,8 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     select p.id, p.name, p.category, p.menu_note as note, p.image_url,
            p.paused, p.kind, p.menu_visible, p.active, p.is_daily_special as special,
            p.menu_from, p.menu_to,
+           coalesce(p.name_en, '') as name_en,
+           coalesce(p.menu_note_en, '') as note_en,
            coalesce(min(pc.price), 0)::int as min_price,
            coalesce(max(pc.price), 0)::int as max_price,
            coalesce(array_agg(m.name order by m.name)
@@ -178,6 +205,7 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     image_url: string | null; paused: boolean; kind: "drink" | "retail";
     menu_visible: boolean; active: boolean; special: boolean;
     menu_from: number | null; menu_to: number | null;
+    name_en: string; note_en: string;
     min_price: number; max_price: number; variants: string[];
   }[];
 
@@ -194,6 +222,8 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     active: r.active,
     menuFrom: r.menu_from === null ? null : Number(r.menu_from),
     menuTo: r.menu_to === null ? null : Number(r.menu_to),
+    nameEn: r.name_en ?? "",
+    noteEn: r.note_en ?? "",
     minPrice: Number(r.min_price),
     maxPrice: Number(r.max_price),
     variants: r.variants ?? [],
