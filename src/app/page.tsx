@@ -8,6 +8,7 @@ import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import { todayGlance } from "@/lib/reports";
 import { logoutAction } from "@/app/login/actions";
+import Landing from "@/components/Landing";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,28 @@ type StockRow = { name: string; base_unit: string; cached_stock: number };
 
 export default async function Home() {
   const user = currentUser();
-  if (!user) redirect("/login");
+
+  /*
+   * **الزائر يرى المقهى، لا شاشة دخول.**
+   *
+   * كان الجذر يُحوّل كل من لا حساب له إلى `/login` — فمن كتب اسم
+   * النطاق وجد حقلَ اسمٍ ورمزٍ لا يملكهما، فظنّ الموقع مغلقاً وخرج.
+   * والموظّف يجد طريقه من رابطٍ في الذيل.
+   */
+  if (!user) {
+    const s = await getSettings();
+    return (
+      <Landing
+        shop={strSetting(s, "shop_name", "مقهى خزف")}
+        phone={strSetting(s, "shop_phone", "")}
+        address={strSetting(s, "shop_address", "")}
+        mapsUrl={strSetting(s, "shop_maps_url", "")}
+        instagram={strSetting(s, "shop_instagram", "")}
+        hours={strSetting(s, "shop_hours_text", "")}
+        story={strSetting(s, "shop_story", "")}
+      />
+    );
+  }
 
   const isOwner = user.role === "owner";
   const settings = await getSettings();

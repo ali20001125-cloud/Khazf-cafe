@@ -47,6 +47,11 @@ export default async function SettingsPage() {
         staff_drink_limit: numSetting(s, "staff_drink_limit", 1),
         session_timeout_minutes: numSetting(s, "session_timeout_minutes", 10),
         retail_packaging_cost: numSetting(s, "retail_packaging_cost", 0),
+        shop_address: strSetting(s, "shop_address", ""),
+        shop_maps_url: strSetting(s, "shop_maps_url", ""),
+        shop_instagram: strSetting(s, "shop_instagram", ""),
+        shop_hours_text: strSetting(s, "shop_hours_text", ""),
+        shop_story: strSetting(s, "shop_story", ""),
       }}
       branch={{
         standard_float: branch.standard_float,

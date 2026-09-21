@@ -14,6 +14,9 @@ const ALLOWED = new Set([
   // كلفة تغليف طلب البضاعة — قال المالك إنها تتغيّر كل فترة، فمكانها
   // لوحته لا هجرةٌ في القاعدة
   "retail_packaging_cost",
+  // ما تقوله الصفحة التعريفية لمن كتب اسم النطاق: أين المقهى ومتى
+  // يفتح وكيف يُوصَل إليه. نصوصٌ يكتبها المالك، لا شيء يُحسب منها.
+  "shop_address", "shop_maps_url", "shop_instagram", "shop_hours_text", "shop_story",
 ]);
 
 export async function updateSettingsAction(

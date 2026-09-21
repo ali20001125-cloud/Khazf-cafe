@@ -23,6 +23,11 @@ type Shop = {
   staff_drink_limit: number;
   session_timeout_minutes: number;
   retail_packaging_cost: number;
+  shop_address: string;
+  shop_maps_url: string;
+  shop_instagram: string;
+  shop_hours_text: string;
+  shop_story: string;
 };
 
 type Branch = {
@@ -60,6 +65,11 @@ export default function SettingsEditor({
         currency: s.currency.trim() || "د.ع",
         shop_name: s.shop_name,
         shop_phone: s.shop_phone,
+        shop_address: s.shop_address,
+        shop_maps_url: s.shop_maps_url,
+        shop_instagram: s.shop_instagram,
+        shop_hours_text: s.shop_hours_text,
+        shop_story: s.shop_story,
         staff_drink_limit: Math.round(Number(s.staff_drink_limit) || 0),
         session_timeout_minutes: Math.round(Number(s.session_timeout_minutes) || 0),
         retail_packaging_cost: Math.max(0, Math.round(Number(s.retail_packaging_cost) || 0)),
@@ -113,8 +123,63 @@ export default function SettingsEditor({
             placeholder="د.ع"
           />
         </Field>
-        <Field label="هاتف المحل" hint="يظهر أسفل الفاتورة.">
+        <Field label="هاتف المحل" hint="يظهر أسفل الفاتورة، وفي الصفحة التعريفية زرَّ اتّصال.">
           <input className="field nums" dir="ltr" value={s.shop_phone} onChange={(e) => { setS({ ...s, shop_phone: e.target.value }); setSaved(false); }} />
+        </Field>
+      </section>
+
+      {/*
+        الصفحة التعريفية: ما يراه من كتب اسم النطاق. كلّها اختيارية،
+        وما يُترك فارغاً لا يظهر — فلا يبقى عنوانٌ بلا عنوان.
+      */}
+      <section className="card space-y-4 p-5">
+        <h2 className="font-display font-bold text-ink">الصفحة التعريفية</h2>
+        <p className="-mt-2 text-xs leading-relaxed text-muted">
+          ما يراه من كتب اسم موقعك دون أن يمسح الرمز. كلّ حقلٍ اختياري،
+          والفارغ لا يظهر.
+        </p>
+        <Field label="سطرٌ عنك" hint="تحت الاسم في أعلى الصفحة. جملةٌ واحدة تكفي.">
+          <input
+            className="field"
+            maxLength={160}
+            placeholder="قهوة مختصّة، تُحضَّر على مهل."
+            value={s.shop_story}
+            onChange={(e) => { setS({ ...s, shop_story: e.target.value }); setSaved(false); }}
+          />
+        </Field>
+        <Field label="العنوان" hint="كما يُقال للسائق.">
+          <input
+            className="field"
+            maxLength={160}
+            value={s.shop_address}
+            onChange={(e) => { setS({ ...s, shop_address: e.target.value }); setSaved(false); }}
+          />
+        </Field>
+        <Field label="رابط الموقع على الخرائط" hint="يُنسخ من تطبيق الخرائط. يجعل العنوان قابلاً للضغط.">
+          <input
+            className="field"
+            dir="ltr"
+            placeholder="https://maps.app.goo.gl/..."
+            value={s.shop_maps_url}
+            onChange={(e) => { setS({ ...s, shop_maps_url: e.target.value }); setSaved(false); }}
+          />
+        </Field>
+        <Field label="أوقات الدوام" hint="نصٌّ حرّ — «يوميّاً ٨ص إلى ١١م».">
+          <input
+            className="field"
+            maxLength={120}
+            value={s.shop_hours_text}
+            onChange={(e) => { setS({ ...s, shop_hours_text: e.target.value }); setSaved(false); }}
+          />
+        </Field>
+        <Field label="إنستغرام" hint="الاسم فقط، بلا رابط.">
+          <input
+            className="field"
+            dir="ltr"
+            placeholder="khazaf.cafe"
+            value={s.shop_instagram}
+            onChange={(e) => { setS({ ...s, shop_instagram: e.target.value }); setSaved(false); }}
+          />
         </Field>
       </section>
 
