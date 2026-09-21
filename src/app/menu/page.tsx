@@ -4,6 +4,7 @@ import { getSettings, strSetting } from "@/lib/settings";
 import { bannerLive, readBanner } from "@/lib/banner";
 import { money, num, categoryLabel } from "@/lib/format";
 import MenuBoard, { type BoardGroup, type BoardItem } from "@/components/MenuBoard";
+import FeedbackSheet from "@/components/FeedbackSheet";
 
 export const dynamic = "force-dynamic";
 
@@ -156,6 +157,16 @@ export default async function MenuPage() {
               </svg>
             </span>
           </a>
+
+          {/*
+            الرأي تحت زرّ الولاء لا فوقه: من وصل إلى هنا قرأ المنيو،
+            والدعوة إلى الانضمام أثمن من الدعوة إلى النقد.
+          */}
+          <div>
+            <FeedbackSheet
+              items={items.filter((i) => i.kind === "drink").map((i) => ({ id: i.id, name: i.name }))}
+            />
+          </div>
         </footer>
       </div>
     </main>
