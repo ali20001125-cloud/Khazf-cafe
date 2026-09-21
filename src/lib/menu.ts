@@ -149,13 +149,20 @@ export async function beanLabels(
   return rows;
 }
 
-export type MenuAdminRow = MenuItem & { menuVisible: boolean; active: boolean };
+export type MenuAdminRow = MenuItem & {
+  menuVisible: boolean;
+  active: boolean;
+  /** ساعة أوّل ظهور وآخره — `null` يعني طوال الوقت. */
+  menuFrom: number | null;
+  menuTo: number | null;
+};
 
 /** صفوف المالك: كل المنتجات، حتى المخفيّة عن المنيو — فهو من يُظهرها. */
 export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
   const rows = (await db()`
     select p.id, p.name, p.category, p.menu_note as note, p.image_url,
            p.paused, p.kind, p.menu_visible, p.active, p.is_daily_special as special,
+           p.menu_from, p.menu_to,
            coalesce(min(pc.price), 0)::int as min_price,
            coalesce(max(pc.price), 0)::int as max_price,
            coalesce(array_agg(m.name order by m.name)
@@ -170,6 +177,7 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     id: string; name: string; category: string; note: string | null;
     image_url: string | null; paused: boolean; kind: "drink" | "retail";
     menu_visible: boolean; active: boolean; special: boolean;
+    menu_from: number | null; menu_to: number | null;
     min_price: number; max_price: number; variants: string[];
   }[];
 
@@ -184,6 +192,8 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     kind: r.kind,
     menuVisible: r.menu_visible,
     active: r.active,
+    menuFrom: r.menu_from === null ? null : Number(r.menu_from),
+    menuTo: r.menu_to === null ? null : Number(r.menu_to),
     minPrice: Number(r.min_price),
     maxPrice: Number(r.max_price),
     variants: r.variants ?? [],

@@ -16,18 +16,28 @@ export type Row = {
   menuVisible: boolean;
   note: string | null;
   imageUrl: string | null;
+  menuFrom: number | null;
+  menuTo: number | null;
   minPrice: number;
   maxPrice: number;
   variants: string[];
 };
 
-type St = { visible: boolean; note: string; special: boolean };
+type St = {
+  visible: boolean;
+  note: string;
+  special: boolean;
+  from: number | null;
+  to: number | null;
+};
 
 /** الحالة المحرَّرة مقابل الحالة المحفوظة — المقارنة بينهما تكشف ما تغيّر. */
 const stOf = (r: Row): St => ({
   visible: r.menuVisible,
   note: r.note ?? "",
   special: r.special,
+  from: r.menuFrom,
+  to: r.menuTo,
 });
 
 /**
@@ -64,7 +74,9 @@ export default function MenuEditor({
     return (
       a.visible !== b.visible ||
       a.note !== b.note ||
-      a.special !== b.special
+      a.special !== b.special ||
+      a.from !== b.from ||
+      a.to !== b.to
     );
   });
   const shown = rows.filter((r) => state[r.id].visible).length;
@@ -80,6 +92,8 @@ export default function MenuEditor({
           menu_visible: state[r.id].visible,
           menu_note: state[r.id].note,
           special: state[r.id].special,
+          menu_from: state[r.id].from,
+          menu_to: state[r.id].to,
         }))
       );
       if (!res.ok) return setError(res.error);
@@ -276,6 +290,8 @@ function Item({
             disabled={!st.visible}
           />
 
+          <Hours st={st} set={set} />
+
           <button
             type="button"
             onClick={() => set({ ...st, special: !st.special })}
@@ -292,5 +308,83 @@ function Item({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * ساعتا ظهور المشروب.
+ *
+ * **مطويّة حتى تُطلب.** الغالب أن يُعرض المشروب طوال اليوم، فحقلان
+ * فارغان تحت كل صنفٍ ضجيجٌ يُقرأ أحد عشر مرّة. ومن أراد الجدولة ضغط
+ * السطر فانفتح.
+ *
+ * ونافذةٌ تعبر منتصف الليل مسموحة — «٢٢ ← ٢» لمن يسهر — وتُقال
+ * بالكلام كي لا تُقرأ غلطاً.
+ */
+function Hours({ st, set }: { st: St; set: (v: St) => void }) {
+  const on = st.from !== null || st.to !== null;
+  const h = (v: number | null) => (v === null ? "" : String(v).padStart(2, "0"));
+
+  const label = !on
+    ? "طوال اليوم"
+    : st.from !== null && st.to !== null
+      ? st.from <= st.to
+        ? `من ${h(st.from)}:00 إلى ${h(st.to)}:59`
+        : `من ${h(st.from)}:00 إلى ${h(st.to)}:59 (يعبر منتصف الليل)`
+      : st.from !== null
+        ? `من ${h(st.from)}:00 إلى آخر اليوم`
+        : `من بداية اليوم إلى ${h(st.to)}:59`;
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        disabled={!st.visible}
+        onClick={() =>
+          on ? set({ ...st, from: null, to: null }) : set({ ...st, from: 7, to: 11 })
+        }
+        className={`tap rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
+          on ? "bg-accentdeep text-cream" : "border border-line bg-sand text-muted"
+        }`}
+      >
+        🕐 {label}
+      </button>
+
+      {on && st.visible && (
+        <div className="mt-2 flex items-center gap-2">
+          <Pick value={st.from} onChange={(v) => set({ ...st, from: v })} label="من" />
+          <Pick value={st.to} onChange={(v) => set({ ...st, to: v })} label="إلى" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Pick({
+  value,
+  onChange,
+  label,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-muted">
+      {label}
+      <select
+        dir="ltr"
+        className="field nums w-24 py-1.5 text-center text-xs"
+        value={value === null ? "" : value}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      >
+        <option value="">—</option>
+        {Array.from({ length: 24 }, (_, i) => (
+          <option key={i} value={i}>
+            {String(i).padStart(2, "0")}:00
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

@@ -15,7 +15,17 @@ export type MenuPatch = {
   menu_visible?: boolean;
   menu_note?: string;
   special?: boolean;
+  /** ساعتا الظهور — `null` صريحةٌ تعني «طوال الوقت»، والغياب يعني «لا تمسّها». */
+  menu_from?: number | null;
+  menu_to?: number | null;
 };
+
+/** ساعةٌ صالحة أو لا شيء. القاعدة تحرسها أيضاً — وهذا الحارس الأوّل. */
+function hour(v: number | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) && n >= 0 && n <= 23 ? n : null;
+}
 
 /**
  * ما يُعرض على الزبون وما يُقال تحته.
@@ -50,6 +60,14 @@ export async function updateMenuAction(
         const note = p.menu_note.trim().slice(0, 160);
         await db()`
           update products set menu_note = ${note.length > 0 ? note : null}
+          where id = ${p.id} and business_id = ${user.bid}
+        `;
+      }
+      // الساعتان تُكتبان معاً: نافذةٌ نصفها قديم ونصفها جديد تعني
+      // مشروباً يظهر في وقتٍ لم يقصده أحد
+      if (p.menu_from !== undefined || p.menu_to !== undefined) {
+        await db()`
+          update products set menu_from = ${hour(p.menu_from)}, menu_to = ${hour(p.menu_to)}
           where id = ${p.id} and business_id = ${user.bid}
         `;
       }
