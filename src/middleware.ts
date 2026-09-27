@@ -39,6 +39,21 @@ const GUARDED = ["/pos", "/manage"];
  */
 const PUBLIC_HOST = (process.env.PUBLIC_HOST ?? "").trim().toLowerCase();
 
+/**
+ * نشرة المنيو وحده — لا تعرف غير المنيو، على أيّ نطاقٍ فُتحت.
+ *
+ * المالك لم يشترِ نطاقاً بعد. والنطاق المؤقّت الذي تعطيه هوستنجر
+ * يخصّ موقعاً واحداً، فلا يُضاف إلى الموقع الحالي نطاقٌ ثانٍ مجّاناً.
+ * فالمنيو صار موقعاً ثانياً من الكود نفسه، وهذا المتغيّر فيه وحده.
+ *
+ * وهو أمتن من `PUBLIC_HOST` لهذا الموقع: لا يعتمد على أن يصل اسم
+ * النطاق كما نتوقّع من وسيط هوستنجر — لو اختلف حرفٌ واحد لظهرت
+ * صفحة الدخول. هنا لا مقارنة أصلاً.
+ *
+ * ويُقرأ عند البناء (الوسيط يعمل على الحافّة)، فيُضبط قبل النشر.
+ */
+const MENU_ONLY = (process.env.MENU_ONLY ?? "").trim() === "1";
+
 /** ما يخصّ العمل — يُحجب عن نطاق الزبون. */
 const BUSINESS = ["/pos", "/manage", "/login", "/locked"];
 
@@ -70,7 +85,7 @@ export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // على نطاق الزبون: لا وجود لصفحات العمل
-  if (PUBLIC_HOST && askedHost(req) === PUBLIC_HOST) {
+  if (MENU_ONLY || (PUBLIC_HOST && askedHost(req) === PUBLIC_HOST)) {
     /*
      * والجذر منها.
      *
