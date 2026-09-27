@@ -19,6 +19,41 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const GUARDED = ["/pos", "/manage"];
 
+/**
+ * نطاق الزبون — والفصل الذي لا يحتاج نشرتين.
+ *
+ * قال المالك: نرفع المنيو على نطاقٍ ثانٍ ونترك هذا للإدارة. والفكرة
+ * صحيحة: نطاقٌ يعرفه الزبون لا يجوز أن يكون فيه بابُ عملٍ أصلاً، ولو
+ * كان محروساً.
+ *
+ * لكن **نشرتين** تعني رفع كل إصلاحٍ مرّتين إلى الأبد، ومتغيّرات
+ * مضاعفة، وخطر أن تُصلَح علّةٌ في واحدة وتُنسى في الأخرى. والبيانات
+ * لن تنفصل على كل حال — القاعدة واحدة.
+ *
+ * فالنطاقان يشيران إلى التطبيق نفسه، وهذا السطر يقرّر: ما جاء على
+ * نطاق الزبون لا يرى `/login` ولا `/manage` ولا `/pos` — يُعرض له
+ * المنيو مكانها. لا خطأ ولا صفحةٌ مكسورة: كأنّ تلك الصفحات غير
+ * موجودة على هذا النطاق.
+ *
+ * **وفارغٌ يعني: نطاقٌ واحد كما كان.** فلا ينكسر شيء قبل أن يضبطه.
+ */
+const PUBLIC_HOST = (process.env.PUBLIC_HOST ?? "").trim().toLowerCase();
+
+/** ما يخصّ العمل — يُحجب عن نطاق الزبون. */
+const BUSINESS = ["/pos", "/manage", "/login", "/locked"];
+
+/**
+ * المضيف كما طلبه المتصفّح.
+ *
+ * `x-forwarded-host` أوّلاً: هوستنجر تضع خلفها وسيطاً، و`host` عنده
+ * يكون اسم الخادم الداخلي لا نطاق المالك.
+ */
+function askedHost(req: NextRequest): string {
+  const h = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
+  // بلا المنفذ: «menu.khazaf.com:443» و«menu.khazaf.com» نطاقٌ واحد
+  return h.split(",")[0].trim().toLowerCase().split(":")[0];
+}
+
 function isLocked(token: string | undefined): boolean {
   if (!token) return false;
   const dot = token.lastIndexOf(".");
@@ -33,6 +68,23 @@ function isLocked(token: string | undefined): boolean {
 
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+
+  // على نطاق الزبون: لا وجود لصفحات العمل
+  if (PUBLIC_HOST && askedHost(req) === PUBLIC_HOST) {
+    /*
+     * والجذر منها.
+     *
+     * كان يمرّ لأنه ليس في `BUSINESS`، فيعرض **اللوحة** لمن يحمل جلسة
+     * — أي للمالك أو الباريستا حين يفتح نطاق الزبون على هاتفه. لا
+     * يراها زبون، لكنها تناقض الوعد: هذا النطاق لا عمل فيه. (ظهر في
+     * الاختبار بعد أن بدا الفصل تامّاً.)
+     */
+    if (path === "/" || BUSINESS.some((p) => path === p || path.startsWith(`${p}/`))) {
+      return NextResponse.rewrite(new URL("/menu", req.url));
+    }
+    return NextResponse.next();
+  }
+
   if (!GUARDED.some((p) => path === p || path.startsWith(`${p}/`))) {
     return NextResponse.next();
   }
@@ -45,5 +97,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/pos/:path*", "/manage/:path*"],
+  // يمرّ على كل شيء إلّا ملفّات البناء: الفصل بالنطاق يحتاج أن يرى
+  // `/login` أيضاً، لا الصفحات المحروسة وحدها
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
