@@ -11,44 +11,87 @@ import {
 /**
  * صورة المنتج — تُلتقط أو تُختار من الهاتف.
  *
- * **تُصغَّر قبل أن تُرسل.** صورة هاتفٍ حديث أربعة ميغابايت أو أكثر،
- * وهي تُعرض في مربّعٍ عرضه أصابع. رفعها كما هي يُبطئ المالك على شبكته،
- * ثمّ يُبطئ كل زبونٍ يفتح المنيو بعده على شبكته هو. فالتصغير في
- * المتصفّح إلى ١٢٠٠ بكسل و**جودة ٠٫٨**: فرقٌ لا تراه العين في هذا
- * الحجم، وحمولةٌ تُقسَم إلى عُشر.
+ * **تُضغط في الهاتف قبل أن تُرسل، إلى ٢٠٠ كيلوبايت أو أقلّ.** صورة
+ * هاتفٍ حديث ميغابايت إلى أربعة، وهي تُعرض في مربّعٍ عرضه أصابع. رفعها
+ * كما هي يُبطئ المالك على شبكته، ثمّ يُبطئ كل زبونٍ يفتح المنيو بعده
+ * على شبكته هو.
+ *
+ * كان التصغير بجودةٍ ثابتة (٠٫٨)، فتخرج الصورة بين ١٥٠ و٤٠٠ كيلو حسب
+ * ما فيها — صورةٌ فيها تفاصيل كثيرة تخرج أثقل. والمالك كان يمرّرها
+ * على تيليغرام ليصغّرها بيده قبل الرفع. الآن **الحجم هو الهدف لا
+ * الجودة**: تنزل الجودة درجةً درجة حتى تدخل تحت السقف، ولا تنزل تحت
+ * حدٍّ يُرى فيه التشويش — فإن لم تكفِ صَغُر البُعد.
+ *
+ * و**WebP** أوّلاً حيث يدعمه المتصفّح (أندرويد وكروم): أصغر من JPEG
+ * بالثلث تقريباً بالعين نفسها. وسفاري القديم يُرجع PNG بدلاً منه
+ * بصمت، فيُفحص النوع الخارج لا المطلوب، ويُرجع إلى JPEG.
  *
  * ولا يُرفع شيءٌ قبل أن يُرى: المعاينة تظهر فور الاختيار، فمن التقط
  * صورةً مائلة يعرف قبل أن ينتظر الرفع.
  */
-const MAX_EDGE = 1200;
-const QUALITY = 0.8;
+const TARGET_BYTES = 200 * 1024;
+const EDGES = [1200, 1000, 800];
+const QUALITIES = [0.82, 0.74, 0.66, 0.58];
+
+function encode(canvas: HTMLCanvasElement, type: string, q: number): Promise<Blob | null> {
+  return new Promise((res) => canvas.toBlob(res, type, q));
+}
+
+/** يفتح الصورة — وإن فشل `createImageBitmap` (متصفّحٌ قديم) فبعنصر صورة. */
+async function decode(file: File): Promise<{ img: CanvasImageSource; w: number; h: number; done: () => void } | null> {
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (bmp) return { img: bmp, w: bmp.width, h: bmp.height, done: () => bmp.close() };
+
+  const url = URL.createObjectURL(file);
+  const el = new Image();
+  const ok = await new Promise<boolean>((res) => {
+    el.onload = () => res(true);
+    el.onerror = () => res(false);
+    el.src = url;
+  });
+  if (!ok) {
+    URL.revokeObjectURL(url);
+    return null;
+  }
+  return { img: el, w: el.naturalWidth, h: el.naturalHeight, done: () => URL.revokeObjectURL(url) };
+}
 
 async function shrink(file: File): Promise<Blob> {
-  // PNG قد يكون شفّافاً، وتحويله إلى JPEG يملأ الشفافية بالأسود.
-  // فالشفّاف يُترك كما هو ما دام صغيراً.
-  const keepAsIs = file.type === "image/png" && file.size < 400_000;
-  if (keepAsIs) return file;
+  // PNG قد يكون شفّافاً، وتحويله يملأ الشفافية بلون. فالشفّاف الصغير
+  // يُترك كما هو.
+  if (file.type === "image/png" && file.size <= TARGET_BYTES) return file;
 
-  const bmp = await createImageBitmap(file).catch(() => null);
-  if (!bmp) return file;
+  const src = await decode(file);
+  if (!src) return file;
 
-  const scale = Math.min(1, MAX_EDGE / Math.max(bmp.width, bmp.height));
-  const w = Math.max(1, Math.round(bmp.width * scale));
-  const h = Math.max(1, Math.round(bmp.height * scale));
+  let best: Blob | null = null;
+  try {
+    for (const edge of EDGES) {
+      const scale = Math.min(1, edge / Math.max(src.w, src.h));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(src.w * scale));
+      canvas.height = Math.max(1, Math.round(src.h * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      // خلفيةٌ كريمية لا سوداء لما كان شفّافاً
+      ctx.fillStyle = "#f5efe6";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(src.img, 0, 0, canvas.width, canvas.height);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
-  ctx.drawImage(bmp, 0, 0, w, h);
-  bmp.close();
-
-  const blob = await new Promise<Blob | null>((res) =>
-    canvas.toBlob(res, "image/jpeg", QUALITY)
-  );
-  // لو خرج المصغَّر أكبر من الأصل (يقع مع الصور الصغيرة) فالأصل أولى
-  return blob && blob.size < file.size ? blob : file;
+      for (const q of QUALITIES) {
+        let blob = await encode(canvas, "image/webp", q);
+        if (!blob || blob.type !== "image/webp") blob = await encode(canvas, "image/jpeg", q);
+        if (!blob) continue;
+        if (!best || blob.size < best.size) best = blob;
+        if (blob.size <= TARGET_BYTES) return blob;
+      }
+    }
+  } finally {
+    src.done();
+  }
+  // لم تدخل تحت السقف حتى بأصغر بُعدٍ وجودة — فأصغر ما خرج، لا الأصل
+  return best && best.size < file.size ? best : file;
 }
 
 export default function ImageField({
@@ -86,7 +129,7 @@ export default function ImageField({
     try {
       const small = await shrink(file);
       const fd = new FormData();
-      fd.append("file", small, "photo.jpg");
+      fd.append("file", small, small.type === "image/webp" ? "photo.webp" : "photo.jpg");
       const r = await uploadProductImageAction(productId, fd);
       if (!r.ok) {
         setError(r.error);
@@ -157,7 +200,8 @@ export default function ImageField({
             )}
           </div>
           <p className="mt-1.5 text-[0.7rem] leading-relaxed text-muted">
-            من الكاميرا أو الاستوديو. تُصغَّر في هاتفك قبل الرفع.
+            من الكاميرا أو الاستوديو. تُضغط تلقائياً إلى ٢٠٠ كيلو أو أقلّ —
+            ارفعها كما هي. والمشروب في الوسط: تُقصّ مربّعاً في المنيو.
           </p>
           {error && <p className="mt-1 text-xs font-medium text-red-600">{error}</p>}
         </div>
