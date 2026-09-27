@@ -52,6 +52,7 @@ export default async function SettingsPage() {
         shop_instagram: strSetting(s, "shop_instagram", ""),
         shop_hours_text: strSetting(s, "shop_hours_text", ""),
         shop_story: strSetting(s, "shop_story", ""),
+        public_url: strSetting(s, "public_url", ""),
       }}
       branch={{
         standard_float: branch.standard_float,

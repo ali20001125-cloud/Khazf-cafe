@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import QRCode from "qrcode";
+import { customerOrigin } from "@/lib/public-url";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { beanLabels, menuAdmin } from "@/lib/menu";
@@ -26,14 +27,17 @@ export default async function ManageMenuPage() {
 
   const banner = readBanner(settings as Record<string, unknown>);
 
-  // الرابط من المضيف الذي يزوره المالك الآن — لا ثابتاً في الكود، فينكسر
-  // بأوّل تغيير نطاق
+  // الرابط من «موقع الزبائن» في الإعدادات — لا من المضيف الحاليّ، وهو
+  // موقع الإدارة (انظر `public-url.ts`)
   const h = headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const menuUrl = host ? `${proto}://${host}/menu` : "/menu";
+  const site = customerOrigin(
+    settings.public_url,
+    h.get("x-forwarded-host") ?? h.get("host") ?? "",
+    h.get("x-forwarded-proto") ?? "https"
+  );
+  const menuUrl = site.origin ? `${site.origin}/menu` : "/menu";
 
-  const qr = host
+  const qr = site.origin
     ? await QRCode.toString(menuUrl, {
         type: "svg",
         margin: 1,
@@ -60,6 +64,7 @@ export default async function ManageMenuPage() {
         currency={strSetting(settings, "currency", "د.ع")}
         menuUrl={menuUrl}
         qrSvg={qr}
+        siteConfigured={site.configured}
       />
 
       <BannerEditor

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { money, num, categoryLabel, kindName } from "@/lib/format";
 import { updateMenuAction } from "@/app/manage/menu-actions";
 import ImageField from "./ImageField";
+import SiteWarning from "./SiteWarning";
 
 export type Row = {
   id: string;
@@ -60,11 +61,13 @@ export default function MenuEditor({
   currency,
   menuUrl,
   qrSvg,
+  siteConfigured,
 }: {
   rows: Row[];
   currency: string;
   menuUrl: string;
   qrSvg: string | null;
+  siteConfigured: boolean;
 }) {
   const router = useRouter();
   const [state, setState] = useState<Record<string, St>>(() =>
@@ -126,6 +129,8 @@ export default function MenuEditor({
           لا تُعاد طباعتها.
         </p>
 
+        {!siteConfigured && <SiteWarning />}
+
         <div className="mt-5 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
           {qrSvg ? (
             <div
@@ -143,7 +148,7 @@ export default function MenuEditor({
               {menuUrl}
             </p>
             <a
-              href="/menu"
+              href={menuUrl}
               target="_blank"
               rel="noreferrer"
               className="btn-ghost mt-3 inline-block px-4 py-2 text-sm"

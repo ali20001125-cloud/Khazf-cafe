@@ -1,5 +1,7 @@
 import Link from "next/link";
 import QRCode from "qrcode";
+import { customerOrigin } from "@/lib/public-url";
+import SiteWarning from "@/components/SiteWarning";
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -62,13 +64,17 @@ export default async function LoyaltyAdminPage() {
     order by a.created_at desc limit 10
   `) as { phone: string; name: string | null; created_at: string; stamps: number }[];
 
-  // الرابط الذي يفتحه الزبون — يُبنى من نفس المضيف الذي يزوره المالك الآن
+  // الرابط الذي يفتحه الزبون — من «موقع الزبائن» في الإعدادات، لا من
+  // المضيف الحاليّ وهو موقع الإدارة (انظر `public-url.ts`)
   const h = headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const signupUrl = host ? `${proto}://${host}/loyalty` : "/loyalty";
+  const site = customerOrigin(
+    settings.public_url,
+    h.get("x-forwarded-host") ?? h.get("host") ?? "",
+    h.get("x-forwarded-proto") ?? "https"
+  );
+  const signupUrl = site.origin ? `${site.origin}/loyalty` : "/loyalty";
 
-  const qr = host
+  const qr = site.origin
     ? await QRCode.toString(signupUrl, {
         type: "svg",
         margin: 1,
@@ -95,6 +101,8 @@ export default async function LoyaltyAdminPage() {
           ثم يقول للباريستا «عندي ولاء» ويعطيه رقمه في كل زيارة.
         </p>
 
+        {!site.configured && <SiteWarning />}
+
         <div className="mt-5 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
           {qr ? (
             <div
@@ -112,13 +120,14 @@ export default async function LoyaltyAdminPage() {
             <p className="mt-1 break-all rounded-xl bg-sand px-3 py-2 font-mono text-sm text-ink">
               {signupUrl}
             </p>
-            <Link
-              href="/loyalty"
+            <a
+              href={signupUrl}
               target="_blank"
+              rel="noreferrer"
               className="btn-ghost mt-3 inline-block px-4 py-2 text-sm"
             >
               افتح صفحة التسجيل كما يراها الزبون ←
-            </Link>
+            </a>
           </div>
         </div>
       </section>

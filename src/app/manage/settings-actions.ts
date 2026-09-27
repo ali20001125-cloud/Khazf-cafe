@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
+import { cleanOrigin } from "@/lib/public-url";
 
 // قائمة بيضاء لما يخصّ **العمل كلّه**. ما يخصّ الفرع (الفكّة · ساعة بداية
 // اليوم · عتبة الفروقات) بيته `branches` ويُعدَّل من `branch-actions.ts`
@@ -17,6 +18,8 @@ const ALLOWED = new Set([
   // ما تقوله الصفحة التعريفية لمن كتب اسم النطاق: أين المقهى ومتى
   // يفتح وكيف يُوصَل إليه. نصوصٌ يكتبها المالك، لا شيء يُحسب منها.
   "shop_address", "shop_maps_url", "shop_instagram", "shop_hours_text", "shop_story",
+  // موقع الزبائن — عليه تُبنى رموز QR (انظر `public-url.ts`)
+  "public_url",
 ]);
 
 export async function updateSettingsAction(
@@ -32,6 +35,16 @@ export async function updateSettingsAction(
 
   const entries = Object.entries(patch).filter(([k]) => ALLOWED.has(k));
   if (entries.length === 0) return { ok: false, error: "لا تغييرات" };
+
+  // رابطٌ مكسور هنا يعني رمزاً مطبوعاً لا يفتح شيئاً — فيُردّ قبل الحفظ
+  for (const e of entries) {
+    if (e[0] !== "public_url") continue;
+    const raw = typeof e[1] === "string" ? e[1].trim() : "";
+    if (raw === "") { e[1] = ""; continue; }
+    const origin = cleanOrigin(raw);
+    if (!origin) return { ok: false, error: "رابط موقع المنيو غير صالح" };
+    e[1] = origin;
+  }
 
   try {
     for (const [key, value] of entries) {

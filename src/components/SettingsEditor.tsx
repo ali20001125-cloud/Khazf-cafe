@@ -28,6 +28,7 @@ type Shop = {
   shop_instagram: string;
   shop_hours_text: string;
   shop_story: string;
+  public_url: string;
 };
 
 type Branch = {
@@ -70,6 +71,7 @@ export default function SettingsEditor({
         shop_instagram: s.shop_instagram,
         shop_hours_text: s.shop_hours_text,
         shop_story: s.shop_story,
+        public_url: s.public_url,
         staff_drink_limit: Math.round(Number(s.staff_drink_limit) || 0),
         session_timeout_minutes: Math.round(Number(s.session_timeout_minutes) || 0),
         retail_packaging_cost: Math.max(0, Math.round(Number(s.retail_packaging_cost) || 0)),
@@ -125,6 +127,26 @@ export default function SettingsEditor({
         </Field>
         <Field label="هاتف المحل" hint="يظهر أسفل الفاتورة، وفي الصفحة التعريفية زرَّ اتّصال.">
           <input className="field nums" dir="ltr" value={s.shop_phone} onChange={(e) => { setS({ ...s, shop_phone: e.target.value }); setSaved(false); }} />
+        </Field>
+      </section>
+
+      {/*
+        موقع الزبائن: عليه تُبنى رموز QR. بدونه يُطبع رمزٌ يفتح موقع
+        الإدارة (انظر `public-url.ts`).
+      */}
+      <section id="public-url" className="card scroll-mt-20 space-y-4 p-5">
+        <h2 className="font-display font-bold text-ink">موقع الزبائن</h2>
+        <Field
+          label="رابط موقع المنيو"
+          hint="انسخه من هوستنجر — الموقع الثاني الذي فيه MENU_ONLY. عليه يُبنى رمز المنيو ورمز الولاء. ويوم تشتري نطاقاً تغيّره هنا فقط."
+        >
+          <input
+            className="field"
+            dir="ltr"
+            placeholder="https://xxxx.hostingersite.com"
+            value={s.public_url}
+            onChange={(e) => { setS({ ...s, public_url: e.target.value }); setSaved(false); }}
+          />
         </Field>
       </section>
 
