@@ -23,6 +23,10 @@ export default async function MenuView({ lang }: { lang: Lang }) {
   const shop = strSetting(settings, "shop_name", "مقهى خزف");
   const currency = strSetting(settings, "currency", "د.ع");
   const phone = strSetting(settings, "shop_phone", "");
+  const address = strSetting(settings, "shop_address", "");
+  const mapsUrl = strSetting(settings, "shop_maps_url", "");
+  const instagram = strSetting(settings, "shop_instagram", "").replace(/^@+/, "");
+  const hours = strSetting(settings, "shop_hours_text", "");
 
   // الشريط ينتهي وحده: لا مهمّة مجدولة تُسكته، بل القراءة نفسها لا
   // تُظهره بعد يومه. (انظر `lib/banner.ts`)
@@ -141,10 +145,48 @@ export default async function MenuView({ lang }: { lang: Lang }) {
         <footer className="mt-16 text-center">
           <div className="mx-auto h-px w-14 bg-ink/10" />
           <p className="mt-6 font-serifar text-lg text-ink">{shop}</p>
-          {phone && (
-            <p className="nums mt-1 text-xs tracking-wide text-muted" dir="ltr">
-              {phone}
-            </p>
+          {/*
+            أين ومتى وكيف يُوصَل — في ذيل المنيو لا في صفحةٍ أخرى.
+            صفحةٌ عامّة واحدة تكفي، وكل صفحةٍ ثانية بابٌ يُحرَس.
+            وما يُترك فارغاً في الإعدادات لا يظهر هنا.
+          */}
+          {(address || hours || phone || instagram) && (
+            <div className="mx-auto mt-4 max-w-xs space-y-1.5 text-xs leading-relaxed text-muted">
+              {address &&
+                (mapsUrl ? (
+                  <p>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="underline underline-offset-4"
+                    >
+                      {address}
+                    </a>
+                  </p>
+                ) : (
+                  <p>{address}</p>
+                ))}
+              {hours && <p>{hours}</p>}
+              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                {phone && (
+                  <a href={`tel:${phone}`} dir="ltr" className="nums underline underline-offset-4">
+                    {phone}
+                  </a>
+                )}
+                {instagram && (
+                  <a
+                    href={`https://instagram.com/${instagram}`}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    dir="ltr"
+                    className="underline underline-offset-4"
+                  >
+                    @{instagram}
+                  </a>
+                )}
+              </p>
+            </div>
           )}
 
           {/* الزرّ داخله زرّ: السهم في دائرته لا عارياً بجانب النصّ */}

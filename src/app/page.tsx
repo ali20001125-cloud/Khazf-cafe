@@ -8,7 +8,6 @@ import { getActiveBranch } from "@/lib/branch";
 import { getOpenShift } from "@/lib/shifts";
 import { todayGlance } from "@/lib/reports";
 import { logoutAction } from "@/app/login/actions";
-import Landing from "@/components/Landing";
 
 export const dynamic = "force-dynamic";
 
@@ -18,26 +17,20 @@ export default async function Home() {
   const user = currentUser();
 
   /*
-   * **الزائر يرى المقهى، لا شاشة دخول.**
+   * **الزائر يذهب إلى المنيو، ولا يرى شيئاً من العمل.**
    *
-   * كان الجذر يُحوّل كل من لا حساب له إلى `/login` — فمن كتب اسم
-   * النطاق وجد حقلَ اسمٍ ورمزٍ لا يملكهما، فظنّ الموقع مغلقاً وخرج.
-   * والموظّف يجد طريقه من رابطٍ في الذيل.
+   * كان الجذر يُحوّل إلى `/login`، فمن كتب اسم النطاق وجد حقلَ اسمٍ
+   * ورمز لا يملكهما. فوضعتُ مكانه صفحةً تعريفية — وكان فيها رابط
+   * «دخول الموظفين». وقال المالك: لا أريد أيّ زبونٍ يرى هذا.
+   *
+   * وهو محقّ: ما يخصّ العمل لا يُعرض على من جاء يشرب قهوة، ولو كان
+   * محروساً باسمٍ ورمز. فالصفحة العامّة الوحيدة هي المنيو، وفي ذيله
+   * العنوان والدوام والهاتف — فلم يضع شيء.
+   *
+   * والموظّف يفتح `/login` بنفسه ويحفظه في هاتفه. وبعد دخوله يعرض له
+   * هذا الجذر لوحته كما كان.
    */
-  if (!user) {
-    const s = await getSettings();
-    return (
-      <Landing
-        shop={strSetting(s, "shop_name", "مقهى خزف")}
-        phone={strSetting(s, "shop_phone", "")}
-        address={strSetting(s, "shop_address", "")}
-        mapsUrl={strSetting(s, "shop_maps_url", "")}
-        instagram={strSetting(s, "shop_instagram", "")}
-        hours={strSetting(s, "shop_hours_text", "")}
-        story={strSetting(s, "shop_story", "")}
-      />
-    );
-  }
+  if (!user) redirect("/menu");
 
   const isOwner = user.role === "owner";
   const settings = await getSettings();
