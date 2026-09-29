@@ -72,6 +72,8 @@ export async function publicMenu(
 }
 
 export type MenuPart = { name: string; note: string | null; qty: number; unit: string };
+export type MenuAddonGroup = { title: string; options: { name: string; price: number }[] };
+
 export type MenuDetail = {
   parts: MenuPart[];
   /**
@@ -79,6 +81,11 @@ export type MenuDetail = {
    * إن كتبه، وإلّا من أسماء الوصفة.
    */
   ingredients: string[];
+  /**
+   * ما يُضاف إلى المشروب بسعره: حليب نباتي، نكهة، شوت. المدفوع وحده —
+   * «بقري +٠» ليس إضافةً بل الأصل.
+   */
+  addons: MenuAddonGroup[];
   kcal: number;
   caffeine: number;
   known: boolean;
@@ -138,10 +145,39 @@ export async function menuDetails(
     ingredients: string | null;
   }[];
 
+  // الإضافات لكل مشروب — بأسمائها على الطاولة لا في الكاشير
+  const addonRows = (await db()`
+    select pmg.product_id, g.id as gid,
+           case when ${en} then coalesce(nullif(btrim(g.name_en), ''), nullif(btrim(g.menu_name), ''), g.name)
+                else coalesce(nullif(btrim(g.menu_name), ''), g.name) end as title,
+           case when ${en} then coalesce(nullif(btrim(o.name_en), ''), o.name)
+                else o.name end as oname,
+           o.price_delta
+    from product_modifier_groups pmg
+    join modifier_groups g on g.id = pmg.group_id and g.active
+    join modifier_options o on o.group_id = g.id and o.available and o.price_delta > 0
+    join products p on p.id = pmg.product_id
+    where p.business_id = ${businessId} and p.active and p.menu_visible
+    order by pmg.product_id, g.sort, o.sort
+  `) as { product_id: string; gid: string; title: string; oname: string; price_delta: number }[];
+
+  const addons = new Map<string, MenuAddonGroup[]>();
+  for (const a of addonRows) {
+    const list = addons.get(a.product_id) ?? [];
+    let g = list.find((x) => x.title === a.title);
+    if (!g) {
+      g = { title: a.title, options: [] };
+      list.push(g);
+    }
+    g.options.push({ name: a.oname, price: Number(a.price_delta) });
+    addons.set(a.product_id, list);
+  }
+
   return Object.fromEntries(
     rows.map((r) => [
       r.id,
       {
+        addons: addons.get(r.id) ?? [],
         parts: r.detail?.parts ?? [],
         ingredients: (() => {
           const own = splitIngredients(r.ingredients);

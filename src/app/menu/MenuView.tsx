@@ -6,6 +6,7 @@ import Link from "next/link";
 import { money, num, categoryLabel } from "@/lib/format";
 import MenuBoard, { type BoardGroup, type BoardItem } from "@/components/MenuBoard";
 import FeedbackSheet from "@/components/FeedbackSheet";
+import { AddonList } from "@/components/MenuSheet";
 
 const ORDER = ["espresso", "hot", "cold", "filter", "other"];
 
@@ -80,6 +81,21 @@ export default async function MenuView({ lang }: { lang: Lang }) {
   if (goods.length > 0)
     groups.push({ key: "home", label: s.sections.home, items: goods.map(toBoard) });
 
+  // الإضافات كلّها في قسمٍ واحد آخر المنيو — من يبحث عن «حليب شوفان»
+  // لا يفتح بطاقات المشروبات واحدةً واحدة ليجده
+  const allAddons: { title: string; options: { name: string; price: number }[] }[] = [];
+  for (const d of Object.values(details)) {
+    for (const g of d.addons ?? []) {
+      let t = allAddons.find((x) => x.title === g.title);
+      if (!t) {
+        t = { title: g.title, options: [] };
+        allAddons.push(t);
+      }
+      for (const o of g.options)
+        if (!t.options.some((x) => x.name === o.name)) t.options.push(o);
+    }
+  }
+
   // ملاحظة على `<main>` أدناه: بلا `overflow-x-hidden`.
   // `overflow-x: hidden` يجعل `overflow-y` يُحسب `auto`، فيصير العنصر
   // حاوية تمرير ارتفاعها ارتفاع محتواها — حاويةٌ لا شيء فيها ليُمرَّر.
@@ -140,6 +156,18 @@ export default async function MenuView({ lang }: { lang: Lang }) {
           </div>
         ) : (
           <MenuBoard groups={groups} details={details} s={s} />
+        )}
+
+        {allAddons.length > 0 && (
+          <section className="mt-12">
+            <h2 className="mb-1 font-serifar text-xl text-ink">{s.addOns}</h2>
+            <p className="mb-3 text-xs text-muted">{s.addOnsNote}</p>
+            <div className="rounded-[1.6rem] bg-ink/[0.045] p-1.5 ring-1 ring-ink/[0.06]">
+              <div className="rounded-[1.225rem] bg-cream p-3">
+                <AddonList groups={allAddons} />
+              </div>
+            </div>
+          </section>
         )}
 
         <footer className="mt-16 text-center">

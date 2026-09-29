@@ -8,6 +8,7 @@ import type { BoardItem } from "./MenuBoard";
 export type SheetDetail = {
   parts: { name: string; note: string | null; qty: number; unit: string }[];
   ingredients: string[];
+  addons: { title: string; options: { name: string; price: number }[] }[];
   kcal: number;
   caffeine: number;
   known: boolean;
@@ -154,6 +155,18 @@ export default function MenuSheet({
           )}
 
           {/*
+            الإضافات بسعرها: حليب نباتي، نكهة، شوت. قال المالك: «النكهات
+            داخل المشروب خلّيها أوضح» — كانت سطراً مدسوساً تحت الاسم.
+            عرضٌ لا اختيار: الطلب عند الكاونتر، وهذا ما يُقال فيه.
+          */}
+          {detail && detail.addons.length > 0 && (
+            <div className="mt-5">
+              <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">{s.addToDrink}</h3>
+              <AddonList groups={detail.addons} />
+            </div>
+          )}
+
+          {/*
             **لا خيارات في منيو الزبون.** قال المالك: المشروبات
             الكلاسيكية نختارها ونخصّصها في الخلف، والخيارات تأتي لاحقاً
             في المشروبات المخصّصة وحدها. وعرض ثلاثة أنواع بنٍّ يُفهم
@@ -200,5 +213,57 @@ function Stat({ value, unit, label }: { value: number; unit: string; label: stri
       </p>
       <p className="mt-1 text-[0.68rem] text-muted">{label}</p>
     </div>
+  );
+}
+
+/** «+٢٬٠٠٠» — أرقامٌ لاتينية كسائر أسعار المنيو، والعملة مرّةً في السعر الأصل. */
+const plus = (n: number) => `+${n.toLocaleString("en-US")}`;
+
+/**
+ * مجموعات الإضافات: عنوانٌ، وتحته خياراته بأسعارها.
+ *
+ * ومجموعةٌ بخيارٍ واحد يحمل اسمها («شوت إضافي» ← «شوت إضافي») تُكتب
+ * سطراً واحداً: التكرار يُقرأ خطأً.
+ */
+export function AddonList({
+  groups,
+}: {
+  groups: { title: string; options: { name: string; price: number }[] }[];
+}) {
+  return (
+    <ul className="divide-y divide-line/60 rounded-xl border border-line bg-sand/40">
+      {groups.map((g) => {
+        const single = g.options.length === 1 && g.options[0].name === g.title;
+        return (
+          <li key={g.title} className="px-3 py-2.5">
+            {single ? (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium text-ink">{g.title}</span>
+                <span dir="ltr" className="nums shrink-0 text-sm font-semibold text-accentdeep">
+                  {plus(g.options[0].price)}
+                </span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-ink">{g.title}</p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {g.options.map((o) => (
+                    <span
+                      key={o.name}
+                      className="inline-flex items-baseline gap-1.5 rounded-full bg-cream px-2.5 py-1 text-xs text-ink ring-1 ring-line"
+                    >
+                      {o.name}
+                      <span dir="ltr" className="nums font-semibold text-accentdeep">
+                        {plus(o.price)}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

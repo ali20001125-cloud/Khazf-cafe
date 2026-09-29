@@ -17,6 +17,11 @@ export type Strings = {
   unavailable: string;
   special: string;
   ingredients: string;
+  /** في بطاقة المشروب: ما يُضاف إليه بسعره. */
+  addToDrink: string;
+  /** قسمٌ في آخر المنيو يجمع الإضافات كلّها. */
+  addOns: string;
+  addOnsNote: string;
   bean: string;
   energy: string;
   caffeine: string;
@@ -56,6 +61,9 @@ const AR: Strings = {
   unavailable: "غير متوفّر اليوم",
   special: "مميّز",
   ingredients: "المكوّنات",
+  addToDrink: "أضِف إلى مشروبك",
+  addOns: "الإضافات",
+  addOnsNote: "تُضاف إلى أيّ مشروبٍ تناسبه — اطلبها عند الطلب.",
   bean: "البنّ",
   energy: "الطاقة",
   caffeine: "كافيين",
@@ -101,6 +109,9 @@ const EN: Strings = {
   unavailable: "Not available today",
   special: "Featured",
   ingredients: "Ingredients",
+  addToDrink: "Add to your drink",
+  addOns: "Add-ons",
+  addOnsNote: "Available with any drink they suit — just ask when you order.",
   bean: "The beans",
   energy: "Energy",
   caffeine: "Caffeine",
