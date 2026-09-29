@@ -88,6 +88,18 @@ function isLocked(token: string | undefined): boolean {
   }
 }
 
+/** 404 بلا صفحة Next ولا تصميم: لا شيء فيها يقول لمن هذا الموقع. */
+function notFound(): NextResponse {
+  return new NextResponse("404 Not Found", {
+    status: 404,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex, nofollow",
+    },
+  });
+}
+
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
@@ -108,17 +120,22 @@ export async function middleware(req: NextRequest) {
   }
 
   /*
-   * موقع العمل من جهازٍ غير مسجَّل: لا شاشة دخولٍ ولا لوحة — المنيو.
-   * قال المالك: من يعرف اسم النطاق لا يجوز أن يرى الباب. و`/device`
-   * وحده يمرّ: منه يُسجَّل الجهاز. (انظر `lib/device-gate.ts`)
+   * موقع العمل من جهازٍ غير مسجَّل: **404 عارية، في كل مسار.**
+   *
+   * كان يعرض المنيو مكان صفحات العمل. وقال المالك: لا داعي للمنيو هنا،
+   * له نطاقه — وهذا الموقع لا يُظهر شيئاً لمن لم يُسجَّل. فلا منيو ولا
+   * ولاء ولا شعار ولا اسم مقهى: ردٌّ بلا هويّة، كأنّ النطاق فارغ.
+   * والأفعال الخادمية (POST) تُردّ هنا أيضاً قبل أن تُنفَّذ.
+   *
+   * و`/device/…` وحده يمرّ: منه يُسجَّل الجهاز، ومفتاحٌ خاطئ فيه يُردّ
+   * 404 بالشكل نفسه (`app/device/[key]/route.ts`). (انظر `lib/device-gate.ts`)
    */
   if (
     DEVICE_KEY &&
     !path.startsWith("/device/") &&
-    (path === "/" || BUSINESS.some((p) => path === p || path.startsWith(`${p}/`))) &&
     !(await deviceTrusted(req.cookies.get(DEVICE_COOKIE)?.value, DEVICE_KEY))
   ) {
-    return NextResponse.rewrite(new URL("/menu", req.url));
+    return notFound();
   }
 
   if (!GUARDED.some((p) => path === p || path.startsWith(`${p}/`))) {
