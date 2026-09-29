@@ -29,8 +29,13 @@ export default async function Home() {
    *
    * والموظّف يفتح `/login` بنفسه ويحفظه في هاتفه. وبعد دخوله يعرض له
    * هذا الجذر لوحته كما كان.
+   *
+   * **ثمّ صار المنيو موقعاً وحده** (`MENU_ONLY`، ونطاقٌ خاصّ به)، فموقع
+   * العمل لا يفتحه زبونٌ من الرمز. وقال المالك: أفتح pos فيوديني للمنيو،
+   * وأمسح «menu» وأكتب «login» بيدي. فالجذر هنا يعود إلى الدخول — ومن لا
+   * يجوز أن يرى الشاشة تحجبه بوّابة الأجهزة قبل أن يصل (`device-gate.ts`).
    */
-  if (!user) redirect("/menu");
+  if (!user) redirect(process.env.MENU_ONLY?.trim() === "1" ? "/menu" : "/login");
 
   const isOwner = user.role === "owner";
   const settings = await getSettings();

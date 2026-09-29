@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DEVICE_COOKIE, deviceKeyFromEnv, deviceTrusted } from "@/lib/device-gate";
 
 /**
  * بوّابة الشاشة المقفلة.
@@ -55,7 +56,13 @@ const PUBLIC_HOST = (process.env.PUBLIC_HOST ?? "").trim().toLowerCase();
 const MENU_ONLY = (process.env.MENU_ONLY ?? "").trim() === "1";
 
 /** ما يخصّ العمل — يُحجب عن نطاق الزبون. */
-const BUSINESS = ["/pos", "/manage", "/login", "/locked"];
+const BUSINESS = ["/pos", "/manage", "/login", "/locked", "/device"];
+
+/**
+ * مفتاح الأجهزة الموثوقة (`lib/device-gate.ts`). فارغٌ = البوّابة مفتوحة.
+ * يُقرأ مرّةً: الوسيط يعمل على الحافّة، والمتغيّر يُضبط قبل النشر.
+ */
+const DEVICE_KEY = deviceKeyFromEnv();
 
 /**
  * المضيف كما طلبه المتصفّح.
@@ -81,7 +88,7 @@ function isLocked(token: string | undefined): boolean {
   }
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // على نطاق الزبون: لا وجود لصفحات العمل
@@ -98,6 +105,20 @@ export function middleware(req: NextRequest) {
       return NextResponse.rewrite(new URL("/menu", req.url));
     }
     return NextResponse.next();
+  }
+
+  /*
+   * موقع العمل من جهازٍ غير مسجَّل: لا شاشة دخولٍ ولا لوحة — المنيو.
+   * قال المالك: من يعرف اسم النطاق لا يجوز أن يرى الباب. و`/device`
+   * وحده يمرّ: منه يُسجَّل الجهاز. (انظر `lib/device-gate.ts`)
+   */
+  if (
+    DEVICE_KEY &&
+    !path.startsWith("/device/") &&
+    (path === "/" || BUSINESS.some((p) => path === p || path.startsWith(`${p}/`))) &&
+    !(await deviceTrusted(req.cookies.get(DEVICE_COOKIE)?.value, DEVICE_KEY))
+  ) {
+    return NextResponse.rewrite(new URL("/menu", req.url));
   }
 
   if (!GUARDED.some((p) => path === p || path.startsWith(`${p}/`))) {

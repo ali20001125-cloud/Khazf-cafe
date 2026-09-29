@@ -1,6 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { DEVICE_COOKIE, deviceKeyFromEnv, deviceTrusted } from "@/lib/device-gate";
 import { loginByName, logout, type LoginResult } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -20,6 +21,12 @@ function deviceKey(): string {
 }
 
 export async function loginAction(name: string, code: string): Promise<LoginResult> {
+  // البوّابة في الوسيط تُخفي الشاشة، لكن الفعل الخادميّ يُستدعى بطلبٍ
+  // مباشر لا يمرّ بشاشة — فالحارس هنا أيضاً. والرسالة كرسالة الرمز
+  // الخاطئ: لا تقول لمن يجرّب إن الجهاز هو المشكلة.
+  if (!(await deviceTrusted(cookies().get(DEVICE_COOKIE)?.value, deviceKeyFromEnv()))) {
+    return { ok: false, reason: "not_found" };
+  }
   return loginByName(name, code, deviceKey());
 }
 
