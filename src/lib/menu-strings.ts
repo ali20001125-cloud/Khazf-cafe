@@ -27,7 +27,6 @@ export type Strings = {
   caffeine: string;
   kcalUnit: string;
   mgUnit: string;
-  approx: string;
   sections: Record<string, string>;
   units: Record<string, string>;
   /** ورقة الرأي — بلغتها كاملةً: نموذجٌ نصفه مترجم يُترك بلا إرسال. */
@@ -69,7 +68,6 @@ const AR: Strings = {
   caffeine: "كافيين",
   kcalUnit: "سعرة",
   mgUnit: "ملغ",
-  approx: "الأرقام تقريبية، محسوبة من وصفتنا نفسها — تتغيّر بتغيّر الحجم ونوع الحليب والإضافات.",
   sections: {
     espresso: "إسبريسو",
     hot: "ساخن",
@@ -117,7 +115,6 @@ const EN: Strings = {
   caffeine: "Caffeine",
   kcalUnit: "kcal",
   mgUnit: "mg",
-  approx: "Approximate, calculated from our own recipe — varies with size, milk and extras.",
   sections: {
     espresso: "Espresso",
     hot: "Hot",

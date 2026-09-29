@@ -125,13 +125,6 @@ export default function MenuSheet({
             <p className="mt-2 text-sm leading-relaxed text-muted">{item.note}</p>
           )}
 
-          {/* القيم — رقمان لا جدول */}
-          {(kcalKnown || cafKnown) && (
-            <div className="mt-5 grid grid-cols-2 gap-2.5">
-              {kcalKnown && <Stat value={detail!.kcal} unit={s.kcalUnit} label={s.energy} />}
-              {cafKnown && <Stat value={detail!.caffeine} unit={s.mgUnit} label={s.caffeine} />}
-            </div>
-          )}
 
           {/*
             المكوّنات أسماءً بلا كميّات. قال المالك: «لا تكتب كمية
@@ -192,10 +185,16 @@ export default function MenuSheet({
             </div>
           )}
 
+          {/*
+            السعرات والكافيين في الآخر وبلا سطر «الأرقام تقريبية…».
+            قال المالك: غير مهمّة — فلا تتقدّم على ما في الكوب وما يُضاف
+            إليه، ولا تحتاج حاشيةً تشرحها.
+          */}
           {(kcalKnown || cafKnown) && (
-            <p className="mt-4 text-[0.7rem] leading-relaxed text-muted/80">
-              {s.approx}
-            </p>
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
+              {kcalKnown && <Stat value={detail!.kcal} unit={s.kcalUnit} label={s.energy} />}
+              {cafKnown && <Stat value={detail!.caffeine} unit={s.mgUnit} label={s.caffeine} />}
+            </div>
           )}
         </div>
       </div>
