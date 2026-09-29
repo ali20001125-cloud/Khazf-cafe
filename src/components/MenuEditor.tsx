@@ -21,6 +21,8 @@ export type Row = {
   menuTo: number | null;
   nameEn: string;
   noteEn: string;
+  ingredients: string;
+  ingredientsEn: string;
   minPrice: number;
   maxPrice: number;
   variants: string[];
@@ -34,6 +36,8 @@ type St = {
   to: number | null;
   nameEn: string;
   noteEn: string;
+  ingredients: string;
+  ingredientsEn: string;
 };
 
 /** الحالة المحرَّرة مقابل الحالة المحفوظة — المقارنة بينهما تكشف ما تغيّر. */
@@ -45,6 +49,8 @@ const stOf = (r: Row): St => ({
   to: r.menuTo,
   nameEn: r.nameEn,
   noteEn: r.noteEn,
+  ingredients: r.ingredients,
+  ingredientsEn: r.ingredientsEn,
 });
 
 /**
@@ -87,7 +93,9 @@ export default function MenuEditor({
       a.from !== b.from ||
       a.to !== b.to ||
       a.nameEn !== b.nameEn ||
-      a.noteEn !== b.noteEn
+      a.noteEn !== b.noteEn ||
+      a.ingredients !== b.ingredients ||
+      a.ingredientsEn !== b.ingredientsEn
     );
   });
   const shown = rows.filter((r) => state[r.id].visible).length;
@@ -107,6 +115,8 @@ export default function MenuEditor({
           menu_to: state[r.id].to,
           name_en: state[r.id].nameEn,
           note_en: state[r.id].noteEn,
+          ingredients: state[r.id].ingredients,
+          ingredients_en: state[r.id].ingredientsEn,
         }))
       );
       if (!res.ok) return setError(res.error);
@@ -288,6 +298,23 @@ function Item({
             onChange={(e) => set({ ...st, note: e.target.value })}
             disabled={!st.visible}
           />
+          {/*
+            المكوّنات كما تُقال للزبون — بلا كميّات. الوصفة (ومنها
+            الخصم من المخزون) في «المشروبات والوصفات» ولا تُمسّ من هنا.
+          */}
+          <label className="mt-2 block">
+            <span className="mb-1 block text-[0.7rem] text-muted">
+              المكوّنات في المنيو — بلا كميّات، بينها «·» أو فاصلة
+            </span>
+            <input
+              className="field text-sm"
+              placeholder="إسبريسو · حليب مبخّر"
+              maxLength={200}
+              value={st.ingredients}
+              onChange={(e) => set({ ...st, ingredients: e.target.value })}
+              disabled={!st.visible}
+            />
+          </label>
 
           {/*
             الصورة تُرفع من الهاتف ولا يُلصق رابطها.
@@ -413,7 +440,7 @@ function Pick({
 
 /** الاسم والسطر بالإنجليزية — مطويّان حتى يُطلبا. */
 function English({ st, set }: { st: St; set: (v: St) => void }) {
-  const has = st.nameEn.length > 0 || st.noteEn.length > 0;
+  const has = st.nameEn.length > 0 || st.noteEn.length > 0 || st.ingredientsEn.length > 0;
   const [open, setOpen] = useState(has);
 
   return (
@@ -447,6 +474,14 @@ function English({ st, set }: { st: St; set: (v: St) => void }) {
             maxLength={160}
             value={st.noteEn}
             onChange={(e) => set({ ...st, noteEn: e.target.value })}
+          />
+          <input
+            dir="ltr"
+            className="field text-sm"
+            placeholder="Espresso · Steamed milk"
+            maxLength={200}
+            value={st.ingredientsEn}
+            onChange={(e) => set({ ...st, ingredientsEn: e.target.value })}
           />
           <p className="text-[0.7rem] text-muted">
             فارغٌ يعني: يُعرض العربي كما هو للجميع.

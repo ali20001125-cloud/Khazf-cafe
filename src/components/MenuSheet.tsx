@@ -7,6 +7,7 @@ import type { BoardItem } from "./MenuBoard";
 
 export type SheetDetail = {
   parts: { name: string; note: string | null; qty: number; unit: string }[];
+  ingredients: string[];
   kcal: number;
   caffeine: number;
   known: boolean;
@@ -131,17 +132,21 @@ export default function MenuSheet({
             </div>
           )}
 
-          {/* المكوّنات كما في الوصفة */}
-          {detail && detail.parts.length > 0 && (
+          {/*
+            المكوّنات أسماءً بلا كميّات. قال المالك: «لا تكتب كمية
+            الحليب، بل حليب مبخّر». الكميّة لغة المخزن، والزبون يسأل ماذا
+            في كوبه لا كم (`ingredients.ts`).
+          */}
+          {detail && detail.ingredients.length > 0 && (
             <div className="mt-5">
               <h3 className="mb-2 text-[0.7rem] font-semibold text-muted">{s.ingredients}</h3>
-              <ul className="divide-y divide-line/60 rounded-xl border border-line bg-sand/40">
-                {detail.parts.map((p) => (
-                  <li key={p.name} className="flex items-baseline justify-between gap-3 px-3 py-2">
-                    <span className="text-sm text-ink">{p.name}</span>
-                    <span dir="ltr" className="nums shrink-0 text-xs text-muted">
-                      {p.qty} {s.units[p.unit] ?? p.unit}
-                    </span>
+              <ul className="flex flex-wrap gap-1.5">
+                {detail.ingredients.map((name) => (
+                  <li
+                    key={name}
+                    className="rounded-full border border-line bg-sand/50 px-3 py-1 text-sm text-ink"
+                  >
+                    {name}
                   </li>
                 ))}
               </ul>

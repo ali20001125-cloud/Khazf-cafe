@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, AuthError } from "@/lib/permissions";
+import { joinIngredients } from "@/lib/ingredients";
 import { deleteImage, imageKey, putImage, sniffImage, storageConfigured } from "@/lib/storage";
 
 /**
@@ -20,6 +21,9 @@ export type MenuPatch = {
   menu_to?: number | null;
   name_en?: string;
   note_en?: string;
+  /** المكوّنات كما تُقال للزبون — تُحفظ بفاصلٍ واحد «·». */
+  ingredients?: string;
+  ingredients_en?: string;
 };
 
 /** ساعةٌ صالحة أو لا شيء. القاعدة تحرسها أيضاً — وهذا الحارس الأوّل. */
@@ -82,6 +86,16 @@ export async function updateMenuAction(
           update products
              set name_en = ${n.length > 0 ? n : null},
                  menu_note_en = ${t.length > 0 ? t : null}
+           where id = ${p.id} and business_id = ${user.bid}
+        `;
+      }
+      if (typeof p.ingredients === "string" || typeof p.ingredients_en === "string") {
+        const a = joinIngredients((p.ingredients ?? "").slice(0, 200));
+        const e = joinIngredients((p.ingredients_en ?? "").slice(0, 200));
+        await db()`
+          update products
+             set menu_ingredients = ${a.length > 0 ? a : null},
+                 menu_ingredients_en = ${e.length > 0 ? e : null}
            where id = ${p.id} and business_id = ${user.bid}
         `;
       }

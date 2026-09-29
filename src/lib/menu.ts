@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { splitIngredients } from "./ingredients";
 
 /**
  * المنيو الإلكتروني.
@@ -73,6 +74,11 @@ export async function publicMenu(
 export type MenuPart = { name: string; note: string | null; qty: number; unit: string };
 export type MenuDetail = {
   parts: MenuPart[];
+  /**
+   * ما يُعرض للزبون: أسماءٌ بلا كميّات (`ingredients.ts`). من سطر المالك
+   * إن كتبه، وإلّا من أسماء الوصفة.
+   */
+  ingredients: string[];
   kcal: number;
   caffeine: number;
   known: boolean;
@@ -119,7 +125,9 @@ export async function menuDetails(
              from product_crops pc2
              join materials m2 on m2.id = pc2.material_id
              where pc2.product_id = p.id and pc2.available
-           ), '[]'::jsonb) as kinds
+           ), '[]'::jsonb) as kinds,
+           case when ${en} then coalesce(nullif(btrim(p.menu_ingredients_en), ''), p.menu_ingredients)
+                else p.menu_ingredients end as ingredients
     from products p
     join firstcrop fc on fc.product_id = p.id
     where p.business_id = ${businessId} and p.active and p.menu_visible
@@ -127,6 +135,7 @@ export async function menuDetails(
     id: string;
     detail: { parts: MenuPart[]; kcal: number; caffeine: number; known: boolean };
     kinds: { name: string; note: string | null }[];
+    ingredients: string | null;
   }[];
 
   return Object.fromEntries(
@@ -134,6 +143,11 @@ export async function menuDetails(
       r.id,
       {
         parts: r.detail?.parts ?? [],
+        ingredients: (() => {
+          const own = splitIngredients(r.ingredients);
+          if (own.length > 0) return own;
+          return splitIngredients((r.detail?.parts ?? []).map((x) => x.name).join("·"));
+        })(),
         kcal: Number(r.detail?.kcal ?? 0),
         caffeine: Number(r.detail?.caffeine ?? 0),
         known: Boolean(r.detail?.known),
@@ -180,6 +194,9 @@ export type MenuAdminRow = MenuItem & {
   /** ما يقرؤه الأجنبي. فارغٌ يعني: اعرض العربي. */
   nameEn: string;
   noteEn: string;
+  /** المكوّنات كما تُقال للزبون — فارغٌ يعني: أسماء الوصفة. */
+  ingredients: string;
+  ingredientsEn: string;
 };
 
 /** صفوف المالك: كل المنتجات، حتى المخفيّة عن المنيو — فهو من يُظهرها. */
@@ -190,6 +207,8 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
            p.menu_from, p.menu_to,
            coalesce(p.name_en, '') as name_en,
            coalesce(p.menu_note_en, '') as note_en,
+           coalesce(p.menu_ingredients, '') as ingredients,
+           coalesce(p.menu_ingredients_en, '') as ingredients_en,
            coalesce(min(pc.price), 0)::int as min_price,
            coalesce(max(pc.price), 0)::int as max_price,
            coalesce(array_agg(m.name order by m.name)
@@ -206,6 +225,7 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     menu_visible: boolean; active: boolean; special: boolean;
     menu_from: number | null; menu_to: number | null;
     name_en: string; note_en: string;
+    ingredients: string; ingredients_en: string;
     min_price: number; max_price: number; variants: string[];
   }[];
 
@@ -224,6 +244,8 @@ export async function menuAdmin(businessId: string): Promise<MenuAdminRow[]> {
     menuTo: r.menu_to === null ? null : Number(r.menu_to),
     nameEn: r.name_en ?? "",
     noteEn: r.note_en ?? "",
+    ingredients: r.ingredients ?? "",
+    ingredientsEn: r.ingredients_en ?? "",
     minPrice: Number(r.min_price),
     maxPrice: Number(r.max_price),
     variants: r.variants ?? [],
