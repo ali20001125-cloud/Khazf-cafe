@@ -45,14 +45,25 @@ export async function getCatalog(businessId: string): Promise<CatalogProduct[]> 
   const rows = (await db()`
     select p.id, p.name, p.category, p.kind, p.paused,
            pc.material_id, m.name as crop_name, pc.price, pc.available,
-           coalesce(sl.servings_dine_in, 0)  as servings_dine_in,
-           coalesce(sl.servings_takeaway, 0) as servings_takeaway,
+           -- لا صفّ في v_servings_left = الوصفة لا تحتاج شيئاً من المخزن
+           -- (الماء: صفر غرام بلا مكوّنات) — فلا ينفد أبداً. أمّا مشروبٌ
+           -- بلا وصفةٍ فعّالة أصلاً فيبقى صفراً: ذاك عطبٌ لا وفرة.
+           case when sl.product_id is null and nr.needs_nothing then 9999
+                else coalesce(sl.servings_dine_in, 0) end  as servings_dine_in,
+           case when sl.product_id is null and nr.needs_nothing then 9999
+                else coalesce(sl.servings_takeaway, 0) end as servings_takeaway,
            sl.blocker_dine_in, sl.blocker_takeaway
     from products p
     join product_crops pc on pc.product_id = p.id
     join materials m on m.id = pc.material_id
     left join v_servings_left sl
            on sl.product_id = p.id and sl.crop_material_id = pc.material_id
+    left join lateral (
+      select r.coffee_grams = 0
+             and not exists (select 1 from recipe_items ri where ri.recipe_id = r.id) as needs_nothing
+      from recipes r where r.product_id = p.id and r.active
+      order by r.version desc limit 1
+    ) nr on true
     where p.active and p.business_id = ${businessId}
     order by p.sort, p.name, m.name
   `) as {
