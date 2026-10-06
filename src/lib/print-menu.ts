@@ -23,6 +23,8 @@ export type PrintItem = {
   category: string;
   minPrice: number;
   maxPrice: number;
+  /** «مميّز» في المنيو — شريطٌ داكن في الورقة الكلاسيكية. */
+  special: boolean;
 };
 
 export type PrintAddon = { title: string; options: { name: string; price: number }[] };
@@ -30,6 +32,7 @@ export type PrintAddon = { title: string; options: { name: string; price: number
 export async function printMenu(businessId: string): Promise<PrintItem[]> {
   const rows = (await db()`
     select p.id, p.name, nullif(btrim(p.name_en), '') as name_en, p.category,
+           p.is_daily_special as special,
            min(pc.price)::int as min_price, max(pc.price)::int as max_price
     from products p
     join product_crops pc on pc.product_id = p.id and pc.available
@@ -39,7 +42,7 @@ export async function printMenu(businessId: string): Promise<PrintItem[]> {
     order by p.sort, p.name
   `) as {
     id: string; name: string; name_en: string | null; category: string;
-    min_price: number; max_price: number;
+    special: boolean; min_price: number; max_price: number;
   }[];
   return rows.map((r) => ({
     id: r.id,
@@ -48,6 +51,7 @@ export async function printMenu(businessId: string): Promise<PrintItem[]> {
     category: r.category,
     minPrice: Number(r.min_price),
     maxPrice: Number(r.max_price),
+    special: !!r.special,
   }));
 }
 
