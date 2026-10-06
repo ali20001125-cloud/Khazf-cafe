@@ -241,6 +241,10 @@ const CSS = `
 .pm-contact { margin-inline-start: auto; text-align: left; font-size: 7.5pt; opacity: .55; line-height: 1.7; }
 
 @media print {
+  /* قاعدة فاتورة الكاشير في globals.css تُخفي كل شيء إلا #receipt
+     وتجعل الصفحة ٨٠مم — فطبعت هذه الورقة بيضاء. تُلغى هنا وحدها. */
+  @page { size: A4; margin: 0; }
+  .pm-sheet, .pm-sheet * { visibility: visible !important; }
   html, body { background: #F4F1EA !important; }
   .pm-page { background: none; padding: 0; min-height: 0; }
   .pm-bar, .pm-warn { display: none !important; }
