@@ -56,7 +56,7 @@ const PUBLIC_HOST = (process.env.PUBLIC_HOST ?? "").trim().toLowerCase();
 const MENU_ONLY = (process.env.MENU_ONLY ?? "").trim() === "1";
 
 /** ما يخصّ العمل — يُحجب عن نطاق الزبون. */
-const BUSINESS = ["/pos", "/manage", "/login", "/locked", "/device"];
+const BUSINESS = ["/pos", "/manage", "/login", "/locked", "/device", "/print"];
 
 /**
  * مفتاح الأجهزة الموثوقة (`lib/device-gate.ts`). فارغٌ = البوّابة مفتوحة.

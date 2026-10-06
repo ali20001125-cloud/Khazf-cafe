@@ -165,6 +165,15 @@ export default function MenuEditor({
             >
               افتح المنيو كما يراه الزبون ←
             </a>
+            {/* الورقي تصميمٌ آخر، لا لقطةٌ من هذه الصفحة (`app/print/menu`) */}
+            <a
+              href="/print/menu"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-ghost mt-2 inline-block px-4 py-2 text-sm"
+            >
+              منيو ورقي للطباعة ←
+            </a>
           </div>
         </div>
       </section>
