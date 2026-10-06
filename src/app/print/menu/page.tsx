@@ -93,7 +93,8 @@ export default async function PrintMenuPage() {
       {/* شريط الشاشة — لا يُطبع */}
       <div className="pm-bar">
         <Link href="/manage/menu" className="pm-back">→ المنيو</Link>
-        <Link href="/print/menu/classic" className="pm-back">التصميم الكلاسيكي ←</Link>
+        <Link href="/print/menu/classic" className="pm-back">الكلاسيكي ←</Link>
+        <Link href="/print/menu/ceramic" className="pm-back">خزف (بالنقوش) ←</Link>
         <div className="pm-tip">
           اطبع على A4 · <b>بلا هوامش</b> · فعّل <b>رسومات الخلفية</b> — ثمّ «حفظ PDF» وخذه للمطبعة.
           الأسعار من النظام الآن: غيّر سعراً واطبع من جديد.
